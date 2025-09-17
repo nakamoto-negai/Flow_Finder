@@ -1,0 +1,9 @@
+# .dockerignore
+# ビルドキャッシュや不要なファイルを除外
+*.exe
+*.out
+*.test
+vendor/
+.git
+.gitignore
+Dockerfile
