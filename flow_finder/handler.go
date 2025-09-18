@@ -1,36 +1,90 @@
 package main
 
 import (
-    "github.com/gin-gonic/gin"
-    "gorm.io/gorm"
+	"context"
+	"net/http"
+	"time"
+
+	"github.com/gin-gonic/gin"
+	"github.com/redis/go-redis/v9"
+	"gorm.io/gorm"
 )
 
-// ユーザーAPIハンドラ群
-func RegisterUserRoutes(r *gin.Engine, db *gorm.DB) {
-    // ユーザー追加
-    r.POST("/users", func(c *gin.Context) {
-        var req struct {
-            Name string `json:"name"`
-        }
-        if err := c.ShouldBindJSON(&req); err != nil {
-            c.JSON(400, gin.H{"error": "invalid request"})
-            return
-        }
-        user := User{Name: req.Name}
-        if err := db.Create(&user).Error; err != nil {
-            c.JSON(500, gin.H{"error": "DB insert error"})
-            return
-        }
-        c.JSON(200, gin.H{"result": "ok"})
-    })
+// 認証ミドルウェア: AuthorizationヘッダーのトークンをRedisで検証
+func AuthMiddleware(redisClient *redis.Client) gin.HandlerFunc {
+	return func(c *gin.Context) {
+		userID := c.GetHeader("X-User-Id")
+		token := c.GetHeader("Authorization")
+		if userID == "" || token == "" {
+			c.AbortWithStatusJSON(http.StatusUnauthorized, gin.H{"error": "missing auth headers"})
+			return
+		}
+		key := "auth_token:" + userID
+		val, err := redisClient.Get(context.Background(), key).Result()
+		if err == redis.Nil || val != token {
+			c.AbortWithStatusJSON(http.StatusUnauthorized, gin.H{"error": "invalid or expired token"})
+			return
+		} else if err != nil {
+			c.AbortWithStatusJSON(http.StatusInternalServerError, gin.H{"error": "redis error"})
+			return
+		}
+		c.Next()
+	}
+}
 
-    // ユーザー一覧取得
-    r.GET("/users", func(c *gin.Context) {
-        var users []User
-        if err := db.Find(&users).Error; err != nil {
-            c.JSON(500, gin.H{"error": "DB select error"})
-            return
-        }
-        c.JSON(200, users)
-    })
+// ユーザーAPIハンドラ群
+func RegisterUserRoutes(r *gin.Engine, db *gorm.DB, redisClient *redis.Client) {
+	// ユーザー追加
+	r.POST("/users", func(c *gin.Context) {
+		var req struct {
+			Name string `json:"name"`
+		}
+		if err := c.ShouldBindJSON(&req); err != nil {
+			c.JSON(400, gin.H{"error": "invalid request"})
+			return
+		}
+		user := User{Name: req.Name}
+		if err := db.Create(&user).Error; err != nil {
+			c.JSON(500, gin.H{"error": "DB insert error"})
+			return
+		}
+		c.JSON(200, gin.H{"result": "ok"})
+	})
+
+	// ログインAPI（例: ユーザー名のみで認証）
+	r.POST("/login", func(c *gin.Context) {
+		var req struct {
+			Name string `json:"name"`
+		}
+		if err := c.ShouldBindJSON(&req); err != nil {
+			c.JSON(http.StatusBadRequest, gin.H{"error": "invalid request"})
+			return
+		}
+		var user User
+		if err := db.Where("name = ?", req.Name).First(&user).Error; err != nil {
+			c.JSON(http.StatusUnauthorized, gin.H{"error": "user not found"})
+			return
+		}
+		token, err := GenerateToken(32)
+		if err != nil {
+			c.JSON(http.StatusInternalServerError, gin.H{"error": "token generation failed"})
+			return
+		}
+		// トークンをRedisに保存（有効期限1時間）
+		if err := SaveTokenToRedis(context.Background(), redisClient, user.ID, token, time.Hour); err != nil {
+			c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to save token"})
+			return
+		}
+		c.JSON(http.StatusOK, gin.H{"token": token, "user_id": user.ID})
+	})
+
+	// ユーザー一覧取得
+	r.GET("/users", func(c *gin.Context) {
+		var users []User
+		if err := db.Find(&users).Error; err != nil {
+			c.JSON(500, gin.H{"error": "DB select error"})
+			return
+		}
+		c.JSON(200, users)
+	})
 }

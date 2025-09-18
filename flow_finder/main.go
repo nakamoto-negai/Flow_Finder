@@ -1,9 +1,14 @@
 package main
 
 import (
+	"context"
+	"crypto/rand"
+	"encoding/hex"
 	"fmt"
 	"os"
 	"time"
+
+	"github.com/redis/go-redis/v9"
 
 	"github.com/gin-contrib/cors"
 	"github.com/gin-gonic/gin"
@@ -40,6 +45,18 @@ func main() {
 		panic(fmt.Sprintf("AutoMigrate失敗: %v", err))
 	}
 
+	// Redis接続情報
+	redisAddr := os.Getenv("REDIS_ADDR")
+	if redisAddr == "" {
+		redisAddr = "redis:6379"
+	}
+	redisClient := redis.NewClient(&redis.Options{
+		Addr: redisAddr,
+	})
+	if err := redisClient.Ping(context.Background()).Err(); err != nil {
+		panic(fmt.Sprintf("Redis接続失敗: %v", err))
+	}
+
 	r := gin.Default()
 	// CORSミドルウェア追加
 	r.Use(cors.New(cors.Config{
@@ -55,7 +72,22 @@ func main() {
 	})
 
 	// ユーザーAPIルーティングを別ファイルに分離
-	RegisterUserRoutes(r, db)
+	RegisterUserRoutes(r, db, redisClient)
 
 	r.Run() // デフォルトでlocalhost:8080
+}
+
+// ランダムなトークンを生成
+func GenerateToken(n int) (string, error) {
+	b := make([]byte, n)
+	_, err := rand.Read(b)
+	if err != nil {
+		return "", err
+	}
+	return hex.EncodeToString(b), nil
+}
+
+// Redisにトークンを保存
+func SaveTokenToRedis(ctx context.Context, client *redis.Client, userID uint, token string, ttl time.Duration) error {
+	return client.Set(ctx, fmt.Sprintf("auth_token:%d", userID), token, ttl).Err()
 }
