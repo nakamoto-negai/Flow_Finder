@@ -1,16 +1,10 @@
 
-import { useEffect, useState } from 'react';
+import { useState } from 'react';
+import MapView from './MapView';
 import './App.css';
 
-type User = {
-  ID: number;
-  Name: string;
-};
 
 function App() {
-  const [users, setUsers] = useState<User[]>([]);
-  const [loading, setLoading] = useState(false);
-  const [error, setError] = useState<string | null>(null);
   const [name, setName] = useState('');
   const [token, setToken] = useState<string | null>(localStorage.getItem('token'));
   const [userId, setUserId] = useState<string | null>(localStorage.getItem('user_id'));
@@ -44,32 +38,12 @@ function App() {
     setUserId(null);
     localStorage.removeItem('token');
     localStorage.removeItem('user_id');
-    setUsers([]);
   };
 
-  // 認証付きユーザー一覧取得
-  useEffect(() => {
-    if (!token || !userId) return;
-    setLoading(true);
-    setError(null);
-    fetch('http://localhost:8080/users', {
-      headers: {
-        'Authorization': token,
-        'X-User-Id': userId,
-      },
-    })
-      .then((res) => {
-        if (!res.ok) throw new Error('API error');
-        return res.json();
-      })
-      .then((data) => setUsers(data))
-      .catch((err) => setError(err.message))
-      .finally(() => setLoading(false));
-  }, [token, userId]);
 
   return (
     <div className="App">
-      <h1>ログイン</h1>
+      {!token && <h1>ログイン</h1>}
       {!token ? (
         <form onSubmit={handleLogin} style={{ marginBottom: 24 }}>
           <input
@@ -89,18 +63,7 @@ function App() {
         </div>
       )}
 
-      {token && (
-        <>
-          <h2>ユーザー一覧</h2>
-          {loading && <p>読み込み中...</p>}
-          {error && <p style={{ color: 'red' }}>エラー: {error}</p>}
-          <ul>
-            {users.map((user) => (
-              <li key={user.ID}>{user.Name}</li>
-            ))}
-          </ul>
-        </>
-      )}
+      {token && <MapView />}
     </div>
   );
 }

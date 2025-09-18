@@ -66,10 +66,7 @@ func main() {
 		AllowCredentials: true,
 	}))
 
-	// ルート: DB接続確認
-	r.GET("/", func(c *gin.Context) {
-		c.String(200, "Hello, World! (DB接続OK)")
-	})
+	// 静的ファイル配信はNginxに任せる（本番環境）
 
 	// ユーザーAPIルーティングを別ファイルに分離
 	RegisterUserRoutes(r, db, redisClient)

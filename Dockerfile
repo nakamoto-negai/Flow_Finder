@@ -11,5 +11,11 @@ RUN go build -o app
 FROM alpine:latest
 WORKDIR /root/
 COPY --from=builder /app/flow_finder/app .
+# frontendのビルド成果物をコピー
+COPY frontend/dist ./dist
+# wait-for-postgres.shをコピー
+COPY wait-for-postgres.sh ./wait-for-postgres.sh
+RUN chmod +x ./wait-for-postgres.sh \
+	&& apk add --no-cache postgresql-client
 EXPOSE 8080
-CMD ["./app"]
+CMD ["./wait-for-postgres.sh", "db", "5432", "postgres", "postgres", "postgres", "./app"]
