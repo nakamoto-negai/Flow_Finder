@@ -1,6 +1,7 @@
 
 import { useState } from 'react';
 import MapView from './MapView';
+import Admin from './Admin';
 import './App.css';
 
 
@@ -37,6 +38,11 @@ function App() {
   localStorage.removeItem('user_id');
   };
 
+
+  // 簡易ルーティング: /adminなら管理画面、それ以外は通常画面
+  if (window.location.pathname === "/admin") {
+    return <Admin />;
+  }
 
   return (
     <div className="App">
