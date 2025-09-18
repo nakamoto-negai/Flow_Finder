@@ -7,7 +7,6 @@ import './App.css';
 function App() {
   const [name, setName] = useState('');
   const [token, setToken] = useState<string | null>(localStorage.getItem('token'));
-  const [userId, setUserId] = useState<string | null>(localStorage.getItem('user_id'));
   const [loginError, setLoginError] = useState<string | null>(null);
 
   // ログイン処理
@@ -21,12 +20,11 @@ function App() {
         body: JSON.stringify({ name }),
       });
       if (!res.ok) throw new Error('ログイン失敗');
-      const data = await res.json();
-      setToken(data.token);
-      setUserId(String(data.user_id));
-      localStorage.setItem('token', data.token);
-      localStorage.setItem('user_id', String(data.user_id));
-      setName('');
+  const data = await res.json();
+  setToken(data.token);
+  localStorage.setItem('token', data.token);
+  localStorage.setItem('user_id', String(data.user_id));
+  setName('');
     } catch (err: any) {
       setLoginError(err.message);
     }
@@ -34,10 +32,9 @@ function App() {
 
   // ログアウト処理
   const handleLogout = () => {
-    setToken(null);
-    setUserId(null);
-    localStorage.removeItem('token');
-    localStorage.removeItem('user_id');
+  setToken(null);
+  localStorage.removeItem('token');
+  localStorage.removeItem('user_id');
   };
 
 
@@ -58,8 +55,8 @@ function App() {
         </form>
       ) : (
         <div style={{ marginBottom: 24 }}>
-          <span>ログイン中: ユーザーID {userId}</span>
-          <button onClick={handleLogout} style={{ marginLeft: 16 }}>ログアウト</button>
+          <h1>地図から現在地を指定してください</h1>
+          <button onClick={handleLogout}>ログアウト</button>
         </div>
       )}
 

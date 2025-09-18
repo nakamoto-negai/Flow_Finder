@@ -40,8 +40,8 @@ func main() {
 		panic(fmt.Sprintf("GORM DB接続失敗: %v", err))
 	}
 
-	// GORMでテーブル自動作成
-	if err := db.AutoMigrate(&User{}); err != nil {
+	// GORMでテーブル自動作成（User, Node）
+	if err := db.AutoMigrate(&User{}, &Node{}); err != nil {
 		panic(fmt.Sprintf("AutoMigrate失敗: %v", err))
 	}
 
