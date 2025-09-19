@@ -122,4 +122,37 @@ func RegisterUserRoutes(r *gin.Engine, db *gorm.DB, redisClient *redis.Client) {
 		}
 		c.JSON(200, users)
 	})
+
+	// Link追加
+	r.POST("/links", func(c *gin.Context) {
+		var req struct {
+			FromNodeID uint    `json:"from_node_id"`
+			ToNodeID   uint    `json:"to_node_id"`
+			Distance   float64 `json:"distance"`
+		}
+		if err := c.ShouldBindJSON(&req); err != nil {
+			c.JSON(400, gin.H{"error": "invalid request"})
+			return
+		}
+		link := Link{
+			FromNodeID: req.FromNodeID,
+			ToNodeID:   req.ToNodeID,
+			Distance:   req.Distance,
+		}
+		if err := db.Create(&link).Error; err != nil {
+			c.JSON(500, gin.H{"error": "DB insert error"})
+			return
+		}
+		c.JSON(200, gin.H{"result": "ok", "id": link.ID})
+	})
+
+	// Link一覧取得
+	r.GET("/links", func(c *gin.Context) {
+		var links []Link
+		if err := db.Find(&links).Error; err != nil {
+			c.JSON(500, gin.H{"error": "DB select error"})
+			return
+		}
+		c.JSON(200, links)
+	})
 }
