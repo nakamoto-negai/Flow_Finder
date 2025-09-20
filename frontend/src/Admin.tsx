@@ -1,8 +1,53 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useRef } from "react";
+// ...existing code...
 import MapView from "./MapView";
 import "./App.css";
 
 const Admin: React.FC = () => {
+  // ドラッグ＆ドロップ用
+  const dropRef = useRef<HTMLDivElement>(null);
+  const [dragActive, setDragActive] = useState(false);
+
+  // 画像アップロード
+  const handleImageDrop = async (e: React.DragEvent<HTMLDivElement>) => {
+    e.preventDefault();
+    setDragActive(false);
+    const files = e.dataTransfer.files;
+    if (!files || files.length === 0) return;
+    const file = files[0];
+    const formData = new FormData();
+    formData.append("file", file);
+    try {
+      const res = await fetch("http://localhost:8080/upload", {
+        method: "POST",
+        body: formData,
+      });
+      if (!res.ok) throw new Error("アップロード失敗");
+      const data = await res.json();
+      if (data.url) {
+        setImageUrlInput(data.url);
+        setImageMsg("画像をアップロードしました");
+      } else {
+        setImageMsg("アップロード失敗");
+      }
+    } catch (err: any) {
+      setImageMsg(err.message || "アップロード失敗");
+    }
+  };
+  // 画像用 state
+  const [images, setImages] = useState<{ id: number; link_id: number; order: number; url: string }[]>([]);
+  const [imageLinkId, setImageLinkId] = useState(0);
+  const [imageOrder, setImageOrder] = useState(1);
+  const [imageUrlInput, setImageUrlInput] = useState("");
+  const [imageMsg, setImageMsg] = useState<string | null>(null);
+
+  // 画像一覧取得
+  const fetchImages = () => {
+    fetch("http://localhost:8080/images")
+      .then(res => res.json())
+      .then(data => setImages(data))
+      .catch(() => setImages([]));
+  };
   const [name, setName] = useState("");
   const [latitude, setLatitude] = useState("");
   const [longitude, setLongitude] = useState("");
@@ -35,6 +80,7 @@ const Admin: React.FC = () => {
   useEffect(() => {
     fetchNodes();
     fetchLinks();
+    fetchImages();
   }, []);
 
   // 地図リンク作成モード
@@ -67,7 +113,8 @@ const Admin: React.FC = () => {
 
   return (
     <div style={{ maxWidth: 500, margin: "40px auto" }}>
-  <div className="card">
+      {/* --- ノード登録フォーム --- */}
+      <div className="card">
         <h2 className="login-title">管理者ノード登録</h2>
         <form onSubmit={handleSubmit} className="login-form" style={{ display: "flex", flexDirection: "column", alignItems: "center" }}>
           <input type="text" value={name} onChange={e => setName(e.target.value)} placeholder="名前" required />
@@ -84,7 +131,7 @@ const Admin: React.FC = () => {
           <input type="text" value={imageUrl} onChange={e => setImageUrl(e.target.value)} placeholder="画像URL (任意)" />
           <button type="submit">ノード登録</button>
         </form>
-        {message && <p style={{ color: message.includes("登録") ? "#16a34a" : "#dc2626", marginTop: 16 }}>{message}</p>}
+        {message && <p style={{ color: message && message.includes("登録") ? "#16a34a" : "#dc2626", marginTop: 16 }}>{message}</p>}
       </div>
 
       {/* --- Link追加フォーム --- */}
@@ -137,8 +184,9 @@ const Admin: React.FC = () => {
           <input type="number" value={distance} onChange={e => setDistance(Number(e.target.value))} placeholder="距離 (m)" required min={1} style={{ marginBottom: 12 }} />
           <button type="submit">リンク登録</button>
         </form>
-        {linkMsg && <p style={{ color: linkMsg.includes("登録") ? "#16a34a" : "#dc2626", marginTop: 16 }}>{linkMsg}</p>}
+        {linkMsg && <p style={{ color: linkMsg && linkMsg.includes("登録") ? "#16a34a" : "#dc2626", marginTop: 16 }}>{linkMsg}</p>}
       </div>
+
       {/* --- 地図リンク作成モーダル --- */}
       {showMap && (
         <div style={{
@@ -152,6 +200,7 @@ const Admin: React.FC = () => {
           </div>
         </div>
       )}
+
       {/* --- ノード一覧 --- */}
       <div className="card" style={{ marginTop: 32 }}>
         <h3 style={{ marginBottom: 12 }}>ノード一覧</h3>
@@ -192,8 +241,102 @@ const Admin: React.FC = () => {
           </tbody>
         </table>
       </div>
+
+      {/* --- Image追加フォーム --- */}
+      <div className="card">
+        <h2 className="login-title" style={{ fontSize: "1.1rem" }}>画像登録</h2>
+        <div
+          ref={dropRef}
+          onDragOver={e => { e.preventDefault(); setDragActive(true); }}
+          onDragLeave={e => { e.preventDefault(); setDragActive(false); }}
+          onDrop={handleImageDrop}
+          style={{
+            border: dragActive ? "2px solid #2563eb" : "2px dashed #94a3b8",
+            background: dragActive ? "#e0e7ff" : "#f8fafc",
+            borderRadius: 8,
+            padding: 20,
+            marginBottom: 16,
+            textAlign: "center",
+            color: "#334155",
+            cursor: "pointer"
+          }}
+        >
+          ここに画像ファイルをドラッグ＆ドロップ
+        </div>
+        <form
+          onSubmit={async e => {
+            e.preventDefault();
+            setImageMsg(null);
+            if (!imageLinkId || !imageUrlInput) {
+              setImageMsg("リンクと画像URLを指定してください");
+              return;
+            }
+            try {
+              const res = await fetch("http://localhost:8080/images", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({
+                  link_id: imageLinkId,
+                  order: imageOrder,
+                  url: imageUrlInput,
+                }),
+              });
+              if (!res.ok) throw new Error("登録失敗");
+              setImageMsg("画像を登録しました");
+              setImageLinkId(0); setImageOrder(1); setImageUrlInput("");
+              fetchImages();
+            } catch (err: any) {
+              setImageMsg(err.message);
+            }
+          }}
+          className="login-form"
+          style={{ display: "flex", flexDirection: "column", alignItems: "center" }}
+        >
+          <select value={imageLinkId} onChange={e => setImageLinkId(Number(e.target.value))} required style={{ width: "70%", marginBottom: 12 }}>
+            <option value={0}>リンクを選択</option>
+            {links.map(l => (
+              <option key={l.id} value={l.id}>
+                {nodes.find(n => n.id === l.from_node_id)?.name ?? l.from_node_id} → {nodes.find(n => n.id === l.to_node_id)?.name ?? l.to_node_id} (ID:{l.id})
+              </option>
+            ))}
+          </select>
+          <input type="number" value={imageOrder} onChange={e => setImageOrder(Number(e.target.value))} placeholder="順番" min={1} required style={{ marginBottom: 12 }} />
+          <input type="text" value={imageUrlInput} onChange={e => setImageUrlInput(e.target.value)} placeholder="画像URL" required style={{ marginBottom: 12 }} />
+          <button type="submit">画像登録</button>
+        </form>
+        {imageMsg && <p style={{ color: imageMsg && imageMsg.includes("登録") ? "#16a34a" : "#dc2626", marginTop: 16 }}>{imageMsg}</p>}
+      </div>
+
+      {/* --- 画像一覧 --- */}
+      <div className="card" style={{ marginTop: 24 }}>
+        <h3 style={{ marginBottom: 12 }}>画像一覧</h3>
+        <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 14 }}>
+          <thead>
+            <tr style={{ background: "#f1f5f9" }}>
+              <th>ID</th><th>リンク</th><th>順番</th><th>画像URL</th>
+            </tr>
+          </thead>
+          <tbody>
+            {images.map(img => (
+              <tr key={img.id}>
+                <td>{img.id}</td>
+                <td>{(() => {
+                  const l = links.find(lk => lk.id === img.link_id);
+                  if (!l) return img.link_id;
+                  const from = nodes.find(n => n.id === l.from_node_id)?.name ?? l.from_node_id;
+                  const to = nodes.find(n => n.id === l.to_node_id)?.name ?? l.to_node_id;
+                  return `${from} → ${to} (ID:${l.id})`;
+                })()}</td>
+                <td>{img.order}</td>
+                <td><a href={img.url} target="_blank" rel="noopener noreferrer">{img.url}</a></td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
     </div>
   );
-};
+}
 
 export default Admin;
+
