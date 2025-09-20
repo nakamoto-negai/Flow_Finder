@@ -40,8 +40,8 @@ func main() {
 		panic(fmt.Sprintf("GORM DB接続失敗: %v", err))
 	}
 
-	// GORMでテーブル自動作成（User, Node, Link）
-	if err := db.AutoMigrate(&User{}, &Node{}, &Link{}); err != nil {
+	// GORMでテーブル自動作成（User, Node, Link, Image）
+	if err := db.AutoMigrate(&User{}, &Node{}, &Link{}, &Image{}); err != nil {
 		panic(fmt.Sprintf("AutoMigrate失敗: %v", err))
 	}
 
@@ -66,7 +66,11 @@ func main() {
 		AllowCredentials: true,
 	}))
 
-	// 静的ファイル配信はNginxに任せる（本番環境）
+	// アップロード画像の静的配信 (開発用)
+	r.Static("/uploads", "uploads")
+
+	// /upload API登録
+	RegisterUploadRoute(r)
 
 	// ユーザーAPIルーティングを別ファイルに分離
 	RegisterUserRoutes(r, db, redisClient)

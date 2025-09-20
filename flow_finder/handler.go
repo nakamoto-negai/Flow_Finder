@@ -34,6 +34,38 @@ func AuthMiddleware(redisClient *redis.Client) gin.HandlerFunc {
 
 // ユーザーAPIハンドラ群
 func RegisterUserRoutes(r *gin.Engine, db *gorm.DB, redisClient *redis.Client) {
+	// Image追加
+	r.POST("/images", func(c *gin.Context) {
+		var req struct {
+			LinkID uint   `json:"link_id"`
+			Order  int    `json:"order"`
+			URL    string `json:"url"`
+		}
+		if err := c.ShouldBindJSON(&req); err != nil {
+			c.JSON(400, gin.H{"error": "invalid request"})
+			return
+		}
+		img := Image{
+			LinkID: req.LinkID,
+			Order:  req.Order,
+			URL:    req.URL,
+		}
+		if err := db.Create(&img).Error; err != nil {
+			c.JSON(500, gin.H{"error": "DB insert error"})
+			return
+		}
+		c.JSON(200, gin.H{"result": "ok", "id": img.ID})
+	})
+
+	// Image一覧取得
+	r.GET("/images", func(c *gin.Context) {
+		var images []Image
+		if err := db.Find(&images).Error; err != nil {
+			c.JSON(500, gin.H{"error": "DB select error"})
+			return
+		}
+		c.JSON(200, images)
+	})
 	// Node追加
 	r.POST("/nodes", func(c *gin.Context) {
 		var req struct {
