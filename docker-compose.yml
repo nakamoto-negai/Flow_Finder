@@ -12,6 +12,8 @@ services:
       - DB_USER=postgres
       - DB_PASSWORD=postgres
       - DB_NAME=postgres
+    volumes:
+      - ./flow_finder/uploads:/app/uploads
   frontend:
     build:
       context: ./frontend

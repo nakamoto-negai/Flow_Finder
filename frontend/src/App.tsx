@@ -1,5 +1,5 @@
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import MapView from './MapView';
 import Admin from './Admin';
 import './App.css';
@@ -9,6 +9,17 @@ function App() {
   const [name, setName] = useState('');
   const [token, setToken] = useState<string | null>(localStorage.getItem('token'));
   const [loginError, setLoginError] = useState<string | null>(null);
+  // 現在地ノード選択用
+  const [nodes, setNodes] = useState<{ id: number; name: string }[]>([]);
+  const [currentNodeId, setCurrentNodeId] = useState<number | null>(null);
+
+  useEffect(() => {
+    if (!token) return;
+    fetch("http://localhost:8080/nodes")
+      .then(res => res.json())
+      .then(data => setNodes(data))
+      .catch(() => setNodes([]));
+  }, [token]);
 
   // ログイン処理
   const handleLogin = async (e: React.FormEvent) => {
@@ -61,8 +72,16 @@ function App() {
         </form>
       ) : (
         <div style={{ marginBottom: 24 }}>
-          <h1>地図から現在地を指定してください</h1>
+          <h1>現在地を選択してください</h1>
           <button onClick={handleLogout}>ログアウト</button>
+          <div style={{ marginTop: 16 }}>
+            <select value={currentNodeId ?? ''} onChange={e => setCurrentNodeId(Number(e.target.value))} style={{ fontSize: 16, padding: 4 }}>
+              <option value="">ノードを選択</option>
+              {nodes.map(n => (
+                <option key={n.id} value={n.id}>{n.name} (ID:{n.id})</option>
+              ))}
+            </select>
+          </div>
         </div>
       )}
 

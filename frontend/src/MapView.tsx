@@ -87,7 +87,7 @@ const MapView: React.FC<{ linkMode?: boolean, onLinkCreated?: () => void }> = ({
             <Popup>
               <b>{node.name}</b><br />
               混雑度: {node.congestion}<br />
-              <button onClick={() => alert(`ノードID: ${node.id}\n名前: ${node.name}`)}>
+              <button onClick={() => window.location.href = `/links?node=${node.id}`}>
                 現在地
               </button>
             </Popup>
