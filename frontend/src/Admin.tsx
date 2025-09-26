@@ -1,12 +1,18 @@
 import React, { useState, useEffect, useRef } from "react";
 // ...existing code...
 import MapView from "./MapView";
+import { logger } from "./logger";
 import "./App.css";
 
 const Admin: React.FC = () => {
   // ドラッグ＆ドロップ用
   const dropRef = useRef<HTMLDivElement>(null);
   const [dragActive, setDragActive] = useState(false);
+
+  // ログ表示用
+  const [logs, setLogs] = useState<any[]>([]);
+  const [logStats, setLogStats] = useState<any>({});
+  const [showLogView, setShowLogView] = useState(false);
 
   // 画像アップロード
   const handleImageDrop = async (e: React.DragEvent<HTMLDivElement>) => {
@@ -81,7 +87,27 @@ const Admin: React.FC = () => {
     fetchNodes();
     fetchLinks();
     fetchImages();
+    logger.logPageView('/admin');
   }, []);
+  
+  // ログ取得関数
+  const fetchLogs = async () => {
+    try {
+      const [logsRes, statsRes] = await Promise.all([
+        fetch('http://localhost:8080/api/logs?limit=50'),
+        fetch('http://localhost:8080/api/logs/stats')
+      ]);
+      
+      if (logsRes.ok && statsRes.ok) {
+        const logsData = await logsRes.json();
+        const statsData = await statsRes.json();
+        setLogs(logsData.logs || []);
+        setLogStats(statsData);
+      }
+    } catch (error) {
+      console.error('ログ取得エラー:', error);
+    }
+  };
 
   // 地図リンク作成モード
   const [showMap, setShowMap] = useState(false);
@@ -333,6 +359,100 @@ const Admin: React.FC = () => {
             ))}
           </tbody>
         </table>
+      </div>
+
+      {/* --- ユーザーログ表示 --- */}
+      <div className="card" style={{ marginTop: 24 }}>
+        <h3 style={{ marginBottom: 12 }}>
+          ユーザーログ管理
+          <button 
+            onClick={() => {
+              setShowLogView(!showLogView);
+              if (!showLogView) fetchLogs();
+            }}
+            style={{ marginLeft: 12, fontSize: 12, padding: '4px 8px' }}
+          >
+            {showLogView ? 'ログを隠す' : 'ログを表示'}
+          </button>
+        </h3>
+        
+        {showLogView && (
+          <>
+            {/* ログ統計 */}
+            <div style={{ marginBottom: 16, padding: 12, background: "#f8f9fa", borderRadius: 8 }}>
+              <h4 style={{ margin: '0 0 8px 0' }}>統計情報</h4>
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(120px, 1fr))', gap: 8, fontSize: 12 }}>
+                <div><strong>総ログ数:</strong> {logStats.total_logs || 0}</div>
+                <div><strong>ユニークユーザー:</strong> {logStats.unique_users || 0}</div>
+                <div><strong>セッション数:</strong> {logStats.unique_sessions || 0}</div>
+                <div><strong>ページビュー:</strong> {logStats.page_views || 0}</div>
+                <div><strong>アクション数:</strong> {logStats.actions || 0}</div>
+                <div><strong>エラー数:</strong> {logStats.errors || 0}</div>
+              </div>
+            </div>
+            
+            {/* ログテーブル */}
+            <div style={{ maxHeight: 400, overflowY: 'auto', border: '1px solid #e2e8f0', borderRadius: 4 }}>
+              <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 12 }}>
+                <thead style={{ position: 'sticky', top: 0, background: '#f1f5f9' }}>
+                  <tr>
+                    <th style={{ padding: 4, border: '1px solid #e2e8f0' }}>時間</th>
+                    <th style={{ padding: 4, border: '1px solid #e2e8f0' }}>ユーザー</th>
+                    <th style={{ padding: 4, border: '1px solid #e2e8f0' }}>種類</th>
+                    <th style={{ padding: 4, border: '1px solid #e2e8f0' }}>カテゴリ</th>
+                    <th style={{ padding: 4, border: '1px solid #e2e8f0' }}>アクション</th>
+                    <th style={{ padding: 4, border: '1px solid #e2e8f0' }}>パス</th>
+                    <th style={{ padding: 4, border: '1px solid #e2e8f0' }}>データ</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {logs.map(log => (
+                    <tr key={log.id} style={{ borderBottom: '1px solid #e2e8f0' }}>
+                      <td style={{ padding: 4, border: '1px solid #e2e8f0' }}>
+                        {new Date(log.created_at).toLocaleString('ja-JP')}
+                      </td>
+                      <td style={{ padding: 4, border: '1px solid #e2e8f0' }}>
+                        {log.user_id || 'ゲスト'}
+                      </td>
+                      <td style={{ padding: 4, border: '1px solid #e2e8f0' }}>
+                        <span style={{
+                          padding: '2px 4px',
+                          borderRadius: 2,
+                          fontSize: 10,
+                          color: 'white',
+                          background: log.log_type === 'page_view' ? '#22c55e' :
+                                     log.log_type === 'action' ? '#3b82f6' :
+                                     log.log_type === 'api_call' ? '#f59e0b' :
+                                     log.log_type === 'error' ? '#ef4444' : '#6b7280'
+                        }}>
+                          {log.log_type}
+                        </span>
+                      </td>
+                      <td style={{ padding: 4, border: '1px solid #e2e8f0' }}>{log.category}</td>
+                      <td style={{ padding: 4, border: '1px solid #e2e8f0' }}>{log.action}</td>
+                      <td style={{ padding: 4, border: '1px solid #e2e8f0' }}>{log.path}</td>
+                      <td style={{ padding: 4, border: '1px solid #e2e8f0', maxWidth: 200, overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                        {log.data && (
+                          typeof log.data === 'string' && log.data.startsWith('{') ? 
+                            (() => {
+                              try {
+                                return JSON.stringify(JSON.parse(log.data), null, 1);
+                              } catch {
+                                return log.data;
+                              }
+                            })() : 
+                            log.data
+                        )}
+                        {log.error && <span style={{ color: '#ef4444' }}>{log.error}</span>}
+                        {log.duration && <span style={{ color: '#6b7280' }}>({log.duration}ms)</span>}
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </>
+        )}
       </div>
     </div>
   );

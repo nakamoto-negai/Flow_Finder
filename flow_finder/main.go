@@ -40,8 +40,8 @@ func main() {
 		panic(fmt.Sprintf("GORM DB接続失敗: %v", err))
 	}
 
-	// GORMでテーブル自動作成（User, Node, Link, Image）
-	if err := db.AutoMigrate(&User{}, &Node{}, &Link{}, &Image{}); err != nil {
+	// GORMでテーブル自動作成（User, Node, Link, Image, UserLog）
+	if err := db.AutoMigrate(&User{}, &Node{}, &Link{}, &Image{}, &UserLog{}); err != nil {
 		panic(fmt.Sprintf("AutoMigrate失敗: %v", err))
 	}
 
@@ -58,16 +58,23 @@ func main() {
 	}
 
 	r := gin.Default()
+	
+	// APIアクセスログミドルウェアを追加
+	r.Use(APILoggingMiddleware(db))
+	
 	// CORSミドルウェア追加
 	r.Use(cors.New(cors.Config{
 		AllowOrigins:     []string{"http://localhost:5173"},
 		AllowMethods:     []string{"GET", "POST", "PUT", "DELETE", "OPTIONS"},
-		AllowHeaders:     []string{"Origin", "Content-Type", "Accept"},
+		AllowHeaders:     []string{"Origin", "Content-Type", "Accept", "X-User-Id", "X-Session-Id", "Authorization"},
 		AllowCredentials: true,
 	}))
 
 	// アップロード画像の静的配信 (開発用)
 	r.Static("/uploads", "uploads")
+
+	// ログ関連APIを登録
+	RegisterLogRoutes(r, db)
 
 	// /upload API登録
 	RegisterUploadRoute(r)

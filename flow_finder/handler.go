@@ -2,6 +2,9 @@ package main
 
 import (
 	"context"
+	"crypto/rand"
+	"encoding/hex"
+	"fmt"
 	"net/http"
 	"time"
 
@@ -9,6 +12,18 @@ import (
 	"github.com/redis/go-redis/v9"
 	"gorm.io/gorm"
 )
+
+//セッションIDを生成する関数
+func generateSessionIDForHandler() string {
+	bytes := make([]byte, 16)
+	rand.Read(bytes)
+	return hex.EncodeToString(bytes)
+}
+
+// ログ用のセッションID生成関数
+func generateHandlerSessionID() string {
+	return generateSessionIDForHandler()
+}
 
 // 認証ミドルウェア: AuthorizationヘッダーのトークンをRedisで検証
 func AuthMiddleware(redisClient *redis.Client) gin.HandlerFunc {
@@ -54,6 +69,15 @@ func RegisterUserRoutes(r *gin.Engine, db *gorm.DB, redisClient *redis.Client) {
 			c.JSON(500, gin.H{"error": "DB insert error"})
 			return
 		}
+		
+		// データベース操作ログを記録
+		var userID *uint = nil
+		sessionID := c.GetHeader("X-Session-Id")
+		if sessionID == "" {
+			sessionID = generateHandlerSessionID()
+		}
+		LogDatabaseOperation(db, userID, sessionID, "create", "images", fmt.Sprintf("%d", img.ID), c)
+		
 		c.JSON(200, gin.H{"result": "ok", "id": img.ID})
 	})
 
@@ -90,6 +114,15 @@ func RegisterUserRoutes(r *gin.Engine, db *gorm.DB, redisClient *redis.Client) {
 			c.JSON(500, gin.H{"error": "DB insert error"})
 			return
 		}
+		
+		// データベース操作ログを記録
+		var userID *uint = nil
+		sessionID := c.GetHeader("X-Session-Id")
+		if sessionID == "" {
+			sessionID = generateHandlerSessionID()
+		}
+		LogDatabaseOperation(db, userID, sessionID, "create", "nodes", fmt.Sprintf("%d", node.ID), c)
+		
 		c.JSON(200, gin.H{"result": "ok", "id": node.ID})
 	})
 	// Node一覧取得
@@ -115,6 +148,15 @@ func RegisterUserRoutes(r *gin.Engine, db *gorm.DB, redisClient *redis.Client) {
 			c.JSON(500, gin.H{"error": "DB insert error"})
 			return
 		}
+		
+		// データベース操作ログを記録
+		var userID *uint = &user.ID  // 新規作成されたユーザー自身のID
+		sessionID := c.GetHeader("X-Session-Id")
+		if sessionID == "" {
+			sessionID = generateHandlerSessionID()
+		}
+		LogDatabaseOperation(db, userID, sessionID, "create", "users", fmt.Sprintf("%d", user.ID), c)
+		
 		c.JSON(200, gin.H{"result": "ok"})
 	})
 
@@ -129,6 +171,22 @@ func RegisterUserRoutes(r *gin.Engine, db *gorm.DB, redisClient *redis.Client) {
 		}
 		var user User
 		if err := db.Where("name = ?", req.Name).First(&user).Error; err != nil {
+			// ログイン失敗をログに記録
+			sessionID := c.GetHeader("X-Session-Id")
+			if sessionID == "" {
+				sessionID = generateSessionIDForHandler()
+			}
+			LogUserActivity(db, UserLog{
+				UserID:    nil, // ゲストユーザー
+				SessionID: sessionID,
+				LogType:   LogTypeAction,
+				Category:  CategoryAuth,
+				Action:    ActionLogin,
+				Path:      "/login",
+				UserAgent: c.Request.UserAgent(),
+				IPAddress: c.ClientIP(),
+				Error:     "user not found",
+			})
 			c.JSON(http.StatusUnauthorized, gin.H{"error": "user not found"})
 			return
 		}
@@ -142,7 +200,24 @@ func RegisterUserRoutes(r *gin.Engine, db *gorm.DB, redisClient *redis.Client) {
 			c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to save token"})
 			return
 		}
-		c.JSON(http.StatusOK, gin.H{"token": token, "user_id": user.ID})
+		
+		// ログイン成功をログに記録
+		sessionID := c.GetHeader("X-Session-Id")
+		if sessionID == "" {
+			sessionID = generateSessionIDForHandler()
+		}
+		LogUserActivity(db, UserLog{
+			UserID:    &user.ID, // ポインター型に変更
+			SessionID: sessionID,
+			LogType:   LogTypeAction,
+			Category:  CategoryAuth,
+			Action:    ActionLogin,
+			Path:      "/login",
+			UserAgent: c.Request.UserAgent(),
+			IPAddress: c.ClientIP(),
+		})
+		
+		c.JSON(http.StatusOK, gin.H{"token": token, "user_id": user.ID, "session_id": sessionID})
 	})
 
 	// ユーザー一覧取得
@@ -175,6 +250,15 @@ func RegisterUserRoutes(r *gin.Engine, db *gorm.DB, redisClient *redis.Client) {
 			c.JSON(500, gin.H{"error": "DB insert error"})
 			return
 		}
+		
+		// データベース操作ログを記録
+		var userID *uint = nil
+		sessionID := c.GetHeader("X-Session-Id")
+		if sessionID == "" {
+			sessionID = generateHandlerSessionID()
+		}
+		LogDatabaseOperation(db, userID, sessionID, "create", "links", fmt.Sprintf("%d", link.ID), c)
+		
 		c.JSON(200, gin.H{"result": "ok", "id": link.ID})
 	})
 
