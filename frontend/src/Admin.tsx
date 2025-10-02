@@ -58,8 +58,8 @@ const Admin: React.FC = () => {
   const [latitude, setLatitude] = useState("");
   const [longitude, setLongitude] = useState("");
   const [congestion, setCongestion] = useState(0);
-  const [tourist, setTourist] = useState(false);
   const [imageUrl, setImageUrl] = useState("");
+  const [selectedTouristSpotId, setSelectedTouristSpotId] = useState<number | null>(null);
   const [message, setMessage] = useState<string | null>(null);
 
   // Link用
@@ -69,6 +69,31 @@ const Admin: React.FC = () => {
   const [toNodeId, setToNodeId] = useState(0);
   const [distance, setDistance] = useState(0);
   const [linkMsg, setLinkMsg] = useState<string | null>(null);
+
+  // 観光地用 state
+  const [touristSpots, setTouristSpots] = useState<any[]>([]);
+  const [spotName, setSpotName] = useState("");
+  const [spotDescription, setSpotDescription] = useState("");
+  const [spotCategory, setSpotCategory] = useState("");
+  const [spotNodeId, setSpotNodeId] = useState(0);
+  const [spotMaxCapacity, setSpotMaxCapacity] = useState(100);
+  const [spotCurrentCount, setSpotCurrentCount] = useState(0);
+  const [spotIsOpen, setSpotIsOpen] = useState(true);
+  const [spotOpeningTime, setSpotOpeningTime] = useState("09:00");
+  const [spotClosingTime, setSpotClosingTime] = useState("18:00");
+  const [spotEntryFee, setSpotEntryFee] = useState(0);
+  const [spotWebsite, setSpotWebsite] = useState("");
+  const [spotPhoneNumber, setSpotPhoneNumber] = useState("");
+  const [spotImageURL, setSpotImageURL] = useState("");
+  const [spotMsg, setSpotMsg] = useState<string | null>(null);
+
+  // 観光地一覧取得
+  const fetchTouristSpots = () => {
+    fetch("http://localhost:8080/tourist-spots")
+      .then(res => res.json())
+      .then(data => setTouristSpots(data))
+      .catch(() => setTouristSpots([]));
+  };
 
   // ノード・リンク一覧取得
   const fetchNodes = () => {
@@ -87,6 +112,7 @@ const Admin: React.FC = () => {
     fetchNodes();
     fetchLinks();
     fetchImages();
+    fetchTouristSpots();
     logger.logPageView('/admin');
   }, []);
   
@@ -124,14 +150,17 @@ const Admin: React.FC = () => {
           latitude: parseFloat(latitude),
           longitude: parseFloat(longitude),
           congestion: Number(congestion),
-          tourist,
-          imageUrl: imageUrl || undefined,
+          tourist_spot_id: selectedTouristSpotId || undefined,
         }),
       });
       if (!res.ok) throw new Error("登録失敗");
-  setMessage("ノードを登録しました");
-  setName(""); setLatitude(""); setLongitude(""); setCongestion(0); setTourist(false); setImageUrl("");
-  fetchNodes();
+      setMessage("ノードを登録しました");
+      setName(""); 
+      setLatitude(""); 
+      setLongitude(""); 
+      setCongestion(0); 
+      setSelectedTouristSpotId(null);
+      fetchNodes();
     } catch (err: any) {
       setMessage(err.message);
     }
@@ -146,15 +175,26 @@ const Admin: React.FC = () => {
           <input type="text" value={name} onChange={e => setName(e.target.value)} placeholder="名前" required />
           <input type="number" value={latitude} onChange={e => setLatitude(e.target.value)} placeholder="緯度 (例: 35.68)" required step="any" />
           <input type="number" value={longitude} onChange={e => setLongitude(e.target.value)} placeholder="経度 (例: 139.76)" required step="any" />
-          <select value={congestion} onChange={e => setCongestion(Number(e.target.value))} style={{ width: "70%", marginBottom: 12 }}>
-            <option value={0}>空いてる</option>
-            <option value={1}>普通</option>
-            <option value={2}>混雑</option>
+          <input 
+            type="number" 
+            value={congestion} 
+            onChange={e => setCongestion(Number(e.target.value))} 
+            placeholder="人数 (例: 15)" 
+            min="0" 
+            max="99999"
+            style={{ width: "70%", marginBottom: 12, padding: "8px", borderRadius: "4px", border: "1px solid #ccc" }}
+          />
+          <select 
+            value={selectedTouristSpotId || ""} 
+            onChange={e => setSelectedTouristSpotId(e.target.value ? Number(e.target.value) : null)}
+            style={{ width: "70%", marginBottom: 12, padding: "8px", borderRadius: "4px", border: "1px solid #ccc" }}
+          >
+            <option value="">関連する観光地（任意）</option>
+            {touristSpots.map(spot => (
+              <option key={spot.id} value={spot.id}>{spot.name}</option>
+            ))}
           </select>
-          <label style={{ width: "70%", textAlign: "left", marginBottom: 12 }}>
-            <input type="checkbox" checked={tourist} onChange={e => setTourist(e.target.checked)} /> 観光地
-          </label>
-          <input type="text" value={imageUrl} onChange={e => setImageUrl(e.target.value)} placeholder="画像URL (任意)" />
+          <input type="text" value={imageUrl} onChange={e => setImageUrl(e.target.value)} placeholder="画像URL (任意)" style={{ marginBottom: 12 }} />
           <button type="submit">ノード登録</button>
         </form>
         {message && <p style={{ color: message && message.includes("登録") ? "#16a34a" : "#dc2626", marginTop: 16 }}>{message}</p>}
@@ -211,6 +251,88 @@ const Admin: React.FC = () => {
           <button type="submit">リンク登録</button>
         </form>
         {linkMsg && <p style={{ color: linkMsg && linkMsg.includes("登録") ? "#16a34a" : "#dc2626", marginTop: 16 }}>{linkMsg}</p>}
+      </div>
+
+      {/* --- 観光地作成フォーム --- */}
+      <div className="card">
+        <h2 className="login-title" style={{ fontSize: "1.3rem" }}>観光地登録</h2>
+        <form
+          onSubmit={async e => {
+            e.preventDefault();
+            setSpotMsg(null);
+            if (!spotNodeId || !spotName || !spotMaxCapacity) {
+              setSpotMsg("必須項目を入力してください");
+              return;
+            }
+            try {
+              const res = await fetch("http://localhost:8080/tourist-spots", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({
+                  node_id: spotNodeId,
+                  name: spotName,
+                  description: spotDescription,
+                  category: spotCategory,
+                  max_capacity: spotMaxCapacity,
+                  current_count: spotCurrentCount,
+                  is_open: spotIsOpen,
+                  opening_time: spotOpeningTime,
+                  closing_time: spotClosingTime,
+                  entry_fee: spotEntryFee,
+                  website: spotWebsite,
+                  phone_number: spotPhoneNumber,
+                  image_url: spotImageURL,
+                }),
+              });
+              if (!res.ok) throw new Error("登録失敗");
+              setSpotMsg("観光地を登録しました");
+              setSpotName("");
+              setSpotDescription("");
+              setSpotCategory("");
+              setSpotNodeId(0);
+              setSpotMaxCapacity(100);
+              setSpotCurrentCount(0);
+              setSpotIsOpen(true);
+              setSpotOpeningTime("09:00");
+              setSpotClosingTime("18:00");
+              setSpotEntryFee(0);
+              setSpotWebsite("");
+              setSpotPhoneNumber("");
+              setSpotImageURL("");
+              fetchTouristSpots();
+            } catch (err: any) {
+              setSpotMsg(err.message);
+            }
+          }}
+          className="login-form"
+          style={{ display: "flex", flexDirection: "column", alignItems: "center" }}
+        >
+          <input type="text" value={spotName} onChange={e => setSpotName(e.target.value)} placeholder="観光地名" required style={{ marginBottom: 12 }} />
+          <select value={spotNodeId} onChange={e => setSpotNodeId(Number(e.target.value))} required style={{ width: "70%", marginBottom: 12 }}>
+            <option value={0}>メインノードを選択</option>
+            {nodes.map(n => (
+              <option key={n.id} value={n.id}>{n.name}</option>
+            ))}
+          </select>
+          <input type="text" value={spotCategory} onChange={e => setSpotCategory(e.target.value)} placeholder="カテゴリ（神社、公園など）" style={{ marginBottom: 12 }} />
+          <input type="number" value={spotMaxCapacity} onChange={e => setSpotMaxCapacity(Number(e.target.value))} placeholder="許容人数" required min={1} style={{ marginBottom: 12 }} />
+          <input type="number" value={spotCurrentCount} onChange={e => setSpotCurrentCount(Number(e.target.value))} placeholder="現在の人数" min={0} style={{ marginBottom: 12 }} />
+          <textarea value={spotDescription} onChange={e => setSpotDescription(e.target.value)} placeholder="説明（任意）" style={{ marginBottom: 12, width: "70%", minHeight: 60 }} />
+          <div style={{ display: "flex", gap: 8, marginBottom: 12 }}>
+            <input type="time" value={spotOpeningTime} onChange={e => setSpotOpeningTime(e.target.value)} />
+            <span>〜</span>
+            <input type="time" value={spotClosingTime} onChange={e => setSpotClosingTime(e.target.value)} />
+          </div>
+          <input type="number" value={spotEntryFee} onChange={e => setSpotEntryFee(Number(e.target.value))} placeholder="入場料（円）" min={0} style={{ marginBottom: 12 }} />
+          <input type="url" value={spotWebsite} onChange={e => setSpotWebsite(e.target.value)} placeholder="公式サイト（任意）" style={{ marginBottom: 12 }} />
+          <input type="tel" value={spotPhoneNumber} onChange={e => setSpotPhoneNumber(e.target.value)} placeholder="電話番号（任意）" style={{ marginBottom: 12 }} />
+          <input type="url" value={spotImageURL} onChange={e => setSpotImageURL(e.target.value)} placeholder="画像URL（任意）" style={{ marginBottom: 12 }} />
+          <label style={{ marginBottom: 12 }}>
+            <input type="checkbox" checked={spotIsOpen} onChange={e => setSpotIsOpen(e.target.checked)} /> 営業中
+          </label>
+          <button type="submit">観光地登録</button>
+        </form>
+        {spotMsg && <p style={{ color: spotMsg && spotMsg.includes("登録") ? "#16a34a" : "#dc2626", marginTop: 16 }}>{spotMsg}</p>}
       </div>
 
       {/* --- 地図リンク作成モーダル --- */}
@@ -355,6 +477,36 @@ const Admin: React.FC = () => {
                 })()}</td>
                 <td>{img.order}</td>
                 <td><a href={img.url} target="_blank" rel="noopener noreferrer">{img.url}</a></td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+
+      {/* --- 観光地一覧 --- */}
+      <div className="card" style={{ marginTop: 24 }}>
+        <h3 style={{ marginBottom: 12 }}>観光地一覧</h3>
+        <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 14 }}>
+          <thead>
+            <tr style={{ background: "#f1f5f9" }}>
+              <th>ID</th><th>名前</th><th>カテゴリ</th><th>許容人数</th><th>現在人数</th><th>混雑度</th><th>営業状況</th>
+            </tr>
+          </thead>
+          <tbody>
+            {touristSpots.map(spot => (
+              <tr key={spot.id}>
+                <td>{spot.id}</td>
+                <td>{spot.name}</td>
+                <td>{spot.category || '-'}</td>
+                <td>{spot.max_capacity}</td>
+                <td>{spot.current_count}</td>
+                <td style={{ 
+                  color: spot.current_count / spot.max_capacity >= 0.8 ? '#ef4444' : 
+                         spot.current_count / spot.max_capacity >= 0.6 ? '#f59e0b' : '#22c55e' 
+                }}>
+                  {Math.round(spot.current_count / spot.max_capacity * 100)}%
+                </td>
+                <td>{spot.is_open ? '営業中' : '閉鎖中'}</td>
               </tr>
             ))}
           </tbody>

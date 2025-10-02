@@ -40,8 +40,8 @@ func main() {
 		panic(fmt.Sprintf("GORM DB接続失敗: %v", err))
 	}
 
-	// GORMでテーブル自動作成（User, Node, Link, Image, UserLog）
-	if err := db.AutoMigrate(&User{}, &Node{}, &Link{}, &Image{}, &UserLog{}); err != nil {
+	// GORMでテーブル自動作成（User, Node, Link, Image, UserLog, TouristSpot）
+	if err := db.AutoMigrate(&User{}, &Node{}, &Link{}, &Image{}, &UserLog{}, &TouristSpot{}); err != nil {
 		panic(fmt.Sprintf("AutoMigrate失敗: %v", err))
 	}
 
@@ -79,7 +79,7 @@ func main() {
 	// /upload API登録
 	RegisterUploadRoute(r)
 
-	// ユーザーAPIルーティングを別ファイルに分離
+	// ユーザーAPIルーティングを別ファイルに分離（観光地APIも含む）
 	RegisterUserRoutes(r, db, redisClient)
 
 	r.Run() // デフォルトでlocalhost:8080

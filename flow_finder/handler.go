@@ -6,6 +6,7 @@ import (
 	"encoding/hex"
 	"fmt"
 	"net/http"
+	"strconv"
 	"time"
 
 	"github.com/gin-gonic/gin"
@@ -93,22 +94,22 @@ func RegisterUserRoutes(r *gin.Engine, db *gorm.DB, redisClient *redis.Client) {
 	// Node追加
 	r.POST("/nodes", func(c *gin.Context) {
 		var req struct {
-			Name       string  `json:"name"`
-			Latitude   float64 `json:"latitude"`
-			Longitude  float64 `json:"longitude"`
-			Congestion int     `json:"congestion"`
-			Tourist    bool    `json:"tourist"`
+			Name          string  `json:"name"`
+			Latitude      float64 `json:"latitude"`
+			Longitude     float64 `json:"longitude"`
+			Congestion    int     `json:"congestion"`
+			TouristSpotID *uint   `json:"tourist_spot_id"`
 		}
 		if err := c.ShouldBindJSON(&req); err != nil {
 			c.JSON(400, gin.H{"error": "invalid request"})
 			return
 		}
 		node := Node{
-			Name:       req.Name,
-			Latitude:   req.Latitude,
-			Longitude:  req.Longitude,
-			Congestion: req.Congestion,
-			Tourist:    req.Tourist,
+			Name:          req.Name,
+			Latitude:      req.Latitude,
+			Longitude:     req.Longitude,
+			Congestion:    req.Congestion,
+			TouristSpotID: req.TouristSpotID,
 		}
 		if err := db.Create(&node).Error; err != nil {
 			c.JSON(500, gin.H{"error": "DB insert error"})
@@ -270,5 +271,286 @@ func RegisterUserRoutes(r *gin.Engine, db *gorm.DB, redisClient *redis.Client) {
 			return
 		}
 		c.JSON(200, links)
+	})
+
+	// === 観光地関連API ===
+	
+	// 観光地一覧取得
+	r.GET("/tourist-spots", func(c *gin.Context) {
+		var spots []TouristSpot
+		query := db.Preload("Node")
+		
+		// カテゴリフィルタ
+		if category := c.Query("category"); category != "" {
+			query = query.Where("category = ?", category)
+		}
+		
+		// 営業中のみフィルタ
+		if open := c.Query("open"); open == "true" {
+			query = query.Where("is_open = ?", true)
+		}
+		
+		if err := query.Find(&spots).Error; err != nil {
+			c.JSON(500, gin.H{"error": "データ取得エラー"})
+			return
+		}
+		c.JSON(200, spots)
+	})
+
+	// 観光地詳細取得
+	r.GET("/tourist-spots/:id", func(c *gin.Context) {
+		id := c.Param("id")
+		var spot TouristSpot
+		if err := db.Preload("Node").First(&spot, id).Error; err != nil {
+			c.JSON(404, gin.H{"error": "観光地が見つかりません"})
+			return
+		}
+		c.JSON(200, spot)
+	})
+
+	// 観光地作成
+	r.POST("/tourist-spots", func(c *gin.Context) {
+		var req struct {
+			NodeID       uint    `json:"node_id" binding:"required"`
+			Name         string  `json:"name" binding:"required"`
+			Description  string  `json:"description"`
+			Category     string  `json:"category"`
+			MaxCapacity  int     `json:"max_capacity" binding:"required,min=1"`
+			CurrentCount int     `json:"current_count"`
+			IsOpen       bool    `json:"is_open"`
+			OpeningTime  string  `json:"opening_time"`
+			ClosingTime  string  `json:"closing_time"`
+			EntryFee     int     `json:"entry_fee"`
+			Website      string  `json:"website"`
+			PhoneNumber  string  `json:"phone_number"`
+			ImageURL     string  `json:"image_url"`
+		}
+		
+		if err := c.ShouldBindJSON(&req); err != nil {
+			c.JSON(400, gin.H{"error": "リクエストが無効です", "details": err.Error()})
+			return
+		}
+		
+		// ノードが存在するか確認
+		var node Node
+		if err := db.First(&node, req.NodeID).Error; err != nil {
+			c.JSON(400, gin.H{"error": "指定されたノードが存在しません"})
+			return
+		}
+		
+		spot := TouristSpot{
+			NodeID:       req.NodeID,
+			Name:         req.Name,
+			Description:  req.Description,
+			Category:     req.Category,
+			MaxCapacity:  req.MaxCapacity,
+			CurrentCount: req.CurrentCount,
+			IsOpen:       req.IsOpen,
+			OpeningTime:  req.OpeningTime,
+			ClosingTime:  req.ClosingTime,
+			EntryFee:     req.EntryFee,
+			Website:      req.Website,
+			PhoneNumber:  req.PhoneNumber,
+			ImageURL:     req.ImageURL,
+		}
+		
+		if err := db.Create(&spot).Error; err != nil {
+			c.JSON(500, gin.H{"error": "観光地作成に失敗しました"})
+			return
+		}
+		
+		// データベース操作ログを記録
+		var userID *uint = nil
+		sessionID := c.GetHeader("X-Session-Id")
+		if sessionID == "" {
+			sessionID = generateHandlerSessionID()
+		}
+		LogDatabaseOperation(db, userID, sessionID, "create", "tourist_spots", strconv.Itoa(int(spot.ID)), c)
+		
+		c.JSON(201, gin.H{"result": "ok", "id": spot.ID, "spot": spot})
+	})
+
+	// 観光地更新
+	r.PUT("/tourist-spots/:id", func(c *gin.Context) {
+		id := c.Param("id")
+		var spot TouristSpot
+		if err := db.First(&spot, id).Error; err != nil {
+			c.JSON(404, gin.H{"error": "観光地が見つかりません"})
+			return
+		}
+		
+		var req struct {
+			Name         *string `json:"name"`
+			Description  *string `json:"description"`
+			Category     *string `json:"category"`
+			MaxCapacity  *int    `json:"max_capacity"`
+			CurrentCount *int    `json:"current_count"`
+			IsOpen       *bool   `json:"is_open"`
+			OpeningTime  *string `json:"opening_time"`
+			ClosingTime  *string `json:"closing_time"`
+			EntryFee     *int    `json:"entry_fee"`
+			Website      *string `json:"website"`
+			PhoneNumber  *string `json:"phone_number"`
+			ImageURL     *string `json:"image_url"`
+		}
+		
+		if err := c.ShouldBindJSON(&req); err != nil {
+			c.JSON(400, gin.H{"error": "リクエストが無効です"})
+			return
+		}
+		
+		// フィールドを更新（ポインタがnilでない場合のみ）
+		if req.Name != nil {
+			spot.Name = *req.Name
+		}
+		if req.Description != nil {
+			spot.Description = *req.Description
+		}
+		if req.Category != nil {
+			spot.Category = *req.Category
+		}
+		if req.MaxCapacity != nil {
+			spot.MaxCapacity = *req.MaxCapacity
+		}
+		if req.CurrentCount != nil {
+			spot.CurrentCount = *req.CurrentCount
+		}
+		if req.IsOpen != nil {
+			spot.IsOpen = *req.IsOpen
+		}
+		if req.OpeningTime != nil {
+			spot.OpeningTime = *req.OpeningTime
+		}
+		if req.ClosingTime != nil {
+			spot.ClosingTime = *req.ClosingTime
+		}
+		if req.EntryFee != nil {
+			spot.EntryFee = *req.EntryFee
+		}
+		if req.Website != nil {
+			spot.Website = *req.Website
+		}
+		if req.PhoneNumber != nil {
+			spot.PhoneNumber = *req.PhoneNumber
+		}
+		if req.ImageURL != nil {
+			spot.ImageURL = *req.ImageURL
+		}
+		
+		if err := db.Save(&spot).Error; err != nil {
+			c.JSON(500, gin.H{"error": "観光地更新に失敗しました"})
+			return
+		}
+		
+		// データベース操作ログを記録
+		var userID *uint = nil
+		sessionID := c.GetHeader("X-Session-Id")
+		if sessionID == "" {
+			sessionID = generateHandlerSessionID()
+		}
+		LogDatabaseOperation(db, userID, sessionID, "update", "tourist_spots", id, c)
+		
+		c.JSON(200, gin.H{"result": "ok", "spot": spot})
+	})
+
+	// 観光地削除
+	r.DELETE("/tourist-spots/:id", func(c *gin.Context) {
+		id := c.Param("id")
+		
+		if err := db.Delete(&TouristSpot{}, id).Error; err != nil {
+			c.JSON(500, gin.H{"error": "削除に失敗しました"})
+			return
+		}
+		
+		// データベース操作ログを記録
+		var userID *uint = nil
+		sessionID := c.GetHeader("X-Session-Id")
+		if sessionID == "" {
+			sessionID = generateHandlerSessionID()
+		}
+		LogDatabaseOperation(db, userID, sessionID, "delete", "tourist_spots", id, c)
+		
+		c.JSON(200, gin.H{"result": "ok"})
+	})
+
+	// 人数変更（入場・退場）
+	r.POST("/tourist-spots/:id/visitors", func(c *gin.Context) {
+		id := c.Param("id")
+		var req struct {
+			Action string `json:"action" binding:"required"` // "enter" or "exit"
+			Count  int    `json:"count" binding:"required,min=1"`
+		}
+		
+		if err := c.ShouldBindJSON(&req); err != nil {
+			c.JSON(400, gin.H{"error": "リクエストが無効です"})
+			return
+		}
+		
+		var spot TouristSpot
+		if err := db.First(&spot, id).Error; err != nil {
+			c.JSON(404, gin.H{"error": "観光地が見つかりません"})
+			return
+		}
+		
+		switch req.Action {
+		case "enter":
+			if !spot.AddVisitors(req.Count) {
+				c.JSON(400, gin.H{
+					"error": "許容人数を超過します",
+					"current": spot.CurrentCount,
+					"max": spot.MaxCapacity,
+					"available": spot.MaxCapacity - spot.CurrentCount,
+				})
+				return
+			}
+		case "exit":
+			spot.RemoveVisitors(req.Count)
+		default:
+			c.JSON(400, gin.H{"error": "actionは'enter'または'exit'である必要があります"})
+			return
+		}
+		
+		if err := db.Save(&spot).Error; err != nil {
+			c.JSON(500, gin.H{"error": "人数更新に失敗しました"})
+			return
+		}
+		
+		// データベース操作ログを記録
+		var userID *uint = nil
+		sessionID := c.GetHeader("X-Session-Id")
+		if sessionID == "" {
+			sessionID = generateHandlerSessionID()
+		}
+		LogDatabaseOperation(db, userID, sessionID, "update", "tourist_spots", id, c)
+		
+		c.JSON(200, gin.H{
+			"result": "ok",
+			"action": req.Action,
+			"count": req.Count,
+			"current_count": spot.CurrentCount,
+			"max_capacity": spot.MaxCapacity,
+			"congestion_level": spot.GetCongestionLevel(),
+			"congestion_ratio": spot.GetCongestionRatio(),
+		})
+	})
+
+	// 混雑状況取得
+	r.GET("/tourist-spots/:id/congestion", func(c *gin.Context) {
+		id := c.Param("id")
+		var spot TouristSpot
+		if err := db.First(&spot, id).Error; err != nil {
+			c.JSON(404, gin.H{"error": "観光地が見つかりません"})
+			return
+		}
+		
+		c.JSON(200, gin.H{
+			"id": spot.ID,
+			"name": spot.Name,
+			"current_count": spot.CurrentCount,
+			"max_capacity": spot.MaxCapacity,
+			"congestion_level": spot.GetCongestionLevel(),
+			"congestion_ratio": spot.GetCongestionRatio(),
+			"is_currently_open": spot.IsCurrentlyOpen(),
+		})
 	})
 }
