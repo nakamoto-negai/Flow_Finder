@@ -62,9 +62,14 @@ func BuildGraph(db *gorm.DB) (map[uint][]Edge, error) {
 		return nil, err
 	}
 
+	fmt.Printf("Debug: Found %d links in database\n", len(links))
+	
 	graph := make(map[uint][]Edge)
 	
 	for _, link := range links {
+		fmt.Printf("Debug: Processing link %d: %d -> %d (distance: %.2f)\n", 
+			link.ID, link.FromNodeID, link.ToNodeID, link.Distance)
+			
 		// 双方向グラフとして構築（必要に応じて単方向に変更可能）
 		graph[link.FromNodeID] = append(graph[link.FromNodeID], Edge{
 			ToNodeID: link.ToNodeID,
@@ -80,11 +85,26 @@ func BuildGraph(db *gorm.DB) (map[uint][]Edge, error) {
 		})
 	}
 	
+	fmt.Printf("Debug: Graph built with %d nodes\n", len(graph))
+	for nodeID, edges := range graph {
+		fmt.Printf("Debug: Node %d has %d connections\n", nodeID, len(edges))
+	}
+	
 	return graph, nil
 }
 
 // ダイクストラ法の実装
-func Dijkstra(graph map[uint][]Edge, startNodeID, endNodeID uint) (*DijkstraResult, error) {
+func Dijkstra(graph map[uint][]Edge, startNodeID, endNodeID uint, db *gorm.DB) (*DijkstraResult, error) {
+	fmt.Printf("Debug: Starting Dijkstra from node %d to node %d\n", startNodeID, endNodeID)
+	
+	// 開始・終了ノードがグラフに存在するかチェック
+	if _, exists := graph[startNodeID]; !exists {
+		return nil, fmt.Errorf("開始ノード %d がグラフに存在しません", startNodeID)
+	}
+	if _, exists := graph[endNodeID]; !exists {
+		return nil, fmt.Errorf("終了ノード %d がグラフに存在しません", endNodeID)
+	}
+	
 	distances := make(map[uint]*DijkstraNode)
 	pq := &PriorityQueue{}
 	
@@ -94,49 +114,86 @@ func Dijkstra(graph map[uint][]Edge, startNodeID, endNodeID uint) (*DijkstraResu
 		Distance: 0,
 		Previous: nil,
 		LinkID:   nil,
+		Index:    -1, // ヒープ用インデックスを初期化
 	}
 	distances[startNodeID] = startNode
 	heap.Push(pq, startNode)
 	
-	// 他のノードは無限大で初期化
-	for nodeID := range graph {
-		if nodeID != startNodeID {
-			node := &DijkstraNode{
-				NodeID:   nodeID,
+	// データベースから全ノードを取得してすべてのノードを初期化
+	var allNodes []Node
+	if err := db.Find(&allNodes).Error; err != nil {
+		return nil, fmt.Errorf("ノード取得エラー: %v", err)
+	}
+	
+	fmt.Printf("Debug: Found %d total nodes in database\n", len(allNodes))
+	
+	// 全ノードを無限大で初期化
+	for _, node := range allNodes {
+		if node.ID != startNodeID {
+			dijkstraNode := &DijkstraNode{
+				NodeID:   node.ID,
 				Distance: math.Inf(1),
 				Previous: nil,
 				LinkID:   nil,
+				Index:    -1, // ヒープ用インデックスを初期化
 			}
-			distances[nodeID] = node
+			distances[node.ID] = dijkstraNode
 		}
 	}
 	
+	fmt.Printf("Debug: Starting main loop with %d nodes in priority queue\n", pq.Len())
+	
 	for pq.Len() > 0 {
+		fmt.Printf("Debug: Priority queue length: %d\n", pq.Len())
 		current := heap.Pop(pq).(*DijkstraNode)
+		fmt.Printf("Debug: Processing node %d with distance %.2f\n", current.NodeID, current.Distance)
 		
 		// 目標ノードに到達した場合
 		if current.NodeID == endNodeID {
+			fmt.Printf("Debug: Reached target node %d\n", endNodeID)
 			break
 		}
 		
 		// 隣接ノードを探索
-		for _, edge := range graph[current.NodeID] {
+		edges := graph[current.NodeID]
+		fmt.Printf("Debug: Node %d has %d edges\n", current.NodeID, len(edges))
+		
+		for _, edge := range edges {
 			neighbor := distances[edge.ToNodeID]
 			newDistance := current.Distance + edge.Weight
 			
+			fmt.Printf("Debug: Checking edge to node %d: current=%.2f + weight=%.2f = %.2f vs existing=%.2f\n", 
+				edge.ToNodeID, current.Distance, edge.Weight, newDistance, neighbor.Distance)
+			
 			if newDistance < neighbor.Distance {
+				fmt.Printf("Debug: Updating node %d distance from %.2f to %.2f\n", 
+					edge.ToNodeID, neighbor.Distance, newDistance)
 				neighbor.Distance = newDistance
 				neighbor.Previous = &current.NodeID
 				neighbor.LinkID = &edge.LinkID
 				
 				// ヒープに追加（既に処理済みでない場合）
 				if neighbor.Index == -1 {
+					fmt.Printf("Debug: Adding node %d to priority queue\n", neighbor.NodeID)
 					heap.Push(pq, neighbor)
+					fmt.Printf("Debug: Priority queue size after push: %d\n", pq.Len())
 				} else {
+					fmt.Printf("Debug: Updating node %d in priority queue\n", neighbor.NodeID)
 					heap.Fix(pq, neighbor.Index)
+					fmt.Printf("Debug: Priority queue size after fix: %d\n", pq.Len())
 				}
 			}
 		}
+	}
+	
+	// 最終距離の確認
+	finalDistance := distances[endNodeID].Distance
+	fmt.Printf("Debug: Final distance to node %d: %.2f\n", endNodeID, finalDistance)
+	
+	// 経路が見つからない場合のチェック
+	if finalDistance == math.Inf(1) {
+		fmt.Printf("Debug: No path found - distance is infinite\n")
+		return nil, fmt.Errorf("経路が見つかりませんでした (ノード %d から %d へ)", startNodeID, endNodeID)
 	}
 	
 	// 結果の構築
@@ -191,39 +248,4 @@ type PathStep struct {
 	ToNodeID   uint    `json:"to_node_id"`
 	LinkID     uint    `json:"link_id"`
 	Distance   float64 `json:"distance"`
-}
-
-// 観光地を考慮した重み調整版
-func DijkstraWithTouristWeight(graph map[uint][]Edge, startNodeID, endNodeID uint, db *gorm.DB) (*DijkstraResult, error) {
-	// 観光地の混雑度を取得
-	touristSpots := make(map[uint]*TouristSpot)
-	var spots []TouristSpot
-	db.Find(&spots)
-	for _, spot := range spots {
-		touristSpots[spot.NodeID] = &spot
-	}
-	
-	// 重み調整されたグラフを作成
-	adjustedGraph := make(map[uint][]Edge)
-	for nodeID, edges := range graph {
-		for _, edge := range edges {
-			weight := edge.Weight
-			
-			// 到達先ノードに観光地がある場合、混雑度に応じて重みを調整
-			if spot, exists := touristSpots[edge.ToNodeID]; exists {
-				congestionRatio := float64(spot.CurrentCount) / float64(spot.MaxCapacity)
-				// 混雑度が高いほど重みを増加（避けたいルート）
-				weightMultiplier := 1.0 + (congestionRatio * 0.5) // 最大50%増加
-				weight *= weightMultiplier
-			}
-			
-			adjustedGraph[nodeID] = append(adjustedGraph[nodeID], Edge{
-				ToNodeID: edge.ToNodeID,
-				Weight:   weight,
-				LinkID:   edge.LinkID,
-			})
-		}
-	}
-	
-	return Dijkstra(adjustedGraph, startNodeID, endNodeID)
 }

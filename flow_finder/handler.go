@@ -574,9 +574,9 @@ func RegisterUserRoutes(r *gin.Engine, db *gorm.DB, redisClient *redis.Client) {
 		}
 		
 		// ダイクストラ法実行
-		result, err := Dijkstra(graph, uint(startID), uint(endID))
+		result, err := Dijkstra(graph, uint(startID), uint(endID), db)
 		if err != nil {
-			c.JSON(500, gin.H{"error": "経路計算エラー"})
+			c.JSON(404, gin.H{"error": err.Error()})
 			return
 		}
 		
@@ -606,77 +606,17 @@ func RegisterUserRoutes(r *gin.Engine, db *gorm.DB, redisClient *redis.Client) {
 		})
 	})
 	
-	// 観光地混雑度を考慮した最短経路検索
-	r.GET("/api/smart-path/:start/:end", func(c *gin.Context) {
-		startID, err1 := strconv.Atoi(c.Param("start"))
-		endID, err2 := strconv.Atoi(c.Param("end"))
-		
-		if err1 != nil || err2 != nil {
-			c.JSON(400, gin.H{"error": "無効なノードIDです"})
-			return
-		}
-		
-		// グラフを構築
+	// デバッグ用: グラフ構造を確認するエンドポイント
+	r.GET("/api/debug/graph", func(c *gin.Context) {
 		graph, err := BuildGraph(db)
 		if err != nil {
 			c.JSON(500, gin.H{"error": "グラフ構築エラー"})
 			return
 		}
 		
-		// 観光地混雑度を考慮したダイクストラ法実行
-		result, err := DijkstraWithTouristWeight(graph, uint(startID), uint(endID), db)
-		if err != nil {
-			c.JSON(500, gin.H{"error": "経路計算エラー"})
-			return
-		}
-		
-		// 通常の最短経路も計算（比較用）
-		normalResult, _ := Dijkstra(graph, uint(startID), uint(endID))
-		
-		// ノード名を付加した結果を作成
-		var enrichedPath []gin.H
-		for _, step := range result.Path {
-			var fromNode, toNode Node
-			db.First(&fromNode, step.FromNodeID)
-			db.First(&toNode, step.ToNodeID)
-			
-			// 到達先ノードの観光地情報も取得
-			var touristSpot *TouristSpot
-			if toNode.TouristSpotID != nil {
-				db.First(&touristSpot, *toNode.TouristSpotID)
-			}
-			
-			stepInfo := gin.H{
-				"from_node_id":   step.FromNodeID,
-				"to_node_id":     step.ToNodeID,
-				"from_node_name": fromNode.Name,
-				"to_node_name":   toNode.Name,
-				"link_id":        step.LinkID,
-				"distance":       step.Distance,
-			}
-			
-			if touristSpot != nil {
-				stepInfo["tourist_spot"] = gin.H{
-					"id":               touristSpot.ID,
-					"name":             touristSpot.Name,
-					"current_count":    touristSpot.CurrentCount,
-					"max_capacity":     touristSpot.MaxCapacity,
-					"congestion_ratio": float64(touristSpot.CurrentCount) / float64(touristSpot.MaxCapacity) * 100,
-				}
-			}
-			
-			enrichedPath = append(enrichedPath, stepInfo)
-		}
-		
 		c.JSON(200, gin.H{
-			"start_node_id":     result.StartNodeID,
-			"end_node_id":       result.EndNodeID,
-			"total_distance":    result.TotalDistance,
-			"path":              enrichedPath,
-			"path_length":       len(enrichedPath),
-			"normal_distance":   normalResult.TotalDistance,
-			"distance_difference": result.TotalDistance - normalResult.TotalDistance,
-			"avoided_congestion": result.TotalDistance > normalResult.TotalDistance,
+			"graph": graph,
+			"node_count": len(graph),
 		})
 	})
 }

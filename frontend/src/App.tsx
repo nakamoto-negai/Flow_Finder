@@ -2,6 +2,7 @@
 import { useState, useEffect } from 'react';
 import MapView from './MapView';
 import Admin from './Admin';
+import DijkstraTestPage from './DijkstraTestPage';
 import { logger } from './logger';
 import './App.css';
 
@@ -80,9 +81,13 @@ function App() {
   };
 
 
-  // 簡易ルーティング: /adminなら管理画面、それ以外は通常画面
+  // 簡易ルーティング
   if (window.location.pathname === "/admin") {
     return <Admin />;
+  }
+  
+  if (window.location.pathname === "/dijkstra") {
+    return <DijkstraTestPage />;
   }
 
   return (
@@ -103,7 +108,18 @@ function App() {
       ) : (
         <div style={{ marginBottom: 24 }}>
           <h1>現在地を選択してください</h1>
-          <button onClick={handleLogout}>ログアウト</button>
+          <div style={{ marginBottom: 16, display: 'flex', gap: 10 }}>
+            <button onClick={handleLogout}>ログアウト</button>
+            <a href="/dijkstra" style={{ 
+              padding: '8px 16px', 
+              background: '#28a745', 
+              color: 'white', 
+              textDecoration: 'none', 
+              borderRadius: 4 
+            }}>
+              ダイクストラテスト
+            </a>
+          </div>
           <div style={{ marginTop: 16 }}>
             <select value={currentNodeId ?? ''} onChange={e => {
               const nodeId = Number(e.target.value);
