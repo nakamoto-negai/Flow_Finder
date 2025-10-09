@@ -47,6 +47,12 @@ const Admin: React.FC = () => {
   const [imageUrlInput, setImageUrlInput] = useState("");
   const [imageMsg, setImageMsg] = useState<string | null>(null);
 
+  // 編集モード用 state
+  const [editingNode, setEditingNode] = useState<any>(null);
+  const [editingLink, setEditingLink] = useState<any>(null);
+  const [showNodeList, setShowNodeList] = useState(false);
+  const [showLinkList, setShowLinkList] = useState(false);
+
   // 画像一覧取得
   const fetchImages = () => {
     fetch("http://localhost:8080/images")
@@ -76,6 +82,8 @@ const Admin: React.FC = () => {
   const [spotDescription, setSpotDescription] = useState("");
   const [spotCategory, setSpotCategory] = useState("");
   const [spotNodeId, setSpotNodeId] = useState(0);
+  const [spotLatitude, setSpotLatitude] = useState("");
+  const [spotLongitude, setSpotLongitude] = useState("");
   const [spotMaxCapacity, setSpotMaxCapacity] = useState(100);
   const [spotCurrentCount, setSpotCurrentCount] = useState(0);
   const [spotIsOpen, setSpotIsOpen] = useState(true);
@@ -135,6 +143,135 @@ const Admin: React.FC = () => {
     }
   };
 
+  // ノード編集関数
+  const handleEditNode = (node: any) => {
+    setEditingNode({ ...node });
+    setName(node.name);
+    setLatitude(node.latitude.toString());
+    setLongitude(node.longitude.toString());
+    setCongestion(node.congestion);
+    setSelectedTouristSpotId(null); // 編集時は観光地関連付けをリセット
+  };
+
+  // ノード更新関数
+  const handleUpdateNode = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!editingNode) return;
+    
+    try {
+      // ノード情報を更新
+      const res = await fetch(`http://localhost:8080/nodes/${editingNode.id}`, {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          name,
+          latitude: parseFloat(latitude),
+          longitude: parseFloat(longitude),
+          congestion: Number(congestion),
+        }),
+      });
+      if (!res.ok) throw new Error("ノード更新失敗");
+      
+      // 観光地を関連付ける場合
+      if (selectedTouristSpotId) {
+        // 観光地に座標情報を追加
+        const spotRes = await fetch(`http://localhost:8080/tourist-spots/${selectedTouristSpotId}`, {
+          method: "PUT",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            latitude: parseFloat(latitude),
+            longitude: parseFloat(longitude),
+          }),
+        });
+        if (!spotRes.ok) {
+          console.warn("観光地の座標更新に失敗しました");
+        }
+      }
+      
+      setMessage("ノードを更新しました" + (selectedTouristSpotId ? "（観光地も関連付けました）" : ""));
+      setEditingNode(null);
+      setName(""); 
+      setLatitude(""); 
+      setLongitude(""); 
+      setCongestion(0);
+      setSelectedTouristSpotId(null);
+      fetchNodes();
+      fetchTouristSpots();
+    } catch (err: any) {
+      setMessage(err.message);
+    }
+  };
+
+  // ノード削除関数
+  const handleDeleteNode = async (nodeId: number) => {
+    if (!confirm("このノードを削除しますか？")) return;
+    
+    try {
+      const res = await fetch(`http://localhost:8080/nodes/${nodeId}`, {
+        method: "DELETE",
+      });
+      if (!res.ok) {
+        const errorData = await res.json();
+        throw new Error(errorData.error || "削除失敗");
+      }
+      setMessage("ノードを削除しました");
+      fetchNodes();
+    } catch (err: any) {
+      setMessage(err.message);
+    }
+  };
+
+  // リンク編集関数
+  const handleEditLink = (link: any) => {
+    setEditingLink({ ...link });
+    setFromNodeId(link.from_node_id);
+    setToNodeId(link.to_node_id);
+    setDistance(link.distance);
+  };
+
+  // リンク更新関数
+  const handleUpdateLink = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!editingLink) return;
+    
+    try {
+      const res = await fetch(`http://localhost:8080/links/${editingLink.id}`, {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          from_node_id: fromNodeId,
+          to_node_id: toNodeId,
+          distance: Number(distance),
+        }),
+      });
+      if (!res.ok) throw new Error("更新失敗");
+      setLinkMsg("リンクを更新しました");
+      setEditingLink(null);
+      setFromNodeId(0);
+      setToNodeId(0);
+      setDistance(0);
+      fetchLinks();
+    } catch (err: any) {
+      setLinkMsg(err.message);
+    }
+  };
+
+  // リンク削除関数
+  const handleDeleteLink = async (linkId: number) => {
+    if (!confirm("このリンクを削除しますか？")) return;
+    
+    try {
+      const res = await fetch(`http://localhost:8080/links/${linkId}`, {
+        method: "DELETE",
+      });
+      if (!res.ok) throw new Error("削除失敗");
+      setLinkMsg("リンクを削除しました");
+      fetchLinks();
+    } catch (err: any) {
+      setLinkMsg(err.message);
+    }
+  };
+
   // 地図リンク作成モード
   const [showMap, setShowMap] = useState(false);
 
@@ -168,10 +305,16 @@ const Admin: React.FC = () => {
 
   return (
     <div style={{ maxWidth: 500, margin: "40px auto" }}>
-      {/* --- ノード登録フォーム --- */}
+      {/* --- ノード登録・編集フォーム --- */}
       <div className="card">
-        <h2 className="login-title">管理者ノード登録</h2>
-        <form onSubmit={handleSubmit} className="login-form" style={{ display: "flex", flexDirection: "column", alignItems: "center" }}>
+        <h2 className="login-title">
+          {editingNode ? 'ノード編集' : 'ノード登録'}
+        </h2>
+        <form 
+          onSubmit={editingNode ? handleUpdateNode : handleSubmit} 
+          className="login-form" 
+          style={{ display: "flex", flexDirection: "column", alignItems: "center" }}
+        >
           <input type="text" value={name} onChange={e => setName(e.target.value)} placeholder="名前" required />
           <input type="number" value={latitude} onChange={e => setLatitude(e.target.value)} placeholder="緯度 (例: 35.68)" required step="any" />
           <input type="number" value={longitude} onChange={e => setLongitude(e.target.value)} placeholder="経度 (例: 139.76)" required step="any" />
@@ -189,25 +332,102 @@ const Admin: React.FC = () => {
             onChange={e => setSelectedTouristSpotId(e.target.value ? Number(e.target.value) : null)}
             style={{ width: "70%", marginBottom: 12, padding: "8px", borderRadius: "4px", border: "1px solid #ccc" }}
           >
-            <option value="">関連する観光地（任意）</option>
+            <option value="">
+              {editingNode ? "関連付ける観光地（任意）" : "関連する観光地（任意）"}
+            </option>
             {touristSpots.map(spot => (
               <option key={spot.id} value={spot.id}>{spot.name}</option>
             ))}
           </select>
+          {editingNode && (
+            <div style={{ fontSize: '12px', color: '#6b7280', marginBottom: 12, width: "70%" }}>
+              ※ 観光地を選択すると、その観光地の座標がこのノードの座標に更新されます
+            </div>
+          )}
           <input type="text" value={imageUrl} onChange={e => setImageUrl(e.target.value)} placeholder="画像URL (任意)" style={{ marginBottom: 12 }} />
-          <button type="submit">ノード登録</button>
+          <div style={{ display: 'flex', gap: '10px' }}>
+            <button type="submit">
+              {editingNode ? 'ノード更新' : 'ノード登録'}
+            </button>
+            {editingNode && (
+              <button 
+                type="button" 
+                onClick={() => {
+                  setEditingNode(null);
+                  setName(""); 
+                  setLatitude(""); 
+                  setLongitude(""); 
+                  setCongestion(0);
+                  setSelectedTouristSpotId(null);
+                }}
+                style={{ backgroundColor: '#6b7280' }}
+              >
+                キャンセル
+              </button>
+            )}
+          </div>
         </form>
-        {message && <p style={{ color: message && message.includes("登録") ? "#16a34a" : "#dc2626", marginTop: 16 }}>{message}</p>}
+        {message && <p style={{ color: message && message.includes("登録") || message.includes("更新") ? "#16a34a" : "#dc2626", marginTop: 16 }}>{message}</p>}
+        
+        {/* ノード一覧表示ボタン */}
+        <button 
+          type="button" 
+          onClick={() => setShowNodeList(!showNodeList)}
+          style={{ marginTop: 16, backgroundColor: '#3b82f6' }}
+        >
+          {showNodeList ? 'ノード一覧を隠す' : 'ノード一覧を表示'}
+        </button>
+        
+        {/* ノード一覧 */}
+        {showNodeList && (
+          <div style={{ marginTop: 16 }}>
+            <h3>ノード一覧</h3>
+            <div style={{ maxHeight: '300px', overflowY: 'auto' }}>
+              {nodes.map(node => (
+                <div key={node.id} style={{ 
+                  border: '1px solid #e2e8f0', 
+                  padding: '8px', 
+                  margin: '4px 0', 
+                  borderRadius: '4px',
+                  display: 'flex',
+                  justifyContent: 'space-between',
+                  alignItems: 'center'
+                }}>
+                  <div>
+                    <strong>{node.name}</strong><br />
+                    <small>ID: {node.id} | 座標: ({node.latitude}, {node.longitude})</small>
+                  </div>
+                  <div style={{ display: 'flex', gap: '5px' }}>
+                    <button 
+                      onClick={() => handleEditNode(node)}
+                      style={{ fontSize: '12px', padding: '4px 8px', backgroundColor: '#f59e0b' }}
+                    >
+                      編集
+                    </button>
+                    <button 
+                      onClick={() => handleDeleteNode(node.id)}
+                      style={{ fontSize: '12px', padding: '4px 8px', backgroundColor: '#ef4444' }}
+                    >
+                      削除
+                    </button>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
       </div>
 
-      {/* --- Link追加フォーム --- */}
+      {/* --- Link登録・編集フォーム --- */}
       <div className="card">
         <button type="button" style={{ marginBottom: 16 }} onClick={() => setShowMap(true)}>
           地図からリンク作成
         </button>
-        <h2 className="login-title" style={{ fontSize: "1.3rem" }}>リンク登録</h2>
+        <h2 className="login-title" style={{ fontSize: "1.3rem" }}>
+          {editingLink ? 'リンク編集' : 'リンク登録'}
+        </h2>
         <form
-          onSubmit={async e => {
+          onSubmit={editingLink ? handleUpdateLink : async e => {
             e.preventDefault();
             setLinkMsg(null);
             if (!fromNodeId || !toNodeId || fromNodeId === toNodeId) {
@@ -248,9 +468,79 @@ const Admin: React.FC = () => {
             ))}
           </select>
           <input type="number" value={distance} onChange={e => setDistance(Number(e.target.value))} placeholder="距離 (m)" required min={1} style={{ marginBottom: 12 }} />
-          <button type="submit">リンク登録</button>
+          <div style={{ display: 'flex', gap: '10px' }}>
+            <button type="submit">
+              {editingLink ? 'リンク更新' : 'リンク登録'}
+            </button>
+            {editingLink && (
+              <button 
+                type="button" 
+                onClick={() => {
+                  setEditingLink(null);
+                  setFromNodeId(0);
+                  setToNodeId(0);
+                  setDistance(0);
+                }}
+                style={{ backgroundColor: '#6b7280' }}
+              >
+                キャンセル
+              </button>
+            )}
+          </div>
         </form>
-        {linkMsg && <p style={{ color: linkMsg && linkMsg.includes("登録") ? "#16a34a" : "#dc2626", marginTop: 16 }}>{linkMsg}</p>}
+        {linkMsg && <p style={{ color: linkMsg && (linkMsg.includes("登録") || linkMsg.includes("更新")) ? "#16a34a" : "#dc2626", marginTop: 16 }}>{linkMsg}</p>}
+        
+        {/* リンク一覧表示ボタン */}
+        <button 
+          type="button" 
+          onClick={() => setShowLinkList(!showLinkList)}
+          style={{ marginTop: 16, backgroundColor: '#3b82f6' }}
+        >
+          {showLinkList ? 'リンク一覧を隠す' : 'リンク一覧を表示'}
+        </button>
+        
+        {/* リンク一覧 */}
+        {showLinkList && (
+          <div style={{ marginTop: 16 }}>
+            <h3>リンク一覧</h3>
+            <div style={{ maxHeight: '300px', overflowY: 'auto' }}>
+              {links.map(link => {
+                const fromNode = nodes.find(n => n.id === link.from_node_id);
+                const toNode = nodes.find(n => n.id === link.to_node_id);
+                return (
+                  <div key={link.id} style={{ 
+                    border: '1px solid #e2e8f0', 
+                    padding: '8px', 
+                    margin: '4px 0', 
+                    borderRadius: '4px',
+                    display: 'flex',
+                    justifyContent: 'space-between',
+                    alignItems: 'center'
+                  }}>
+                    <div>
+                      <strong>{fromNode?.name || `ノード${link.from_node_id}`} → {toNode?.name || `ノード${link.to_node_id}`}</strong><br />
+                      <small>ID: {link.id} | 距離: {link.distance}m</small>
+                    </div>
+                    <div style={{ display: 'flex', gap: '5px' }}>
+                      <button 
+                        onClick={() => handleEditLink(link)}
+                        style={{ fontSize: '12px', padding: '4px 8px', backgroundColor: '#f59e0b' }}
+                      >
+                        編集
+                      </button>
+                      <button 
+                        onClick={() => handleDeleteLink(link.id)}
+                        style={{ fontSize: '12px', padding: '4px 8px', backgroundColor: '#ef4444' }}
+                      >
+                        削除
+                      </button>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+        )}
       </div>
 
       {/* --- 観光地作成フォーム --- */}
@@ -273,6 +563,8 @@ const Admin: React.FC = () => {
                   name: spotName,
                   description: spotDescription,
                   category: spotCategory,
+                  latitude: spotLatitude ? parseFloat(spotLatitude) : undefined,
+                  longitude: spotLongitude ? parseFloat(spotLongitude) : undefined,
                   max_capacity: spotMaxCapacity,
                   current_count: spotCurrentCount,
                   is_open: spotIsOpen,
@@ -290,6 +582,8 @@ const Admin: React.FC = () => {
               setSpotDescription("");
               setSpotCategory("");
               setSpotNodeId(0);
+              setSpotLatitude("");
+              setSpotLongitude("");
               setSpotMaxCapacity(100);
               setSpotCurrentCount(0);
               setSpotIsOpen(true);
@@ -308,13 +602,34 @@ const Admin: React.FC = () => {
           style={{ display: "flex", flexDirection: "column", alignItems: "center" }}
         >
           <input type="text" value={spotName} onChange={e => setSpotName(e.target.value)} placeholder="観光地名" required style={{ marginBottom: 12 }} />
-          <select value={spotNodeId} onChange={e => setSpotNodeId(Number(e.target.value))} required style={{ width: "70%", marginBottom: 12 }}>
+          <select 
+            value={spotNodeId} 
+            onChange={e => {
+              const nodeId = Number(e.target.value);
+              setSpotNodeId(nodeId);
+              // ノードが選択された場合、そのノードの座標を自動設定
+              if (nodeId > 0) {
+                const selectedNode = nodes.find(n => n.id === nodeId);
+                if (selectedNode) {
+                  setSpotLatitude(selectedNode.latitude?.toString() || "");
+                  setSpotLongitude(selectedNode.longitude?.toString() || "");
+                }
+              }
+            }} 
+            required 
+            style={{ width: "70%", marginBottom: 12 }}
+          >
             <option value={0}>メインノードを選択</option>
             {nodes.map(n => (
               <option key={n.id} value={n.id}>{n.name}</option>
             ))}
           </select>
+          <div style={{ fontSize: '12px', color: '#6b7280', marginBottom: 12, width: "70%" }}>
+            ※ ノードを選択すると自動で座標が入力されます。手動で変更も可能です。
+          </div>
           <input type="text" value={spotCategory} onChange={e => setSpotCategory(e.target.value)} placeholder="カテゴリ（神社、公園など）" style={{ marginBottom: 12 }} />
+          <input type="number" value={spotLatitude} onChange={e => setSpotLatitude(e.target.value)} placeholder="緯度 (例: 35.68)" step="any" style={{ marginBottom: 12 }} />
+          <input type="number" value={spotLongitude} onChange={e => setSpotLongitude(e.target.value)} placeholder="経度 (例: 139.76)" step="any" style={{ marginBottom: 12 }} />
           <input type="number" value={spotMaxCapacity} onChange={e => setSpotMaxCapacity(Number(e.target.value))} placeholder="許容人数" required min={1} style={{ marginBottom: 12 }} />
           <input type="number" value={spotCurrentCount} onChange={e => setSpotCurrentCount(Number(e.target.value))} placeholder="現在の人数" min={0} style={{ marginBottom: 12 }} />
           <textarea value={spotDescription} onChange={e => setSpotDescription(e.target.value)} placeholder="説明（任意）" style={{ marginBottom: 12, width: "70%", minHeight: 60 }} />
@@ -512,6 +827,7 @@ const Admin: React.FC = () => {
           </tbody>
         </table>
       </div>
+
 
       {/* --- ユーザーログ表示 --- */}
       <div className="card" style={{ marginTop: 24 }}>

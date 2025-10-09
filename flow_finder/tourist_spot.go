@@ -2,6 +2,7 @@ package main
 
 import (
 	"time"
+	"math"
 	"gorm.io/gorm"
 )
 
@@ -11,6 +12,10 @@ type TouristSpot struct {
 	Name          string    `gorm:"not null" json:"name"`                             // 観光地名
 	Description   string    `json:"description"`                                      // 説明
 	Category      string    `json:"category"`                                         // カテゴリ（神社、公園、博物館など）
+	NodeID        *uint     `json:"node_id"`                                          // メインノードID（外部キー）
+	Node          *Node     `gorm:"foreignKey:NodeID" json:"node,omitempty"`          // ノードとのリレーション
+	Latitude      float64   `json:"latitude"`                                         // 緯度
+	Longitude     float64   `json:"longitude"`                                        // 経度
 	MaxCapacity   int       `gorm:"not null;default:0" json:"max_capacity"`           // 許容人数
 	CurrentCount  int       `gorm:"default:0" json:"current_count"`                   // 現在の人数
 	IsOpen        bool      `gorm:"default:true" json:"is_open"`                      // 営業中かどうか
@@ -95,4 +100,51 @@ func (ts *TouristSpot) RemoveVisitors(count int) {
 // データベースマイグレーション
 func MigrateTouristSpot(db *gorm.DB) error {
 	return db.AutoMigrate(&TouristSpot{})
+}
+
+// 観光地から最も近いノードを見つける関数
+func (ts *TouristSpot) FindNearestNode(db *gorm.DB) (uint, error) {
+	var nodes []Node
+	if err := db.Find(&nodes).Error; err != nil {
+		return 0, err
+	}
+
+	if len(nodes) == 0 {
+		return 0, gorm.ErrRecordNotFound
+	}
+
+	var nearestNodeID uint
+	minDistance := math.MaxFloat64
+
+	for _, node := range nodes {
+		// ハーバーサイン公式を使用して距離を計算
+		distance := calculateDistance(ts.Latitude, ts.Longitude, node.Latitude, node.Longitude)
+		if distance < minDistance {
+			minDistance = distance
+			nearestNodeID = node.ID
+		}
+	}
+
+	return nearestNodeID, nil
+}
+
+// ハーバーサイン公式を使用して2点間の距離を計算（メートル単位）
+func calculateDistance(lat1, lon1, lat2, lon2 float64) float64 {
+	const earthRadius = 6371000 // 地球の半径（メートル）
+
+	// ラジアンに変換
+	lat1Rad := lat1 * math.Pi / 180
+	lon1Rad := lon1 * math.Pi / 180
+	lat2Rad := lat2 * math.Pi / 180
+	lon2Rad := lon2 * math.Pi / 180
+
+	deltaLat := lat2Rad - lat1Rad
+	deltaLon := lon2Rad - lon1Rad
+
+	a := math.Sin(deltaLat/2)*math.Sin(deltaLat/2) +
+		math.Cos(lat1Rad)*math.Cos(lat2Rad)*
+		math.Sin(deltaLon/2)*math.Sin(deltaLon/2)
+	c := 2 * math.Atan2(math.Sqrt(a), math.Sqrt(1-a))
+
+	return earthRadius * c
 }
