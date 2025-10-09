@@ -55,39 +55,44 @@ func (pq *PriorityQueue) Pop() interface{} {
 	return node
 }
 
-// グラフ構築
+// グラフ構築（一方通行リンク）
 func BuildGraph(db *gorm.DB) (map[uint][]Edge, error) {
 	var links []Link
 	if err := db.Find(&links).Error; err != nil {
 		return nil, err
 	}
 
-	fmt.Printf("Debug: Found %d links in database\n", len(links))
+	fmt.Printf("Debug: Found %d directional links in database\n", len(links))
 	
 	graph := make(map[uint][]Edge)
 	
+	// すべてのノードをグラフに初期化（FromNodeIDとToNodeIDの両方）
+	nodeSet := make(map[uint]bool)
 	for _, link := range links {
-		fmt.Printf("Debug: Processing link %d: %d -> %d (distance: %.2f)\n", 
+		nodeSet[link.FromNodeID] = true
+		nodeSet[link.ToNodeID] = true
+	}
+	
+	// 全ノードをグラフのキーとして初期化
+	for nodeID := range nodeSet {
+		graph[nodeID] = []Edge{}
+	}
+	
+	for _, link := range links {
+		fmt.Printf("Debug: Processing directional link %d: %d -> %d (distance: %.2f)\n", 
 			link.ID, link.FromNodeID, link.ToNodeID, link.Distance)
 			
-		// 双方向グラフとして構築（必要に応じて単方向に変更可能）
+		// 一方通行グラフとして構築（FromNodeからToNodeへのみ）
 		graph[link.FromNodeID] = append(graph[link.FromNodeID], Edge{
 			ToNodeID: link.ToNodeID,
 			Weight:   link.Distance,
 			LinkID:   link.ID,
 		})
-		
-		// 逆方向も追加（双方向の場合）
-		graph[link.ToNodeID] = append(graph[link.ToNodeID], Edge{
-			ToNodeID: link.FromNodeID,
-			Weight:   link.Distance,
-			LinkID:   link.ID,
-		})
 	}
 	
-	fmt.Printf("Debug: Graph built with %d nodes\n", len(graph))
+	fmt.Printf("Debug: Directional graph built with %d nodes\n", len(graph))
 	for nodeID, edges := range graph {
-		fmt.Printf("Debug: Node %d has %d connections\n", nodeID, len(edges))
+		fmt.Printf("Debug: Node %d has %d outgoing connections\n", nodeID, len(edges))
 	}
 	
 	return graph, nil
@@ -97,12 +102,20 @@ func BuildGraph(db *gorm.DB) (map[uint][]Edge, error) {
 func Dijkstra(graph map[uint][]Edge, startNodeID, endNodeID uint, db *gorm.DB) (*DijkstraResult, error) {
 	fmt.Printf("Debug: Starting Dijkstra from node %d to node %d\n", startNodeID, endNodeID)
 	
+	// グラフに存在するノードを確認
+	fmt.Printf("Debug: Graph contains %d nodes: ", len(graph))
+	nodeIDs := make([]uint, 0, len(graph))
+	for nodeID := range graph {
+		nodeIDs = append(nodeIDs, nodeID)
+	}
+	fmt.Printf("%v\n", nodeIDs)
+	
 	// 開始・終了ノードがグラフに存在するかチェック
 	if _, exists := graph[startNodeID]; !exists {
-		return nil, fmt.Errorf("開始ノード %d がグラフに存在しません", startNodeID)
+		return nil, fmt.Errorf("開始ノード %d がグラフに存在しません（存在するノード: %v）", startNodeID, nodeIDs)
 	}
 	if _, exists := graph[endNodeID]; !exists {
-		return nil, fmt.Errorf("終了ノード %d がグラフに存在しません", endNodeID)
+		return nil, fmt.Errorf("終了ノード %d がグラフに存在しません（存在するノード: %v）", endNodeID, nodeIDs)
 	}
 	
 	distances := make(map[uint]*DijkstraNode)
