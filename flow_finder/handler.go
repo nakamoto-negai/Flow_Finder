@@ -545,28 +545,18 @@ func RegisterUserRoutes(r *gin.Engine, db *gorm.DB, redisClient *redis.Client) {
 
 	// === ダイクストラ法による最短経路検索API ===
 	
-	// 最短経路検索（距離ベース）
-	r.GET("/api/shortest-path/:start/:end", func(c *gin.Context) {
-		startID, err1 := strconv.Atoi(c.Param("start"))
-		endID, err2 := strconv.Atoi(c.Param("end"))
-		
-		if err1 != nil || err2 != nil {
-			c.JSON(400, gin.H{"error": "無効なノードIDです"})
-			return
-		}
-		
+	// 共通の最短経路検索関数（他のAPIからも呼び出し可能）
+	findShortestPath := func(startID, endID uint) (gin.H, error) {
 		// グラフを構築
 		graph, err := BuildGraph(db)
 		if err != nil {
-			c.JSON(500, gin.H{"error": "グラフ構築エラー"})
-			return
+			return nil, fmt.Errorf("グラフ構築エラー: %v", err)
 		}
 		
 		// ダイクストラ法実行
-		result, err := Dijkstra(graph, uint(startID), uint(endID), db)
+		result, err := Dijkstra(graph, startID, endID, db)
 		if err != nil {
-			c.JSON(404, gin.H{"error": err.Error()})
-			return
+			return nil, fmt.Errorf("経路計算エラー: %v", err)
 		}
 		
 		// ノード名を付加した結果を作成
@@ -586,13 +576,69 @@ func RegisterUserRoutes(r *gin.Engine, db *gorm.DB, redisClient *redis.Client) {
 			})
 		}
 		
-		c.JSON(200, gin.H{
+		return gin.H{
 			"start_node_id":  result.StartNodeID,
 			"end_node_id":    result.EndNodeID,
 			"total_distance": result.TotalDistance,
 			"path":           enrichedPath,
 			"path_length":    len(enrichedPath),
-		})
+		}, nil
+	}
+	
+	// 最短経路検索（距離ベース）
+	r.GET("/api/shortest-path/:start/:end", func(c *gin.Context) {
+		startID, err1 := strconv.Atoi(c.Param("start"))
+		endID, err2 := strconv.Atoi(c.Param("end"))
+		
+		if err1 != nil || err2 != nil {
+			c.JSON(400, gin.H{"error": "無効なノードIDです"})
+			return
+		}
+		
+		result, err := findShortestPath(uint(startID), uint(endID))
+		if err != nil {
+			c.JSON(404, gin.H{"error": err.Error()})
+			return
+		}
+		
+		c.JSON(200, result)
+	})
+	
+	// 観光地を考慮した最短経路検索API（観光地IDから最寄りノードを自動検索）
+	r.GET("/api/shortest-path-to-spot/:start/:spot_id", func(c *gin.Context) {
+		startID, err1 := strconv.Atoi(c.Param("start"))
+		spotID, err2 := strconv.Atoi(c.Param("spot_id"))
+		
+		if err1 != nil || err2 != nil {
+			c.JSON(400, gin.H{"error": "無効なIDです"})
+			return
+		}
+		
+		// 観光地情報を取得
+		var spot TouristSpot
+		if err := db.First(&spot, spotID).Error; err != nil {
+			c.JSON(404, gin.H{"error": "観光地が見つかりません"})
+			return
+		}
+		
+		// 観光地の最寄りノードを検索（今後実装予定の機能）
+		// 現在は仮実装として、観光地IDをそのままノードIDとして使用
+		endNodeID := uint(spotID)
+		
+		result, err := findShortestPath(uint(startID), endNodeID)
+		if err != nil {
+			c.JSON(404, gin.H{"error": err.Error()})
+			return
+		}
+		
+		// 観光地情報を追加
+		result["destination_spot"] = gin.H{
+			"id":       spot.ID,
+			"name":     spot.Name,
+			"category": spot.Category,
+		}
+		
+		c.JSON(200, result)
 	})
 	
 	// デバッグ用: グラフ構造を確認するエンドポイント
