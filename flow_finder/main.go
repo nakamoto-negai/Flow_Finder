@@ -40,7 +40,7 @@ func main() {
 		panic(fmt.Sprintf("GORM DB接続失敗: %v", err))
 	}
 
-	// GORMでテーブル自動作成（User, Node, Link, Image, UserLog, TouristSpot）
+	// GORMでテーブル自動作成（外部キー制約の依存関係順序: Node → Link → Image → 独立テーブル）
 	if err := db.AutoMigrate(&User{}, &Node{}, &Link{}, &Image{}, &UserLog{}, &TouristSpot{}); err != nil {
 		panic(fmt.Sprintf("AutoMigrate失敗: %v", err))
 	}
@@ -92,14 +92,6 @@ func main() {
 
 		var enrichedLinks []gin.H
 		for _, link := range links {
-			// 到達先ノード（ToNode）に関連する観光地を取得
-			var toNodeTouristSpots []TouristSpot
-			db.Where("node_id = ?", link.ToNodeID).Find(&toNodeTouristSpots)
-			
-			// 到達先ノードが観光地と関連付けられているかチェック
-			var relatedTouristSpot *TouristSpot
-			db.Where("id = ?", link.ToNode.TouristSpotID).First(&relatedTouristSpot)
-
 			// リンク情報を構築
 			linkInfo := gin.H{
 				"id":          link.ID,
@@ -107,53 +99,6 @@ func main() {
 				"to_node":     link.ToNode.Name,
 				"distance":    link.Distance,
 				"label":       fmt.Sprintf("%s → %s (%.1fkm)", link.FromNode.Name, link.ToNode.Name, link.Distance/1000),
-			}
-
-			// 到達先の観光地情報を追加
-			var destinations []gin.H
-			
-			// 1. ToNodeがメインノードになっている観光地
-			for _, spot := range toNodeTouristSpots {
-				destinations = append(destinations, gin.H{
-					"id":             spot.ID,
-					"name":           spot.Name,
-					"category":       spot.Category,
-					"current_count":  spot.CurrentCount,
-					"max_capacity":   spot.MaxCapacity,
-					"congestion_ratio": float64(spot.CurrentCount) / float64(spot.MaxCapacity) * 100,
-					"is_open":        spot.IsOpen,
-					"type":           "main_destination", // メイン目的地
-				})
-			}
-
-			// 2. ToNodeが関連ノードとして設定されている観光地
-			if relatedTouristSpot != nil && relatedTouristSpot.ID != 0 {
-				destinations = append(destinations, gin.H{
-					"id":             relatedTouristSpot.ID,
-					"name":           relatedTouristSpot.Name,
-					"category":       relatedTouristSpot.Category,
-					"current_count":  relatedTouristSpot.CurrentCount,
-					"max_capacity":   relatedTouristSpot.MaxCapacity,
-					"congestion_ratio": float64(relatedTouristSpot.CurrentCount) / float64(relatedTouristSpot.MaxCapacity) * 100,
-					"is_open":        relatedTouristSpot.IsOpen,
-					"type":           "related_destination", // 関連目的地
-				})
-			}
-
-			linkInfo["destinations"] = destinations
-			linkInfo["has_tourist_destinations"] = len(destinations) > 0
-
-			// 観光地情報を含むラベルの生成
-			if len(destinations) > 0 {
-				var destNames []string
-				for _, dest := range destinations {
-					destNames = append(destNames, dest["name"].(string))
-				}
-				linkInfo["enhanced_label"] = fmt.Sprintf("%s → %s (%.1fkm) 🏛️ %s", 
-					link.FromNode.Name, link.ToNode.Name, link.Distance/1000, 
-					fmt.Sprintf("観光地: %s", destNames[0]))
-			} else {
-				linkInfo["enhanced_label"] = linkInfo["label"]
 			}
 
 			enrichedLinks = append(enrichedLinks, linkInfo)

@@ -94,22 +94,20 @@ func RegisterUserRoutes(r *gin.Engine, db *gorm.DB, redisClient *redis.Client) {
 	// Node追加
 	r.POST("/nodes", func(c *gin.Context) {
 		var req struct {
-			Name          string  `json:"name"`
-			Latitude      float64 `json:"latitude"`
-			Longitude     float64 `json:"longitude"`
-			Congestion    int     `json:"congestion"`
-			TouristSpotID *uint   `json:"tourist_spot_id"`
+			Name       string  `json:"name"`
+			Latitude   float64 `json:"latitude"`
+			Longitude  float64 `json:"longitude"`
+			Congestion int     `json:"congestion"`
 		}
 		if err := c.ShouldBindJSON(&req); err != nil {
 			c.JSON(400, gin.H{"error": "invalid request"})
 			return
 		}
 		node := Node{
-			Name:          req.Name,
-			Latitude:      req.Latitude,
-			Longitude:     req.Longitude,
-			Congestion:    req.Congestion,
-			TouristSpotID: req.TouristSpotID,
+			Name:       req.Name,
+			Latitude:   req.Latitude,
+			Longitude:  req.Longitude,
+			Congestion: req.Congestion,
 		}
 		if err := db.Create(&node).Error; err != nil {
 			c.JSON(500, gin.H{"error": "DB insert error"})
@@ -278,7 +276,7 @@ func RegisterUserRoutes(r *gin.Engine, db *gorm.DB, redisClient *redis.Client) {
 	// 観光地一覧取得
 	r.GET("/tourist-spots", func(c *gin.Context) {
 		var spots []TouristSpot
-		query := db.Preload("Node")
+		query := db.Model(&TouristSpot{})
 		
 		// カテゴリフィルタ
 		if category := c.Query("category"); category != "" {
@@ -301,7 +299,7 @@ func RegisterUserRoutes(r *gin.Engine, db *gorm.DB, redisClient *redis.Client) {
 	r.GET("/tourist-spots/:id", func(c *gin.Context) {
 		id := c.Param("id")
 		var spot TouristSpot
-		if err := db.Preload("Node").First(&spot, id).Error; err != nil {
+		if err := db.First(&spot, id).Error; err != nil {
 			c.JSON(404, gin.H{"error": "観光地が見つかりません"})
 			return
 		}
@@ -311,7 +309,6 @@ func RegisterUserRoutes(r *gin.Engine, db *gorm.DB, redisClient *redis.Client) {
 	// 観光地作成
 	r.POST("/tourist-spots", func(c *gin.Context) {
 		var req struct {
-			NodeID       uint    `json:"node_id" binding:"required"`
 			Name         string  `json:"name" binding:"required"`
 			Description  string  `json:"description"`
 			Category     string  `json:"category"`
@@ -331,15 +328,7 @@ func RegisterUserRoutes(r *gin.Engine, db *gorm.DB, redisClient *redis.Client) {
 			return
 		}
 		
-		// ノードが存在するか確認
-		var node Node
-		if err := db.First(&node, req.NodeID).Error; err != nil {
-			c.JSON(400, gin.H{"error": "指定されたノードが存在しません"})
-			return
-		}
-		
 		spot := TouristSpot{
-			NodeID:       req.NodeID,
 			Name:         req.Name,
 			Description:  req.Description,
 			Category:     req.Category,
