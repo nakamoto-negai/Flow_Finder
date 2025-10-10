@@ -12,8 +12,9 @@ type TouristSpot struct {
 	Name          string    `gorm:"not null" json:"name"`                             // 観光地名
 	Description   string    `json:"description"`                                      // 説明
 	Category      string    `json:"category"`                                         // カテゴリ（神社、公園、博物館など）
-	NodeID        *uint     `json:"node_id"`                                          // メインノードID（外部キー）
-	Node          *Node     `gorm:"foreignKey:NodeID" json:"node,omitempty"`          // ノードとのリレーション
+	NodeID        *uint     `gorm:"index;constraint:OnUpdate:CASCADE,OnDelete:SET NULL;" json:"nearest_node_id"`  // 最寄りノードID（外部キー）
+	Node          *Node     `gorm:"foreignKey:NodeID;references:ID" json:"-"`                                    // ノードとのリレーション（JSONには含めない）
+	DistanceToNode float64  `json:"distance_to_nearest_node"`                                                   // 最寄りノードまでの距離（メートル）
 	Latitude      float64   `json:"latitude"`                                         // 緯度
 	Longitude     float64   `json:"longitude"`                                        // 経度
 	MaxCapacity   int       `gorm:"not null;default:0" json:"max_capacity"`           // 許容人数

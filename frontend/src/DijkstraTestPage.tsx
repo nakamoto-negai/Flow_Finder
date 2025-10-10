@@ -7,6 +7,16 @@ interface Node {
   longitude: number;
 }
 
+interface TouristSpot {
+  id: number;
+  name: string;
+  description: string;
+  latitude: number;
+  longitude: number;
+  node_id?: number;
+  node?: Node;
+}
+
 interface PathStep {
   from_node_id: number;
   to_node_id: number;
@@ -26,12 +36,15 @@ interface DijkstraResult {
 
 const DijkstraTestPage: React.FC = () => {
   const [nodes, setNodes] = useState<Node[]>([]);
+  const [touristSpots, setTouristSpots] = useState<TouristSpot[]>([]);
+  const [nodesWithSpots, setNodesWithSpots] = useState<Node[]>([]);
   const [startNodeId, setStartNodeId] = useState<number>(0);
   const [endNodeId, setEndNodeId] = useState<number>(0);
   const [result, setResult] = useState<DijkstraResult | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [debugInfo, setDebugInfo] = useState<any>(null);
+  const [showTouristSpots, setShowTouristSpots] = useState(false);
 
   // ノード一覧を取得
   useEffect(() => {
@@ -39,6 +52,24 @@ const DijkstraTestPage: React.FC = () => {
       .then(res => res.json())
       .then(data => setNodes(data))
       .catch(err => console.error('ノード取得エラー:', err));
+  }, []);
+
+  // 観光地一覧を取得
+  useEffect(() => {
+    fetch('http://localhost:8080/tourist-spots')
+      .then(res => res.json())
+      .then(data => {
+        setTouristSpots(data);
+        // 観光地を持つノードを抽出
+        const uniqueNodeIds = [...new Set(data.filter((spot: TouristSpot) => spot.node_id).map((spot: TouristSpot) => spot.node_id))];
+        fetch('http://localhost:8080/nodes')
+          .then(res => res.json())
+          .then(nodeData => {
+            const spotsNodes = nodeData.filter((node: Node) => uniqueNodeIds.includes(node.id));
+            setNodesWithSpots(spotsNodes);
+          });
+      })
+      .catch(err => console.error('観光地取得エラー:', err));
   }, []);
 
   // 最短経路計算
@@ -192,6 +223,20 @@ const DijkstraTestPage: React.FC = () => {
           >
             グラフ構造確認
           </button>
+          
+          <button 
+            onClick={() => setShowTouristSpots(!showTouristSpots)}
+            style={{ 
+              padding: '10px 20px', 
+              background: '#28a745', 
+              color: 'white', 
+              border: 'none', 
+              borderRadius: 4, 
+              cursor: 'pointer'
+            }}
+          >
+            {showTouristSpots ? '観光地一覧を隠す' : '観光地一覧を表示'}
+          </button>
         </div>
       </div>
 
@@ -280,6 +325,89 @@ const DijkstraTestPage: React.FC = () => {
                 ))}
               </div>
             ))}
+          </div>
+        </div>
+      )}
+
+      {/* 観光地を持つノード一覧 */}
+      {showTouristSpots && nodesWithSpots.length > 0 && (
+        <div style={{ 
+          background: '#e8f5e8', 
+          padding: 20, 
+          borderRadius: 8, 
+          marginBottom: 20,
+          border: '1px solid #b7e4c7'
+        }}>
+          <h3 style={{ margin: '0 0 15px 0', color: '#2d5016' }}>
+            🏛️ 観光地を持つノード一覧
+          </h3>
+          
+          <div style={{ marginBottom: 15 }}>
+            <strong>観光地が関連付けられているノード数:</strong> {nodesWithSpots.length}
+          </div>
+          
+          <div style={{ maxHeight: 300, overflowY: 'auto', fontSize: '0.9rem' }}>
+            {nodesWithSpots.map((node) => {
+              const relatedSpots = touristSpots.filter(spot => spot.node_id === node.id);
+              return (
+                <div key={node.id} style={{ 
+                  marginBottom: 12, 
+                  padding: 15, 
+                  background: '#ffffff', 
+                  borderRadius: 6,
+                  border: '1px solid #b7e4c7',
+                  boxShadow: '0 1px 3px rgba(0,0,0,0.1)'
+                }}>
+                  <div style={{ 
+                    fontWeight: 'bold', 
+                    color: '#2d5016',
+                    marginBottom: 8,
+                    fontSize: '1rem'
+                  }}>
+                    📍 {node.name} (ID: {node.id})
+                  </div>
+                  <div style={{ 
+                    fontSize: '0.85rem', 
+                    color: '#6c757d', 
+                    marginBottom: 8 
+                  }}>
+                    座標: {node.latitude.toFixed(6)}, {node.longitude.toFixed(6)}
+                  </div>
+                  <div style={{ marginLeft: 10 }}>
+                    <div style={{ 
+                      fontWeight: 'bold', 
+                      color: '#495057', 
+                      marginBottom: 5,
+                      fontSize: '0.9rem'
+                    }}>
+                      関連する観光地 ({relatedSpots.length}件):
+                    </div>
+                    {relatedSpots.map((spot) => (
+                      <div key={spot.id} style={{ 
+                        fontSize: '0.8rem', 
+                        color: '#6c757d', 
+                        marginLeft: 15,
+                        marginBottom: 3,
+                        padding: '3px 0',
+                        borderLeft: '2px solid #28a745',
+                        paddingLeft: 8
+                      }}>
+                        🏛️ {spot.name}
+                        {spot.description && (
+                          <div style={{ 
+                            fontSize: '0.75rem', 
+                            color: '#868e96',
+                            marginTop: 2 
+                          }}>
+                            {spot.description}
+                          </div>
+                        )}
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              );
+            })}
           </div>
         </div>
       )}

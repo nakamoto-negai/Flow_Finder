@@ -69,7 +69,12 @@ const Admin: React.FC = () => {
   const [message, setMessage] = useState<string | null>(null);
 
   // Link用
-  const [nodes, setNodes] = useState<{ id: number; name: string; latitude?: number; longitude?: number }[]>([]);
+  const [nodes, setNodes] = useState<{ 
+    id: number; 
+    name: string; 
+    latitude?: number; 
+    longitude?: number;
+  }[]>([]);
   const [links, setLinks] = useState<{ id: number; from_node_id: number; to_node_id: number; distance: number }[]>([]);
   const [fromNodeId, setFromNodeId] = useState(0);
   const [toNodeId, setToNodeId] = useState(0);
@@ -81,7 +86,6 @@ const Admin: React.FC = () => {
   const [spotName, setSpotName] = useState("");
   const [spotDescription, setSpotDescription] = useState("");
   const [spotCategory, setSpotCategory] = useState("");
-  const [spotNodeId, setSpotNodeId] = useState(0);
   const [spotLatitude, setSpotLatitude] = useState("");
   const [spotLongitude, setSpotLongitude] = useState("");
   const [spotMaxCapacity, setSpotMaxCapacity] = useState(100);
@@ -550,7 +554,7 @@ const Admin: React.FC = () => {
           onSubmit={async e => {
             e.preventDefault();
             setSpotMsg(null);
-            if (!spotNodeId || !spotName || !spotMaxCapacity) {
+            if (!spotName || !spotMaxCapacity) {
               setSpotMsg("必須項目を入力してください");
               return;
             }
@@ -559,7 +563,6 @@ const Admin: React.FC = () => {
                 method: "POST",
                 headers: { "Content-Type": "application/json" },
                 body: JSON.stringify({
-                  node_id: spotNodeId,
                   name: spotName,
                   description: spotDescription,
                   category: spotCategory,
@@ -581,7 +584,6 @@ const Admin: React.FC = () => {
               setSpotName("");
               setSpotDescription("");
               setSpotCategory("");
-              setSpotNodeId(0);
               setSpotLatitude("");
               setSpotLongitude("");
               setSpotMaxCapacity(100);
@@ -602,31 +604,6 @@ const Admin: React.FC = () => {
           style={{ display: "flex", flexDirection: "column", alignItems: "center" }}
         >
           <input type="text" value={spotName} onChange={e => setSpotName(e.target.value)} placeholder="観光地名" required style={{ marginBottom: 12 }} />
-          <select 
-            value={spotNodeId} 
-            onChange={e => {
-              const nodeId = Number(e.target.value);
-              setSpotNodeId(nodeId);
-              // ノードが選択された場合、そのノードの座標を自動設定
-              if (nodeId > 0) {
-                const selectedNode = nodes.find(n => n.id === nodeId);
-                if (selectedNode) {
-                  setSpotLatitude(selectedNode.latitude?.toString() || "");
-                  setSpotLongitude(selectedNode.longitude?.toString() || "");
-                }
-              }
-            }} 
-            required 
-            style={{ width: "70%", marginBottom: 12 }}
-          >
-            <option value={0}>メインノードを選択</option>
-            {nodes.map(n => (
-              <option key={n.id} value={n.id}>{n.name}</option>
-            ))}
-          </select>
-          <div style={{ fontSize: '12px', color: '#6b7280', marginBottom: 12, width: "70%" }}>
-            ※ ノードを選択すると自動で座標が入力されます。手動で変更も可能です。
-          </div>
           <input type="text" value={spotCategory} onChange={e => setSpotCategory(e.target.value)} placeholder="カテゴリ（神社、公園など）" style={{ marginBottom: 12 }} />
           <input type="number" value={spotLatitude} onChange={e => setSpotLatitude(e.target.value)} placeholder="緯度 (例: 35.68)" step="any" style={{ marginBottom: 12 }} />
           <input type="number" value={spotLongitude} onChange={e => setSpotLongitude(e.target.value)} placeholder="経度 (例: 139.76)" step="any" style={{ marginBottom: 12 }} />
@@ -670,15 +647,89 @@ const Admin: React.FC = () => {
         <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 14 }}>
           <thead>
             <tr style={{ background: "#f1f5f9" }}>
-              <th>ID</th><th>名前</th><th>緯度</th><th>経度</th>
+              <th style={{ padding: '12px 8px', textAlign: 'left', borderBottom: '2px solid #e2e8f0' }}>ID</th>
+              <th style={{ padding: '12px 8px', textAlign: 'left', borderBottom: '2px solid #e2e8f0' }}>名前</th>
+              <th style={{ padding: '12px 8px', textAlign: 'left', borderBottom: '2px solid #e2e8f0' }}>緯度</th>
+              <th style={{ padding: '12px 8px', textAlign: 'left', borderBottom: '2px solid #e2e8f0' }}>経度</th>
+              <th style={{ padding: '12px 8px', textAlign: 'left', borderBottom: '2px solid #e2e8f0', minWidth: '200px' }}>関連する観光地</th>
             </tr>
           </thead>
           <tbody>
-            {nodes.map(n => (
-              <tr key={n.id}>
-                <td>{n.id}</td><td>{n.name}</td><td>{n.latitude?.toFixed?.(5) ?? ""}</td><td>{n.longitude?.toFixed?.(5) ?? ""}</td>
-              </tr>
-            ))}
+            {nodes.map(n => {
+              // 最寄りノードとして設定されている観光地をフィルター
+              const relatedSpots = touristSpots.filter(spot => spot.nearest_node_id === n.id);
+              return (
+                <tr key={n.id} style={{ borderBottom: '1px solid #f1f5f9' }}>
+                  <td style={{ padding: '12px 8px' }}>{n.id}</td>
+                  <td style={{ padding: '12px 8px', fontWeight: '500' }}>{n.name}</td>
+                  <td style={{ padding: '12px 8px', color: '#6b7280' }}>{n.latitude?.toFixed?.(5) ?? ""}</td>
+                  <td style={{ padding: '12px 8px', color: '#6b7280' }}>{n.longitude?.toFixed?.(5) ?? ""}</td>
+                  <td style={{ padding: '12px 8px', maxWidth: '250px' }}>
+                    {relatedSpots.length > 0 ? (
+                      <div style={{ fontSize: '12px' }}>
+                        {relatedSpots.map((spot: any, index: number) => (
+                          <div key={spot.id} style={{ 
+                            marginBottom: index < relatedSpots.length - 1 ? 6 : 0,
+                            padding: '4px 8px',
+                            background: '#e8f5e8',
+                            borderRadius: 6,
+                            border: '1px solid #b7e4c7',
+                            display: 'flex',
+                            alignItems: 'center',
+                            justifyContent: 'space-between'
+                          }}>
+                            <span>
+                              🏛️ {spot.name}
+                            </span>
+                            <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                              {spot.category && (
+                                <span style={{ 
+                                  color: '#6b7280', 
+                                  fontSize: '10px',
+                                  background: '#f3f4f6',
+                                  padding: '2px 4px',
+                                  borderRadius: 3
+                                }}>
+                                  {spot.category}
+                                </span>
+                              )}
+                              {spot.distance_to_nearest_node && (
+                                <span style={{ 
+                                  color: '#059669', 
+                                  fontSize: '9px',
+                                  background: '#ecfdf5',
+                                  padding: '1px 3px',
+                                  borderRadius: 2
+                                }}>
+                                  {Math.round(spot.distance_to_nearest_node)}m
+                                </span>
+                              )}
+                            </div>
+                          </div>
+                        ))}
+                        <div style={{ 
+                          marginTop: 6, 
+                          fontSize: '10px', 
+                          color: '#6b7280',
+                          textAlign: 'center',
+                          fontWeight: '500'
+                        }}>
+                          計 {relatedSpots.length} 件の観光地
+                        </div>
+                      </div>
+                    ) : (
+                      <span style={{ 
+                        color: '#9ca3af', 
+                        fontSize: '12px',
+                        fontStyle: 'italic'
+                      }}>
+                        関連する観光地なし
+                      </span>
+                    )}
+                  </td>
+                </tr>
+              );
+            })}
           </tbody>
         </table>
       </div>

@@ -481,7 +481,7 @@ func RegisterUserRoutes(r *gin.Engine, db *gorm.DB, redisClient *redis.Client) {
 	// 観光地一覧取得
 	r.GET("/tourist-spots", func(c *gin.Context) {
 		var spots []TouristSpot
-		query := db.Model(&TouristSpot{})
+		query := db.Model(&TouristSpot{}) // NodeをPreloadしない（循環参照回避）
 		
 		// カテゴリフィルタ
 		if category := c.Query("category"); category != "" {
@@ -504,7 +504,7 @@ func RegisterUserRoutes(r *gin.Engine, db *gorm.DB, redisClient *redis.Client) {
 	r.GET("/tourist-spots/:id", func(c *gin.Context) {
 		id := c.Param("id")
 		var spot TouristSpot
-		if err := db.First(&spot, id).Error; err != nil {
+		if err := db.Preload("Node").First(&spot, id).Error; err != nil {
 			c.JSON(404, gin.H{"error": "観光地が見つかりません"})
 			return
 		}
@@ -517,6 +517,8 @@ func RegisterUserRoutes(r *gin.Engine, db *gorm.DB, redisClient *redis.Client) {
 			Name         string  `json:"name" binding:"required"`
 			Description  string  `json:"description"`
 			Category     string  `json:"category"`
+			Latitude     float64 `json:"latitude"`
+			Longitude    float64 `json:"longitude"`
 			MaxCapacity  int     `json:"max_capacity" binding:"required,min=1"`
 			CurrentCount int     `json:"current_count"`
 			IsOpen       bool    `json:"is_open"`
@@ -537,6 +539,8 @@ func RegisterUserRoutes(r *gin.Engine, db *gorm.DB, redisClient *redis.Client) {
 			Name:         req.Name,
 			Description:  req.Description,
 			Category:     req.Category,
+			Latitude:     req.Latitude,
+			Longitude:    req.Longitude,
 			MaxCapacity:  req.MaxCapacity,
 			CurrentCount: req.CurrentCount,
 			IsOpen:       req.IsOpen,
@@ -546,6 +550,20 @@ func RegisterUserRoutes(r *gin.Engine, db *gorm.DB, redisClient *redis.Client) {
 			Website:      req.Website,
 			PhoneNumber:  req.PhoneNumber,
 			ImageURL:     req.ImageURL,
+		}
+
+		// 座標が指定されている場合、最寄りのノードを見つけて関連付ける
+		if req.Latitude != 0 && req.Longitude != 0 {
+			nearestNodeID, err := spot.FindNearestNode(db)
+			if err == nil && nearestNodeID != 0 {
+				spot.NodeID = &nearestNodeID
+				
+				// 距離も計算して保存
+				var nearestNode Node
+				if err := db.First(&nearestNode, nearestNodeID).Error; err == nil {
+					spot.DistanceToNode = calculateDistance(spot.Latitude, spot.Longitude, nearestNode.Latitude, nearestNode.Longitude)
+				}
+			}
 		}
 		
 		if err := db.Create(&spot).Error; err != nil {
@@ -574,18 +592,20 @@ func RegisterUserRoutes(r *gin.Engine, db *gorm.DB, redisClient *redis.Client) {
 		}
 		
 		var req struct {
-			Name         *string `json:"name"`
-			Description  *string `json:"description"`
-			Category     *string `json:"category"`
-			MaxCapacity  *int    `json:"max_capacity"`
-			CurrentCount *int    `json:"current_count"`
-			IsOpen       *bool   `json:"is_open"`
-			OpeningTime  *string `json:"opening_time"`
-			ClosingTime  *string `json:"closing_time"`
-			EntryFee     *int    `json:"entry_fee"`
-			Website      *string `json:"website"`
-			PhoneNumber  *string `json:"phone_number"`
-			ImageURL     *string `json:"image_url"`
+			Name         *string  `json:"name"`
+			Description  *string  `json:"description"`
+			Category     *string  `json:"category"`
+			Latitude     *float64 `json:"latitude"`
+			Longitude    *float64 `json:"longitude"`
+			MaxCapacity  *int     `json:"max_capacity"`
+			CurrentCount *int     `json:"current_count"`
+			IsOpen       *bool    `json:"is_open"`
+			OpeningTime  *string  `json:"opening_time"`
+			ClosingTime  *string  `json:"closing_time"`
+			EntryFee     *int     `json:"entry_fee"`
+			Website      *string  `json:"website"`
+			PhoneNumber  *string  `json:"phone_number"`
+			ImageURL     *string  `json:"image_url"`
 		}
 		
 		if err := c.ShouldBindJSON(&req); err != nil {
@@ -602,6 +622,12 @@ func RegisterUserRoutes(r *gin.Engine, db *gorm.DB, redisClient *redis.Client) {
 		}
 		if req.Category != nil {
 			spot.Category = *req.Category
+		}
+		if req.Latitude != nil {
+			spot.Latitude = *req.Latitude
+		}
+		if req.Longitude != nil {
+			spot.Longitude = *req.Longitude
 		}
 		if req.MaxCapacity != nil {
 			spot.MaxCapacity = *req.MaxCapacity
@@ -629,6 +655,14 @@ func RegisterUserRoutes(r *gin.Engine, db *gorm.DB, redisClient *redis.Client) {
 		}
 		if req.ImageURL != nil {
 			spot.ImageURL = *req.ImageURL
+		}
+		
+		// 座標が更新された場合、最寄りのノードを再検索
+		if (req.Latitude != nil || req.Longitude != nil) && spot.Latitude != 0 && spot.Longitude != 0 {
+			nearestNodeID, err := spot.FindNearestNode(db)
+			if err == nil && nearestNodeID != 0 {
+				spot.NodeID = &nearestNodeID
+			}
 		}
 		
 		if err := db.Save(&spot).Error; err != nil {
