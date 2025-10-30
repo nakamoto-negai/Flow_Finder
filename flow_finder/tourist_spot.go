@@ -1,6 +1,7 @@
 package main
 
 import (
+	"fmt"
 	"time"
 	"math"
 	"gorm.io/gorm"
@@ -96,6 +97,24 @@ func (ts *TouristSpot) RemoveVisitors(count int) {
 	if ts.CurrentCount < 0 {
 		ts.CurrentCount = 0
 	}
+}
+
+// 来場者数を増加させる
+func (ts *TouristSpot) IncrementVisitors(count int) error {
+	if ts.CurrentCount + count > ts.MaxCapacity {
+		return fmt.Errorf("許容人数を超過します（現在: %d, 増加: %d, 最大: %d）", ts.CurrentCount, count, ts.MaxCapacity)
+	}
+	ts.CurrentCount += count
+	return nil
+}
+
+// 来場者数を減少させる
+func (ts *TouristSpot) DecrementVisitors(count int) error {
+	if ts.CurrentCount - count < 0 {
+		return fmt.Errorf("現在の人数を下回ることはできません（現在: %d, 減少: %d）", ts.CurrentCount, count)
+	}
+	ts.CurrentCount -= count
+	return nil
 }
 
 // データベースマイグレーション

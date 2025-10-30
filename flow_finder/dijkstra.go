@@ -79,15 +79,24 @@ func BuildGraph(db *gorm.DB) (map[uint][]Edge, error) {
 	}
 	
 	for _, link := range links {
-		fmt.Printf("Debug: Processing directional link %d: %d -> %d (distance: %.2f)\n", 
-			link.ID, link.FromNodeID, link.ToNodeID, link.Distance)
+		fmt.Printf("Debug: Processing link %d: %d -> %d (distance: %.2f, directed: %t)\n", 
+			link.ID, link.FromNodeID, link.ToNodeID, link.Distance, link.IsDirected)
 			
-		// 一方通行グラフとして構築（FromNodeからToNodeへのみ）
+		// FromNodeからToNodeへのエッジを追加
 		graph[link.FromNodeID] = append(graph[link.FromNodeID], Edge{
 			ToNodeID: link.ToNodeID,
-			Weight:   link.Distance,
+			Weight:   link.Weight,
 			LinkID:   link.ID,
 		})
+		
+		// 双方向リンクの場合（IsDirected = false）、逆方向も追加
+		if !link.IsDirected {
+			graph[link.ToNodeID] = append(graph[link.ToNodeID], Edge{
+				ToNodeID: link.FromNodeID,
+				Weight:   link.Weight,
+				LinkID:   link.ID,
+			})
+		}
 	}
 	
 	fmt.Printf("Debug: Directional graph built with %d nodes\n", len(graph))

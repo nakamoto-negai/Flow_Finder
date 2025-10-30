@@ -10,7 +10,6 @@ import (
 
 	"github.com/redis/go-redis/v9"
 
-	"github.com/gin-contrib/cors"
 	"github.com/gin-gonic/gin"
 	"gorm.io/driver/postgres"
 	"gorm.io/gorm"
@@ -61,54 +60,12 @@ func main() {
 	
 	// APIアクセスログミドルウェアを追加
 	r.Use(APILoggingMiddleware(db))
-	
-	// CORSミドルウェア追加
-	r.Use(cors.New(cors.Config{
-		AllowOrigins:     []string{"http://localhost:5173"},
-		AllowMethods:     []string{"GET", "POST", "PUT", "DELETE", "OPTIONS"},
-		AllowHeaders:     []string{"Origin", "Content-Type", "Accept", "X-User-Id", "X-Session-Id", "Authorization"},
-		AllowCredentials: true,
-	}))
 
-	// アップロード画像の静的配信 (開発用)
-	r.Static("/uploads", "uploads")
+	// ルーティングをセットアップ
+	SetupRoutes(r, db, redisClient)
 
 	// ログ関連APIを登録
 	RegisterLogRoutes(r, db)
-
-	// /upload API登録
-	RegisterUploadRoute(r)
-
-	// ユーザーAPIルーティングを別ファイルに分離（観光地APIも含む）
-	RegisterUserRoutes(r, db, redisClient)
-
-	// LinkListPage用: リンクと到達先観光地情報のAPI
-	r.GET("/api/links/with-destinations", func(c *gin.Context) {
-		var links []Link
-		if err := db.Preload("FromNode").Preload("ToNode").Find(&links).Error; err != nil {
-			c.JSON(500, gin.H{"error": "リンクデータ取得エラー"})
-			return
-		}
-
-		var enrichedLinks []gin.H
-		for _, link := range links {
-			// リンク情報を構築
-			linkInfo := gin.H{
-				"id":          link.ID,
-				"from_node":   link.FromNode.Name,
-				"to_node":     link.ToNode.Name,
-				"distance":    link.Distance,
-				"label":       fmt.Sprintf("%s → %s (%.1fkm)", link.FromNode.Name, link.ToNode.Name, link.Distance/1000),
-			}
-
-			enrichedLinks = append(enrichedLinks, linkInfo)
-		}
-
-		c.JSON(200, gin.H{
-			"links": enrichedLinks,
-			"total": len(enrichedLinks),
-		})
-	})
 
 	r.Run() // デフォルトでlocalhost:8080
 }

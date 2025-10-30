@@ -57,7 +57,15 @@ const Admin: React.FC = () => {
   const fetchImages = () => {
     fetch("http://localhost:8080/images")
       .then(res => res.json())
-      .then(data => setImages(data))
+      .then(data => {
+        if (data && typeof data === 'object' && Array.isArray(data.value)) {
+          setImages(data.value);
+        } else if (Array.isArray(data)) {
+          setImages(data);
+        } else {
+          setImages([]);
+        }
+      })
       .catch(() => setImages([]));
   };
   const [name, setName] = useState("");
@@ -103,7 +111,15 @@ const Admin: React.FC = () => {
   const fetchTouristSpots = () => {
     fetch("http://localhost:8080/tourist-spots")
       .then(res => res.json())
-      .then(data => setTouristSpots(data))
+      .then(data => {
+        if (data && typeof data === 'object' && Array.isArray(data.value)) {
+          setTouristSpots(data.value);
+        } else if (Array.isArray(data)) {
+          setTouristSpots(data);
+        } else {
+          setTouristSpots([]);
+        }
+      })
       .catch(() => setTouristSpots([]));
   };
 
@@ -111,13 +127,29 @@ const Admin: React.FC = () => {
   const fetchNodes = () => {
     fetch("http://localhost:8080/nodes")
       .then(res => res.json())
-      .then(data => setNodes(data))
+      .then(data => {
+        if (data && typeof data === 'object' && Array.isArray(data.value)) {
+          setNodes(data.value);
+        } else if (Array.isArray(data)) {
+          setNodes(data);
+        } else {
+          setNodes([]);
+        }
+      })
       .catch(() => setNodes([]));
   };
   const fetchLinks = () => {
     fetch("http://localhost:8080/links")
       .then(res => res.json())
-      .then(data => setLinks(data))
+      .then(data => {
+        if (data && typeof data === 'object' && Array.isArray(data.value)) {
+          setLinks(data.value);
+        } else if (Array.isArray(data)) {
+          setLinks(data);
+        } else {
+          setLinks([]);
+        }
+      })
       .catch(() => setLinks([]));
   };
   useEffect(() => {
@@ -125,7 +157,15 @@ const Admin: React.FC = () => {
     fetchLinks();
     fetchImages();
     fetchTouristSpots();
-    logger.logPageView('/admin');
+    
+    // ログ送信を非同期で実行（エラーが発生してもコンポーネントの描画には影響しない）
+    setTimeout(() => {
+      try {
+        logger.logPageView('/admin');
+      } catch (error) {
+        console.warn('ログ送信エラー:', error);
+      }
+    }, 100);
   }, []);
   
   // ログ取得関数
@@ -339,7 +379,7 @@ const Admin: React.FC = () => {
             <option value="">
               {editingNode ? "関連付ける観光地（任意）" : "関連する観光地（任意）"}
             </option>
-            {touristSpots.map(spot => (
+            {Array.isArray(touristSpots) && touristSpots.map(spot => (
               <option key={spot.id} value={spot.id}>{spot.name}</option>
             ))}
           </select>
@@ -387,7 +427,7 @@ const Admin: React.FC = () => {
           <div style={{ marginTop: 16 }}>
             <h3>ノード一覧</h3>
             <div style={{ maxHeight: '300px', overflowY: 'auto' }}>
-              {nodes.map(node => (
+              {Array.isArray(nodes) && nodes.map(node => (
                 <div key={node.id} style={{ 
                   border: '1px solid #e2e8f0', 
                   padding: '8px', 
@@ -461,13 +501,13 @@ const Admin: React.FC = () => {
         >
           <select value={fromNodeId} onChange={e => setFromNodeId(Number(e.target.value))} required style={{ width: "70%", marginBottom: 12 }}>
             <option value={0}>出発ノードを選択</option>
-            {nodes.map(n => (
+            {Array.isArray(nodes) && nodes.map(n => (
               <option key={n.id} value={n.id}>{n.name}</option>
             ))}
           </select>
           <select value={toNodeId} onChange={e => setToNodeId(Number(e.target.value))} required style={{ width: "70%", marginBottom: 12 }}>
             <option value={0}>到着ノードを選択</option>
-            {nodes.map(n => (
+            {Array.isArray(nodes) && nodes.map(n => (
               <option key={n.id} value={n.id}>{n.name}</option>
             ))}
           </select>
