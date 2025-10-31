@@ -2,6 +2,7 @@ import React, { useState, useEffect, useRef } from "react";
 // ...existing code...
 import MapView from "./MapView";
 import { logger } from "./logger";
+import Header from "./Header";
 import "./App.css";
 
 const Admin: React.FC = () => {
@@ -348,7 +349,9 @@ const Admin: React.FC = () => {
   };
 
   return (
-    <div style={{ maxWidth: 500, margin: "40px auto" }}>
+    <div style={{ minHeight: '100vh', background: '#f8fafc' }}>
+      <Header showLocationPicker={false} />
+      <div style={{ maxWidth: 500, margin: "40px auto" }}>
       {/* --- ノード登録・編集フォーム --- */}
       <div className="card">
         <h2 className="login-title">
@@ -1012,6 +1015,7 @@ const Admin: React.FC = () => {
             </div>
           </>
         )}
+      </div>
       </div>
     </div>
   );

@@ -1,4 +1,5 @@
 import React, { useEffect, useState } from "react";
+import Header from "./Header";
 
 const LinkListPage: React.FC = () => {
   const [nodes, setNodes] = useState<any[]>([]);
@@ -74,18 +75,27 @@ const LinkListPage: React.FC = () => {
 
   console.log("Current state:", { nodes, links, currentNodeId, loading, error });
 
+  const handleNodeChange = (nodeId: number) => {
+    setCurrentNodeId(nodeId);
+  };
+
   if (error) {
     return (
-      <div style={{ maxWidth: 600, margin: "32px auto", background: "#fff", borderRadius: 8, boxShadow: "0 2px 8px #0001", padding: 24 }}>
-        <h1 style={{ color: "red" }}>エラーが発生しました</h1>
-        <p>{error}</p>
+      <div style={{ minHeight: '100vh', background: '#f8fafc' }}>
+        <Header currentNodeId={currentNodeId} onNodeChange={handleNodeChange} />
+        <div style={{ maxWidth: 600, margin: "32px auto", background: "#fff", borderRadius: 8, boxShadow: "0 2px 8px #0001", padding: 24 }}>
+          <h1 style={{ color: "red" }}>エラーが発生しました</h1>
+          <p>{error}</p>
+        </div>
       </div>
     );
   }
 
   return (
-    <div style={{ maxWidth: 600, margin: "32px auto", background: "#fff", borderRadius: 8, boxShadow: "0 2px 8px #0001", padding: 24 }}>
-      <h1 style={{ fontSize: "1.3rem", marginBottom: 16 }}>リンク一覧ページ</h1>
+    <div style={{ minHeight: '100vh', background: '#f8fafc' }}>
+      <Header currentNodeId={currentNodeId} onNodeChange={handleNodeChange} />
+      <div style={{ maxWidth: 600, margin: "32px auto", background: "#fff", borderRadius: 8, boxShadow: "0 2px 8px #0001", padding: 24 }}>
+        <h1 style={{ fontSize: "1.3rem", marginBottom: 16 }}>リンク一覧ページ</h1>
       
       {loading && (
         <div style={{ textAlign: "center", padding: 20, color: "#666" }}>
@@ -165,6 +175,7 @@ const LinkListPage: React.FC = () => {
           )}
         </>
       )}
+      </div>
     </div>
   );
 };
