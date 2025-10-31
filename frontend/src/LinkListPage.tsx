@@ -161,7 +161,7 @@ const LinkListPage: React.FC = () => {
                       }}
                       onClick={() => window.location.href = `/links/${link.id}`}
                     >
-                      詳細を見る
+                      ここに進む
                     </button>
                   </div>
                 ))}
