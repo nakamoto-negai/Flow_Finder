@@ -22,7 +22,7 @@ func main() {
 		ginMode = "debug" // デフォルトはdebugモード
 	}
 	gin.SetMode(ginMode)
-	
+
 	if ginMode == gin.ReleaseMode {
 		fmt.Println("Ginリリースモードで起動中...")
 	} else {

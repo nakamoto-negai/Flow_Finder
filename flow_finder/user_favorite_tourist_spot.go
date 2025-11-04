@@ -8,18 +8,18 @@ import (
 
 // ユーザーのお気に入り観光地を管理するモデル
 type UserFavoriteTouristSpot struct {
-	ID             uint      `gorm:"primaryKey" json:"id"`
-	UserID         uint      `gorm:"not null;index" json:"user_id"`                                      // ユーザーID（外部キー）
-	TouristSpotID  uint      `gorm:"not null;index" json:"tourist_spot_id"`                             // 観光地ID（外部キー）
-	User           User      `gorm:"foreignKey:UserID;references:ID" json:"-"`                          // ユーザーとのリレーション
-	TouristSpot    TouristSpot `gorm:"foreignKey:TouristSpotID;references:ID" json:"tourist_spot"`     // 観光地とのリレーション
-	AddedAt        time.Time `gorm:"autoCreateTime" json:"added_at"`                                    // お気に入りに追加した日時
-	Notes          string    `json:"notes"`                                                             // ユーザーのメモ（オプション）
-	Priority       int       `gorm:"default:0" json:"priority"`                                         // 優先度（0-5、0が最低）
-	VisitStatus    string    `gorm:"default:'未訪問'" json:"visit_status"`                              // 訪問状況（未訪問、訪問済み、訪問予定）
-	VisitDate      *time.Time `json:"visit_date"`                                                      // 訪問予定日または訪問日
-	CreatedAt      time.Time `json:"created_at"`
-	UpdatedAt      time.Time `json:"updated_at"`
+	ID            uint        `gorm:"primaryKey" json:"id"`
+	UserID        uint        `gorm:"not null;index" json:"user_id"`                              // ユーザーID（外部キー）
+	TouristSpotID uint        `gorm:"not null;index" json:"tourist_spot_id"`                      // 観光地ID（外部キー）
+	User          User        `gorm:"foreignKey:UserID;references:ID" json:"-"`                   // ユーザーとのリレーション
+	TouristSpot   TouristSpot `gorm:"foreignKey:TouristSpotID;references:ID" json:"tourist_spot"` // 観光地とのリレーション
+	AddedAt       time.Time   `gorm:"autoCreateTime" json:"added_at"`                             // お気に入りに追加した日時
+	Notes         string      `json:"notes"`                                                      // ユーザーのメモ（オプション）
+	Priority      int         `gorm:"default:0" json:"priority"`                                  // 優先度（0-5、0が最低）
+	VisitStatus   string      `gorm:"default:'未訪問'" json:"visit_status"`                          // 訪問状況（未訪問、訪問済み、訪問予定）
+	VisitDate     *time.Time  `json:"visit_date"`                                                 // 訪問予定日または訪問日
+	CreatedAt     time.Time   `json:"created_at"`
+	UpdatedAt     time.Time   `json:"updated_at"`
 }
 
 // 複合ユニークインデックス（ユーザーID + 観光地ID）
@@ -60,7 +60,7 @@ type FavoriteTouristSpotResponse struct {
 // お気に入り観光地を取得（観光地詳細情報付き）
 func GetUserFavoriteTouristSpots(db *gorm.DB, userID uint) ([]FavoriteTouristSpotResponse, error) {
 	var favorites []UserFavoriteTouristSpot
-	
+
 	// 観光地情報も一緒に取得
 	err := db.Preload("TouristSpot").Where("user_id = ?", userID).Order("priority DESC, added_at DESC").Find(&favorites).Error
 	if err != nil {
@@ -131,7 +131,7 @@ func UpdateFavoriteDetails(db *gorm.DB, userID, touristSpotID uint, updates map[
 // 優先度別にお気に入り観光地を取得
 func GetFavoritesByPriority(db *gorm.DB, userID uint, priority int) ([]FavoriteTouristSpotResponse, error) {
 	var favorites []UserFavoriteTouristSpot
-	
+
 	err := db.Preload("TouristSpot").Where("user_id = ? AND priority = ?", userID, priority).Order("added_at DESC").Find(&favorites).Error
 	if err != nil {
 		return nil, err
@@ -160,7 +160,7 @@ func GetFavoritesByPriority(db *gorm.DB, userID uint, priority int) ([]FavoriteT
 // 訪問状況別にお気に入り観光地を取得
 func GetFavoritesByVisitStatus(db *gorm.DB, userID uint, visitStatus string) ([]FavoriteTouristSpotResponse, error) {
 	var favorites []UserFavoriteTouristSpot
-	
+
 	err := db.Preload("TouristSpot").Where("user_id = ? AND visit_status = ?", userID, visitStatus).Order("added_at DESC").Find(&favorites).Error
 	if err != nil {
 		return nil, err

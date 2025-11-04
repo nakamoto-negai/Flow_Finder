@@ -67,7 +67,7 @@ func getUserFavoriteTouristSpotsHandler(c *gin.Context, db *gorm.DB) {
 			Error:     err.Error(),
 		}
 		LogUserActivity(db, log)
-		
+
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "お気に入り観光地の取得に失敗しました"})
 		return
 	}
@@ -77,7 +77,7 @@ func getUserFavoriteTouristSpotsHandler(c *gin.Context, db *gorm.DB) {
 	// 成功ログ記録
 	log := UserLog{
 		UserID:    &userID,
-		SessionID: "system", 
+		SessionID: "system",
 		LogType:   LogTypeAction,
 		Category:  CategoryData,
 		Action:    "get_favorites",
@@ -129,7 +129,7 @@ func addFavoriteTouristSpotHandler(c *gin.Context, db *gorm.DB) {
 			Error:     err.Error(),
 		}
 		LogUserActivity(db, log)
-		
+
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "お気に入りの追加に失敗しました"})
 		return
 	}
@@ -143,7 +143,7 @@ func addFavoriteTouristSpotHandler(c *gin.Context, db *gorm.DB) {
 		if req.Priority > 0 {
 			updates["priority"] = req.Priority
 		}
-		
+
 		if err := UpdateFavoriteDetails(db, userID, req.TouristSpotID, updates); err != nil {
 			// 警告ログは記録しない（必要に応じて追加可能）
 		}
@@ -268,13 +268,13 @@ func getFavoriteStatsHandler(c *gin.Context, db *gorm.DB) {
 
 	// 総数
 	db.Model(&UserFavoriteTouristSpot{}).Where("user_id = ?", userID).Count(&totalCount)
-	
+
 	// 訪問済み数
 	db.Model(&UserFavoriteTouristSpot{}).Where("user_id = ? AND visit_status = ?", userID, "訪問済み").Count(&visitedCount)
-	
+
 	// 訪問予定数
 	db.Model(&UserFavoriteTouristSpot{}).Where("user_id = ? AND visit_status = ?", userID, "訪問予定").Count(&plannedCount)
-	
+
 	// 未訪問数
 	db.Model(&UserFavoriteTouristSpot{}).Where("user_id = ? AND visit_status = ?", userID, "未訪問").Count(&notVisitedCount)
 
@@ -303,27 +303,27 @@ func RegisterFavoriteRoutes(r *gin.Engine, db *gorm.DB, redisClient *redis.Clien
 		favorites.GET("/tourist-spots", func(c *gin.Context) {
 			getUserFavoriteTouristSpotsHandler(c, db)
 		})
-		
+
 		// お気に入りに追加
 		favorites.POST("/tourist-spots", func(c *gin.Context) {
 			addFavoriteTouristSpotHandler(c, db)
 		})
-		
+
 		// お気に入りから削除
 		favorites.DELETE("/tourist-spots/:id", func(c *gin.Context) {
 			removeFavoriteTouristSpotHandler(c, db)
 		})
-		
+
 		// お気に入り詳細更新
 		favorites.PUT("/tourist-spots/:id", func(c *gin.Context) {
 			updateFavoriteTouristSpotHandler(c, db)
 		})
-		
+
 		// お気に入り状態チェック
 		favorites.GET("/tourist-spots/:id/check", func(c *gin.Context) {
 			checkFavoriteTouristSpotHandler(c, db)
 		})
-		
+
 		// お気に入り統計
 		favorites.GET("/stats", func(c *gin.Context) {
 			getFavoriteStatsHandler(c, db)
