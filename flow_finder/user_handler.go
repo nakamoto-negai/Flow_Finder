@@ -18,21 +18,29 @@ func RegisterUserRoutes(r *gin.Engine, db *gorm.DB) {
 			c.JSON(400, gin.H{"error": "invalid request"})
 			return
 		}
+
+		// 既存ユーザーの重複チェック
+		var existingUser User
+		if err := db.Where("name = ?", req.Name).First(&existingUser).Error; err == nil {
+			c.JSON(409, gin.H{"error": "user already exists"})
+			return
+		}
+
 		user := User{Name: req.Name}
 		if err := db.Create(&user).Error; err != nil {
 			c.JSON(500, gin.H{"error": "DB insert error"})
 			return
 		}
-		
+
 		// データベース操作ログを記録
-		var userID *uint = &user.ID  // 新規作成されたユーザー自身のID
+		var userID *uint = &user.ID // 新規作成されたユーザー自身のID
 		sessionID := c.GetHeader("X-Session-Id")
 		if sessionID == "" {
 			sessionID = generateHandlerSessionID()
 		}
 		LogDatabaseOperation(db, userID, sessionID, "create", "users", fmt.Sprintf("%d", user.ID), c)
-		
-		c.JSON(200, gin.H{"result": "ok"})
+
+		c.JSON(200, gin.H{"result": "ok", "user_id": user.ID})
 	})
 
 	// ユーザー一覧取得

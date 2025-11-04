@@ -26,14 +26,15 @@ func main() {
 	dsn := fmt.Sprintf("host=%s port=%s user=%s password=%s dbname=%s sslmode=disable", dbHost, dbPort, dbUser, dbPassword, dbName)
 	var db *gorm.DB
 	var err error
-	maxRetries := 30
+	maxRetries := 60
 	for i := 0; i < maxRetries; i++ {
 		db, err = gorm.Open(postgres.Open(dsn), &gorm.Config{})
 		if err == nil {
+			fmt.Println("データベース接続成功")
 			break
 		}
 		fmt.Printf("DB接続リトライ中... (%d/%d): %v\n", i+1, maxRetries, err)
-		time.Sleep(3 * time.Second)
+		time.Sleep(5 * time.Second)
 	}
 	if err != nil {
 		panic(fmt.Sprintf("GORM DB接続失敗: %v", err))
@@ -57,7 +58,7 @@ func main() {
 	}
 
 	r := gin.Default()
-	
+
 	// APIアクセスログミドルウェアを追加
 	r.Use(APILoggingMiddleware(db))
 

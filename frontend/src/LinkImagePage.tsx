@@ -53,7 +53,7 @@ const LinkImagePage: React.FC<{ linkId: number }> = ({ linkId }) => {
 
   return (
     <div style={{ minHeight: '100vh', background: '#f8fafc' }}>
-      <Header showLocationPicker={false} />
+      <Header />
       <div style={{ maxWidth: 500, margin: "32px auto", background: "#fff", borderRadius: 8, boxShadow: "0 2px 8px #0001", padding: 24, textAlign: "center" }}>
         <h2 style={{ marginBottom: 16 }}>リンクID: {linkId} の画像</h2>
         

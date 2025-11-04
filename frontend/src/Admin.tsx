@@ -10,7 +10,7 @@ const Admin: React.FC = () => {
 
   return (
     <div style={{ minHeight: '100vh', background: '#f8fafc' }}>
-      <Header showLocationPicker={false} />
+      <Header />
       
       <div style={{ borderBottom: '1px solid #e5e7eb', background: 'white' }}>
         <div style={{ maxWidth: '1200px', margin: '0 auto', display: 'flex' }}>
