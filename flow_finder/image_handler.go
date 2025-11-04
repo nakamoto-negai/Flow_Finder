@@ -177,10 +177,11 @@ func imageUploadHandler(db *gorm.DB) gin.HandlerFunc {
 		log.Printf("画像アップロード成功: %s", filename)
 		// アップロード成功
 		c.JSON(201, gin.H{
-			"result":  "ok",
-			"message": "ファイルが正常にアップロードされました",
-			"image":   image,
-			"url":     fmt.Sprintf("/uploads/%s", filename),
+			"result":    "ok",
+			"message":   "ファイルが正常にアップロードされました",
+			"image":     image,
+			"url":       fmt.Sprintf("/uploads/%s", filename),
+			"image_url": fmt.Sprintf("/uploads/%s", filename),
 		})
 	}
 }

@@ -3,11 +3,12 @@ import FieldManager from "./FieldManager";
 import NodeManager from "./NodeManager";
 import LinkManager from "./LinkManager";
 import ImageManager from "./ImageManager";
+import TouristSpotManager from "./TouristSpotManager";
 import Header from "./Header";
 import "./App.css";
 
 const Admin: React.FC = () => {
-  const [currentView, setCurrentView] = useState<'fields' | 'nodes' | 'links' | 'images' | 'logs'>('fields');
+  const [currentView, setCurrentView] = useState<'fields' | 'nodes' | 'links' | 'images' | 'tourist-spots' | 'logs'>('fields');
 
   return (
     <div style={{ minHeight: '100vh', background: '#f8fafc' }}>
@@ -19,6 +20,7 @@ const Admin: React.FC = () => {
             { key: 'fields', label: '🏞️ フィールド管理' },
             { key: 'nodes', label: '📍 ノード管理' },
             { key: 'links', label: '🔗 リンク管理' },
+            { key: 'tourist-spots', label: '🏛️ 観光地管理' },
             { key: 'images', label: '🖼️ 画像管理' },
             { key: 'logs', label: '📊 ログ表示' }
           ].map(tab => (
@@ -47,6 +49,8 @@ const Admin: React.FC = () => {
         {currentView === 'nodes' && <NodeManager />}
         
         {currentView === 'links' && <LinkManager />}
+        
+        {currentView === 'tourist-spots' && <TouristSpotManager />}
         
         {currentView === 'images' && <ImageManager />}
         
