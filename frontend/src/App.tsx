@@ -3,6 +3,7 @@ import { useState, useEffect } from 'react';
 import MapView from './MapView';
 import Admin from './Admin';
 import DijkstraTestPage from './DijkstraTestPage';
+import Header from './Header';
 import { logger } from './logger';
 import './App.css';
 
@@ -12,7 +13,6 @@ function App() {
   const [token, setToken] = useState<string | null>(localStorage.getItem('token'));
   const [loginError, setLoginError] = useState<string | null>(null);
   // 現在地ノード選択用
-  const [nodes, setNodes] = useState<{ id: number; name: string }[]>([]);
   const [currentNodeId, setCurrentNodeId] = useState<number | null>(null);
 
   useEffect(() => {
@@ -25,13 +25,6 @@ function App() {
     };
     
     window.addEventListener('beforeunload', handleBeforeUnload);
-    
-    if (!token) return;
-    
-    fetch("http://localhost:8080/nodes")
-      .then(res => res.json())
-      .then(data => setNodes(data))
-      .catch(() => setNodes([]));
       
     return () => {
       window.removeEventListener('beforeunload', handleBeforeUnload);
@@ -106,41 +99,20 @@ function App() {
           {loginError && <p style={{ color: 'red' }}>{loginError}</p>}
         </form>
       ) : (
-        <div style={{ marginBottom: 24 }}>
-          <h1>現在地を選択してください</h1>
-          <div style={{ marginBottom: 16, display: 'flex', gap: 10 }}>
-            <button onClick={handleLogout}>ログアウト</button>
-            <a href="/dijkstra" style={{ 
-              padding: '8px 16px', 
-              background: '#28a745', 
-              color: 'white', 
-              textDecoration: 'none', 
-              borderRadius: 4 
-            }}>
-              ダイクストラテスト
-            </a>
-          </div>
-          <div style={{ marginTop: 16 }}>
-            <select value={currentNodeId ?? ''} onChange={e => {
-              const nodeId = Number(e.target.value);
+        <>
+          <Header 
+            currentNodeId={currentNodeId}
+            onNodeChange={(nodeId) => {
               setCurrentNodeId(nodeId);
-              if (nodeId) {
-                const node = nodes.find(n => n.id === nodeId);
-                if (node) {
-                  logger.logNodeSelect(nodeId, node.name);
-                }
-              }
-            }} style={{ fontSize: 16, padding: 4 }}>
-              <option value="">ノードを選択</option>
-              {nodes.map(n => (
-                <option key={n.id} value={n.id}>{n.name} (ID:{n.id})</option>
-              ))}
-            </select>
-          </div>
-        </div>
+              // ログ記録のためにノード名も取得する必要がある場合は、
+              // Headerコンポーネント内で処理する
+            }}
+            showLocationPicker={true}
+            onLogout={handleLogout}
+          />
+          <MapView />
+        </>
       )}
-
-      {token && <MapView />}
     </div>
   );
 }

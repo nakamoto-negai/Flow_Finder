@@ -13,9 +13,11 @@ func RegisterNodeRoutes(r *gin.Engine, db *gorm.DB) {
 	r.POST("/nodes", func(c *gin.Context) {
 		var req struct {
 			Name       string  `json:"name"`
-			Latitude   float64 `json:"latitude"`
-			Longitude  float64 `json:"longitude"`
+			X          float64 `json:"x"`
+			Y          float64 `json:"y"`
 			Congestion int     `json:"congestion"`
+			Tourist    bool    `json:"tourist"`
+			FieldID    *uint   `json:"field_id"`
 		}
 		if err := c.ShouldBindJSON(&req); err != nil {
 			c.JSON(400, gin.H{"error": "invalid request"})
@@ -23,15 +25,17 @@ func RegisterNodeRoutes(r *gin.Engine, db *gorm.DB) {
 		}
 		node := Node{
 			Name:       req.Name,
-			Latitude:   req.Latitude,
-			Longitude:  req.Longitude,
+			X:          req.X,
+			Y:          req.Y,
 			Congestion: req.Congestion,
+			Tourist:    req.Tourist,
+			FieldID:    req.FieldID,
 		}
 		if err := db.Create(&node).Error; err != nil {
 			c.JSON(500, gin.H{"error": "DB insert error"})
 			return
 		}
-		
+
 		// データベース操作ログを記録
 		var userID *uint = nil
 		sessionID := c.GetHeader("X-Session-Id")
@@ -39,7 +43,7 @@ func RegisterNodeRoutes(r *gin.Engine, db *gorm.DB) {
 			sessionID = generateHandlerSessionID()
 		}
 		LogDatabaseOperation(db, userID, sessionID, "create", "nodes", fmt.Sprintf("%d", node.ID), c)
-		
+
 		c.JSON(200, gin.H{"result": "ok", "id": node.ID})
 	})
 
@@ -72,38 +76,46 @@ func RegisterNodeRoutes(r *gin.Engine, db *gorm.DB) {
 			c.JSON(404, gin.H{"error": "ノードが見つかりません"})
 			return
 		}
-		
+
 		var req struct {
 			Name       *string  `json:"name"`
-			Latitude   *float64 `json:"latitude"`
-			Longitude  *float64 `json:"longitude"`
+			X          *float64 `json:"x"`
+			Y          *float64 `json:"y"`
 			Congestion *int     `json:"congestion"`
+			Tourist    *bool    `json:"tourist"`
+			FieldID    *uint    `json:"field_id"`
 		}
-		
+
 		if err := c.ShouldBindJSON(&req); err != nil {
 			c.JSON(400, gin.H{"error": "リクエストが無効です", "details": err.Error()})
 			return
 		}
-		
+
 		// フィールドを更新（ポインタがnilでない場合のみ）
 		if req.Name != nil {
 			node.Name = *req.Name
 		}
-		if req.Latitude != nil {
-			node.Latitude = *req.Latitude
+		if req.X != nil {
+			node.X = *req.X
 		}
-		if req.Longitude != nil {
-			node.Longitude = *req.Longitude
+		if req.Y != nil {
+			node.Y = *req.Y
 		}
 		if req.Congestion != nil {
 			node.Congestion = *req.Congestion
 		}
-		
+		if req.Tourist != nil {
+			node.Tourist = *req.Tourist
+		}
+		if req.FieldID != nil {
+			node.FieldID = req.FieldID
+		}
+
 		if err := db.Save(&node).Error; err != nil {
 			c.JSON(500, gin.H{"error": "ノード更新に失敗しました"})
 			return
 		}
-		
+
 		// データベース操作ログを記録
 		var userID *uint = nil
 		sessionID := c.GetHeader("X-Session-Id")
@@ -111,35 +123,35 @@ func RegisterNodeRoutes(r *gin.Engine, db *gorm.DB) {
 			sessionID = generateHandlerSessionID()
 		}
 		LogDatabaseOperation(db, userID, sessionID, "update", "nodes", id, c)
-		
+
 		c.JSON(200, gin.H{"result": "ok", "node": node})
 	})
 
 	// Node削除
 	r.DELETE("/nodes/:id", func(c *gin.Context) {
 		id := c.Param("id")
-		
+
 		// 削除前に関連するリンクをチェック
 		var linkCount int64
 		if err := db.Model(&Link{}).Where("from_node_id = ? OR to_node_id = ?", id, id).Count(&linkCount).Error; err != nil {
 			c.JSON(500, gin.H{"error": "リンクのチェックに失敗しました"})
 			return
 		}
-		
+
 		if linkCount > 0 {
 			c.JSON(400, gin.H{
-				"error": "このノードは他のノードとリンクされているため削除できません",
+				"error":      "このノードは他のノードとリンクされているため削除できません",
 				"link_count": linkCount,
-				"message": "先に関連するリンクを削除してください",
+				"message":    "先に関連するリンクを削除してください",
 			})
 			return
 		}
-		
+
 		if err := db.Delete(&Node{}, id).Error; err != nil {
 			c.JSON(500, gin.H{"error": "ノード削除に失敗しました"})
 			return
 		}
-		
+
 		// データベース操作ログを記録
 		var userID *uint = nil
 		sessionID := c.GetHeader("X-Session-Id")
@@ -147,7 +159,7 @@ func RegisterNodeRoutes(r *gin.Engine, db *gorm.DB) {
 			sessionID = generateHandlerSessionID()
 		}
 		LogDatabaseOperation(db, userID, sessionID, "delete", "nodes", id, c)
-		
+
 		c.JSON(200, gin.H{"result": "ok", "message": "ノードが削除されました"})
 	})
 }

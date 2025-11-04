@@ -13,17 +13,17 @@ func RegisterTouristSpotRoutes(r *gin.Engine, db *gorm.DB) {
 	r.GET("/tourist-spots", func(c *gin.Context) {
 		var spots []TouristSpot
 		query := db.Model(&TouristSpot{}) // NodeをPreloadしない（循環参照回避）
-		
+
 		// カテゴリフィルタ
 		if category := c.Query("category"); category != "" {
 			query = query.Where("category = ?", category)
 		}
-		
+
 		// 営業中のみフィルタ
 		if open := c.Query("open"); open == "true" {
 			query = query.Where("is_open = ?", true)
 		}
-		
+
 		if err := query.Find(&spots).Error; err != nil {
 			c.JSON(500, gin.H{"error": "データ取得エラー"})
 			return
@@ -65,8 +65,8 @@ func touristSpotCreateHandler(db *gorm.DB) gin.HandlerFunc {
 			Name         string  `json:"name" binding:"required"`
 			Description  string  `json:"description"`
 			Category     string  `json:"category"`
-			Latitude     float64 `json:"latitude"`
-			Longitude    float64 `json:"longitude"`
+			X            float64 `json:"x"`
+			Y            float64 `json:"y"`
 			MaxCapacity  int     `json:"max_capacity" binding:"required,min=1"`
 			CurrentCount int     `json:"current_count"`
 			IsOpen       bool    `json:"is_open"`
@@ -77,18 +77,18 @@ func touristSpotCreateHandler(db *gorm.DB) gin.HandlerFunc {
 			PhoneNumber  string  `json:"phone_number"`
 			ImageURL     string  `json:"image_url"`
 		}
-		
+
 		if err := c.ShouldBindJSON(&req); err != nil {
 			c.JSON(400, gin.H{"error": "リクエストが無効です", "details": err.Error()})
 			return
 		}
-		
+
 		spot := TouristSpot{
 			Name:         req.Name,
 			Description:  req.Description,
 			Category:     req.Category,
-			Latitude:     req.Latitude,
-			Longitude:    req.Longitude,
+			X:            req.X,
+			Y:            req.Y,
 			MaxCapacity:  req.MaxCapacity,
 			CurrentCount: req.CurrentCount,
 			IsOpen:       req.IsOpen,
@@ -101,24 +101,24 @@ func touristSpotCreateHandler(db *gorm.DB) gin.HandlerFunc {
 		}
 
 		// 座標が指定されている場合、最寄りのノードを見つけて関連付ける
-		if req.Latitude != 0 && req.Longitude != 0 {
+		if req.X != 0 && req.Y != 0 {
 			nearestNodeID, err := spot.FindNearestNode(db)
 			if err == nil && nearestNodeID != 0 {
 				spot.NodeID = &nearestNodeID
-				
+
 				// 距離も計算して保存
 				var nearestNode Node
 				if err := db.First(&nearestNode, nearestNodeID).Error; err == nil {
-					spot.DistanceToNode = calculateDistance(spot.Latitude, spot.Longitude, nearestNode.Latitude, nearestNode.Longitude)
+					spot.DistanceToNode = calculateDistance(spot.X, spot.Y, nearestNode.X, nearestNode.Y)
 				}
 			}
 		}
-		
+
 		if err := db.Create(&spot).Error; err != nil {
 			c.JSON(500, gin.H{"error": "観光地作成に失敗しました"})
 			return
 		}
-		
+
 		// データベース操作ログを記録
 		var userID *uint = nil
 		sessionID := c.GetHeader("X-Session-Id")
@@ -126,7 +126,7 @@ func touristSpotCreateHandler(db *gorm.DB) gin.HandlerFunc {
 			sessionID = generateHandlerSessionID()
 		}
 		LogDatabaseOperation(db, userID, sessionID, "create", "tourist_spots", strconv.Itoa(int(spot.ID)), c)
-		
+
 		c.JSON(201, gin.H{"result": "ok", "id": spot.ID, "spot": spot})
 	}
 }
@@ -140,13 +140,13 @@ func touristSpotUpdateHandler(db *gorm.DB) gin.HandlerFunc {
 			c.JSON(404, gin.H{"error": "観光地が見つかりません"})
 			return
 		}
-		
+
 		var req struct {
 			Name         *string  `json:"name"`
 			Description  *string  `json:"description"`
 			Category     *string  `json:"category"`
-			Latitude     *float64 `json:"latitude"`
-			Longitude    *float64 `json:"longitude"`
+			X            *float64 `json:"x"`
+			Y            *float64 `json:"y"`
 			MaxCapacity  *int     `json:"max_capacity"`
 			CurrentCount *int     `json:"current_count"`
 			IsOpen       *bool    `json:"is_open"`
@@ -157,12 +157,12 @@ func touristSpotUpdateHandler(db *gorm.DB) gin.HandlerFunc {
 			PhoneNumber  *string  `json:"phone_number"`
 			ImageURL     *string  `json:"image_url"`
 		}
-		
+
 		if err := c.ShouldBindJSON(&req); err != nil {
 			c.JSON(400, gin.H{"error": "リクエストが無効です"})
 			return
 		}
-		
+
 		// フィールドを更新（ポインタがnilでない場合のみ）
 		if req.Name != nil {
 			spot.Name = *req.Name
@@ -173,11 +173,11 @@ func touristSpotUpdateHandler(db *gorm.DB) gin.HandlerFunc {
 		if req.Category != nil {
 			spot.Category = *req.Category
 		}
-		if req.Latitude != nil {
-			spot.Latitude = *req.Latitude
+		if req.X != nil {
+			spot.X = *req.X
 		}
-		if req.Longitude != nil {
-			spot.Longitude = *req.Longitude
+		if req.Y != nil {
+			spot.Y = *req.Y
 		}
 		if req.MaxCapacity != nil {
 			spot.MaxCapacity = *req.MaxCapacity
@@ -206,20 +206,20 @@ func touristSpotUpdateHandler(db *gorm.DB) gin.HandlerFunc {
 		if req.ImageURL != nil {
 			spot.ImageURL = *req.ImageURL
 		}
-		
+
 		// 座標が更新された場合、最寄りのノードを再検索
-		if (req.Latitude != nil || req.Longitude != nil) && spot.Latitude != 0 && spot.Longitude != 0 {
+		if (req.X != nil || req.Y != nil) && spot.X != 0 && spot.Y != 0 {
 			nearestNodeID, err := spot.FindNearestNode(db)
 			if err == nil && nearestNodeID != 0 {
 				spot.NodeID = &nearestNodeID
 			}
 		}
-		
+
 		if err := db.Save(&spot).Error; err != nil {
 			c.JSON(500, gin.H{"error": "観光地更新に失敗しました"})
 			return
 		}
-		
+
 		// データベース操作ログを記録
 		var userID *uint = nil
 		sessionID := c.GetHeader("X-Session-Id")
@@ -227,7 +227,7 @@ func touristSpotUpdateHandler(db *gorm.DB) gin.HandlerFunc {
 			sessionID = generateHandlerSessionID()
 		}
 		LogDatabaseOperation(db, userID, sessionID, "update", "tourist_spots", id, c)
-		
+
 		c.JSON(200, gin.H{"result": "ok", "spot": spot})
 	}
 }
@@ -236,12 +236,12 @@ func touristSpotUpdateHandler(db *gorm.DB) gin.HandlerFunc {
 func touristSpotDeleteHandler(db *gorm.DB) gin.HandlerFunc {
 	return func(c *gin.Context) {
 		id := c.Param("id")
-		
+
 		if err := db.Delete(&TouristSpot{}, id).Error; err != nil {
 			c.JSON(500, gin.H{"error": "観光地削除に失敗しました"})
 			return
 		}
-		
+
 		// データベース操作ログを記録
 		var userID *uint = nil
 		sessionID := c.GetHeader("X-Session-Id")
@@ -249,7 +249,7 @@ func touristSpotDeleteHandler(db *gorm.DB) gin.HandlerFunc {
 			sessionID = generateHandlerSessionID()
 		}
 		LogDatabaseOperation(db, userID, sessionID, "delete", "tourist_spots", id, c)
-		
+
 		c.JSON(200, gin.H{"result": "ok", "message": "観光地が削除されました"})
 	}
 }
@@ -263,21 +263,21 @@ func touristSpotVisitorHandler(db *gorm.DB) gin.HandlerFunc {
 			c.JSON(404, gin.H{"error": "観光地が見つかりません"})
 			return
 		}
-		
+
 		var req struct {
 			Action string `json:"action" binding:"required"` // "increment" or "decrement"
-			Count  int    `json:"count"`                      // デフォルト1
+			Count  int    `json:"count"`                     // デフォルト1
 		}
-		
+
 		if err := c.ShouldBindJSON(&req); err != nil {
 			c.JSON(400, gin.H{"error": "リクエストが無効です"})
 			return
 		}
-		
+
 		if req.Count == 0 {
 			req.Count = 1
 		}
-		
+
 		switch req.Action {
 		case "increment":
 			if err := spot.IncrementVisitors(req.Count); err != nil {
@@ -293,17 +293,17 @@ func touristSpotVisitorHandler(db *gorm.DB) gin.HandlerFunc {
 			c.JSON(400, gin.H{"error": "無効なアクションです。'increment' または 'decrement' を指定してください"})
 			return
 		}
-		
+
 		if err := db.Save(&spot).Error; err != nil {
 			c.JSON(500, gin.H{"error": "来場者数の更新に失敗しました"})
 			return
 		}
-		
+
 		c.JSON(200, gin.H{
-			"result":         "ok",
-			"current_count":  spot.CurrentCount,
-			"max_capacity":   spot.MaxCapacity,
-			"congestion":     spot.GetCongestionLevel(),
+			"result":        "ok",
+			"current_count": spot.CurrentCount,
+			"max_capacity":  spot.MaxCapacity,
+			"congestion":    spot.GetCongestionLevel(),
 		})
 	}
 }
@@ -317,7 +317,7 @@ func touristSpotCongestionHandler(db *gorm.DB) gin.HandlerFunc {
 			c.JSON(404, gin.H{"error": "観光地が見つかりません"})
 			return
 		}
-		
+
 		c.JSON(200, gin.H{
 			"id":               spot.ID,
 			"name":             spot.Name,

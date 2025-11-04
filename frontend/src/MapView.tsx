@@ -1,51 +1,108 @@
 
-import React, { useEffect, useState } from "react";
-import { MapContainer, TileLayer, Marker, Popup } from "react-leaflet";
-import { nodeIcon } from "./nodeIcon";
-import "leaflet/dist/leaflet.css";
+import React, { useEffect, useState, useRef } from "react";
 
 type Node = {
   id: number;
   name: string;
-  latitude: number;
-  longitude: number;
+  x: number;  // 写真上のX座標
+  y: number;  // 写真上のY座標
   congestion: number;
   tourist: boolean;
 };
 
-const MAP_CENTER: [number, number] = [35.6895, 139.6917];
-const MAP_ZOOM = 13;
-
-
-// 2点間の距離（m）を計算
-function calcDistance(lat1: number, lng1: number, lat2: number, lng2: number) {
-  const R = 6371000; // 地球半径[m]
-  const toRad = (d: number) => d * Math.PI / 180;
-  const dLat = toRad(lat2 - lat1);
-  const dLng = toRad(lng2 - lng1);
-  const a = Math.sin(dLat/2)**2 + Math.cos(toRad(lat1)) * Math.cos(toRad(lat2)) * Math.sin(dLng/2)**2;
-  const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a));
-  return Math.round(R * c);
+// 2点間の距離（ピクセル）を計算
+function calcDistance(x1: number, y1: number, x2: number, y2: number) {
+  const dx = x2 - x1;
+  const dy = y2 - y1;
+  return Math.round(Math.sqrt(dx * dx + dy * dy));
 }
 
 const MapView: React.FC<{ linkMode?: boolean, onLinkCreated?: () => void }> = ({ linkMode = false, onLinkCreated }) => {
   const [nodes, setNodes] = useState<Node[]>([]);
   const [selected, setSelected] = useState<Node[]>([]); // 選択ノード
   const [linkMsg, setLinkMsg] = useState<string | null>(null);
+  const [isAddingNode, setIsAddingNode] = useState(false);
+  const [newNodeName, setNewNodeName] = useState("");
+  const [showNodeForm, setShowNodeForm] = useState(false);
+  const [clickPosition, setClickPosition] = useState<{ x: number, y: number } | null>(null);
+  const [activeField, setActiveField] = useState<{ id: number, image_url: string, name: string } | null>(null);
+  const imageRef = useRef<HTMLImageElement>(null);
 
   useEffect(() => {
+    // アクティブなフィールドを取得
+    fetch("http://localhost:8080/fields/active")
+      .then((res) => res.json())
+      .then((data) => setActiveField(data))
+      .catch(() => setActiveField(null));
+
+    // ノード一覧を取得
     fetch("http://localhost:8080/nodes")
       .then((res) => res.json())
       .then((data) => setNodes(data))
       .catch(() => setNodes([]));
   }, []);
 
-  // リンク作成モード: ノード2つ選択でUI表示
-  const handleMarkerClick = (node: Node) => {
+  // 写真上のクリック処理
+  const handleImageClick = (event: React.MouseEvent<HTMLImageElement>) => {
+    const rect = event.currentTarget.getBoundingClientRect();
+    const x = event.clientX - rect.left;
+    const y = event.clientY - rect.top;
+    
+    // 既存ノードがクリックされたかチェック
+    const clickedNode = nodes.find(node => {
+      const distance = Math.sqrt((node.x - x) ** 2 + (node.y - y) ** 2);
+      return distance < 15; // 15ピクセル以内
+    });
+
+    if (clickedNode) {
+      handleNodeClick(clickedNode);
+    } else if (isAddingNode) {
+      // 新しいノード追加モード
+      setClickPosition({ x, y });
+      setShowNodeForm(true);
+    }
+  };
+
+  // ノードクリック処理（リンク作成用）
+  const handleNodeClick = (node: Node) => {
     if (!linkMode) return;
     if (selected.length === 0) setSelected([node]);
     else if (selected.length === 1 && selected[0].id !== node.id) setSelected([selected[0], node]);
     else setSelected([node]);
+  };
+
+  // 新しいノードを追加
+  const handleAddNode = async () => {
+    if (!clickPosition || !newNodeName.trim()) return;
+
+    try {
+      const res = await fetch("http://localhost:8080/nodes", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          name: newNodeName,
+          x: clickPosition.x,
+          y: clickPosition.y,
+          congestion: 1,
+          tourist: false,
+          field_id: activeField?.id
+        }),
+      });
+      
+      if (!res.ok) throw new Error("ノード追加失敗");
+      
+      // ノード一覧を再取得
+      const updatedNodes = await fetch("http://localhost:8080/nodes").then(res => res.json());
+      setNodes(updatedNodes);
+      
+      // フォームをリセット
+      setNewNodeName("");
+      setShowNodeForm(false);
+      setClickPosition(null);
+      setIsAddingNode(false);
+    } catch (err: any) {
+      alert("ノード追加に失敗しました: " + err.message);
+    }
   };
 
   const handleRegisterLink = async () => {
@@ -58,7 +115,7 @@ const MapView: React.FC<{ linkMode?: boolean, onLinkCreated?: () => void }> = ({
         body: JSON.stringify({
           from_node_id: selected[0].id,
           to_node_id: selected[1].id,
-          distance: calcDistance(selected[0].latitude, selected[0].longitude, selected[1].latitude, selected[1].longitude),
+          distance: calcDistance(selected[0].x, selected[0].y, selected[1].x, selected[1].y),
         }),
       });
       if (!res.ok) throw new Error("登録失敗");
@@ -71,34 +128,160 @@ const MapView: React.FC<{ linkMode?: boolean, onLinkCreated?: () => void }> = ({
   };
 
   return (
-    <div style={{ width: 700, height: 400, margin: "24px auto", display: "block", position: "relative" }}>
-      <MapContainer center={MAP_CENTER} zoom={MAP_ZOOM} style={{ width: "100%", height: "100%", borderRadius: 8 }}>
-        <TileLayer
-          attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
-          url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
+    <div style={{ width: 800, height: 650, margin: "24px auto", display: "block", position: "relative" }}>
+      {/* コントロールパネル */}
+      <div style={{ 
+        marginBottom: 16, 
+        padding: 16, 
+        background: "#f8f9fa", 
+        borderRadius: 8,
+        display: "flex",
+        gap: 16,
+        alignItems: "center",
+        flexWrap: "wrap"
+      }}>
+        <button
+          onClick={() => setIsAddingNode(!isAddingNode)}
+          style={{
+            padding: "8px 16px",
+            backgroundColor: isAddingNode ? "#dc3545" : "#28a745",
+            color: "white",
+            border: "none",
+            borderRadius: 4,
+            cursor: "pointer"
+          }}
+        >
+          {isAddingNode ? "ノード追加モード終了" : "ノード追加モード"}
+        </button>
+        
+        {isAddingNode && (
+          <span style={{ color: "#6c757d", fontSize: "0.9rem" }}>
+            📍 写真上をクリックしてノードを追加してください
+          </span>
+        )}
+      </div>
+
+      {/* 写真とノード表示 */}
+      <div style={{ position: "relative", border: "2px solid #dee2e6", borderRadius: 8, overflow: "hidden" }}>
+        <img
+          ref={imageRef}
+          src={activeField ? `http://localhost:8080${activeField.image_url}` : "/map-image.jpg"}
+          alt={activeField ? activeField.name : "マップ画像"}
+          style={{ 
+            width: "100%", 
+            height: 600, 
+            objectFit: "cover",
+            cursor: isAddingNode ? "crosshair" : "default"
+          }}
+          onClick={handleImageClick}
         />
+        
+        {/* ノードを表示 */}
         {nodes.map((node) => (
-          <Marker
+          <div
             key={node.id}
-            position={[node.latitude, node.longitude]}
-            icon={nodeIcon}
-            eventHandlers={linkMode ? { click: () => handleMarkerClick(node) } : {}}
+            style={{
+              position: "absolute",
+              left: node.x - 10,
+              top: node.y - 10,
+              width: 20,
+              height: 20,
+              backgroundColor: selected.some(s => s.id === node.id) ? "#ff6b6b" : "#4ecdc4",
+              border: "2px solid white",
+              borderRadius: "50%",
+              cursor: "pointer",
+              boxShadow: "0 2px 4px rgba(0,0,0,0.3)",
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "center",
+              fontSize: "10px",
+              fontWeight: "bold",
+              color: "white"
+            }}
+            onClick={(e) => {
+              e.stopPropagation();
+              handleNodeClick(node);
+            }}
+            title={`${node.name} (混雑度: ${node.congestion})`}
           >
-            <Popup>
-              <b>{node.name}</b><br />
-              混雑度: {node.congestion}<br />
-              <button onClick={() => window.location.href = `/links?node=${node.id}`}>
-                現在地
-              </button>
-            </Popup>
-          </Marker>
+            {node.id}
+          </div>
         ))}
-      </MapContainer>
+      </div>
+
+      {/* ノード追加フォーム */}
+      {showNodeForm && clickPosition && (
+        <div style={{ 
+          position: "absolute", 
+          top: 100, 
+          left: 20, 
+          background: "#fff", 
+          borderRadius: 8, 
+          boxShadow: "0 4px 12px rgba(0,0,0,0.15)", 
+          padding: 20, 
+          zIndex: 1000,
+          minWidth: 300
+        }}>
+          <h3 style={{ margin: "0 0 16px 0", color: "#333" }}>新しいノードを追加</h3>
+          <div style={{ marginBottom: 12 }}>
+            <strong>位置:</strong> X={Math.round(clickPosition.x)}, Y={Math.round(clickPosition.y)}
+          </div>
+          <div style={{ marginBottom: 16 }}>
+            <input
+              type="text"
+              value={newNodeName}
+              onChange={(e) => setNewNodeName(e.target.value)}
+              placeholder="ノード名を入力"
+              style={{
+                width: "100%",
+                padding: "8px 12px",
+                border: "1px solid #ddd",
+                borderRadius: 4,
+                fontSize: "14px"
+              }}
+            />
+          </div>
+          <div style={{ display: "flex", gap: 8 }}>
+            <button 
+              onClick={handleAddNode}
+              disabled={!newNodeName.trim()}
+              style={{
+                padding: "8px 16px",
+                backgroundColor: newNodeName.trim() ? "#28a745" : "#6c757d",
+                color: "white",
+                border: "none",
+                borderRadius: 4,
+                cursor: newNodeName.trim() ? "pointer" : "not-allowed"
+              }}
+            >
+              追加
+            </button>
+            <button 
+              onClick={() => {
+                setShowNodeForm(false);
+                setClickPosition(null);
+                setNewNodeName("");
+              }}
+              style={{
+                padding: "8px 16px",
+                backgroundColor: "#6c757d",
+                color: "white",
+                border: "none",
+                borderRadius: 4,
+                cursor: "pointer"
+              }}
+            >
+              キャンセル
+            </button>
+          </div>
+        </div>
+      )}
+
       {/* リンク作成UI */}
       {linkMode && selected.length === 2 && (
         <div style={{ position: "absolute", top: 20, left: 20, background: "#fff", borderRadius: 8, boxShadow: "0 2px 8px #0002", padding: 16, zIndex: 1000 }}>
           <div><b>出発:</b> {selected[0].name}　<b>到着:</b> {selected[1].name}</div>
-          <div style={{ margin: "8px 0" }}><b>距離:</b> {calcDistance(selected[0].latitude, selected[0].longitude, selected[1].latitude, selected[1].longitude)} m</div>
+          <div style={{ margin: "8px 0" }}><b>距離:</b> {calcDistance(selected[0].x, selected[0].y, selected[1].x, selected[1].y)} px</div>
           <button onClick={handleRegisterLink} style={{ marginRight: 8 }}>リンク登録</button>
           <button onClick={() => setSelected([])}>キャンセル</button>
           {linkMsg && <div style={{ color: linkMsg.includes("登録") ? "#16a34a" : "#dc2626", marginTop: 8 }}>{linkMsg}</div>}

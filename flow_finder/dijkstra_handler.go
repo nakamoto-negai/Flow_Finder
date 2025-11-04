@@ -29,17 +29,17 @@ func dijkstraCalculationHandler(db *gorm.DB) gin.HandlerFunc {
 			StartNodeID uint `json:"start_node_id" binding:"required"`
 			EndNodeID   uint `json:"end_node_id" binding:"required"`
 		}
-		
+
 		if err := c.ShouldBindJSON(&req); err != nil {
 			c.JSON(400, gin.H{"error": "リクエストが無効です", "details": err.Error()})
 			return
 		}
-		
+
 		if req.StartNodeID == req.EndNodeID {
 			c.JSON(400, gin.H{"error": "開始ノードと終了ノードは異なる必要があります"})
 			return
 		}
-		
+
 		// ノードの存在確認
 		var startNode, endNode Node
 		if err := db.First(&startNode, req.StartNodeID).Error; err != nil {
@@ -50,35 +50,35 @@ func dijkstraCalculationHandler(db *gorm.DB) gin.HandlerFunc {
 			c.JSON(404, gin.H{"error": "終了ノードが見つかりません"})
 			return
 		}
-		
+
 		// グラフを構築
 		graph, err := BuildGraph(db)
 		if err != nil {
 			c.JSON(500, gin.H{"error": "グラフ構築に失敗しました", "details": err.Error()})
 			return
 		}
-		
+
 		// Dijkstraアルゴリズムを実行
 		result, err := Dijkstra(graph, req.StartNodeID, req.EndNodeID, db)
 		if err != nil {
 			c.JSON(500, gin.H{"error": "経路計算に失敗しました", "details": err.Error()})
 			return
 		}
-		
+
 		if result == nil {
 			c.JSON(404, gin.H{"error": "経路が見つかりませんでした"})
 			return
 		}
-		
+
 		// データベース操作ログを記録
 		var userID *uint = nil
 		sessionID := c.GetHeader("X-Session-Id")
 		if sessionID == "" {
 			sessionID = generateHandlerSessionID()
 		}
-		LogDatabaseOperation(db, userID, sessionID, "read", "dijkstra_calculation", 
+		LogDatabaseOperation(db, userID, sessionID, "read", "dijkstra_calculation",
 			strconv.Itoa(int(req.StartNodeID))+"-"+strconv.Itoa(int(req.EndNodeID)), c)
-		
+
 		c.JSON(200, gin.H{
 			"result":         "ok",
 			"start_node":     startNode,
@@ -97,17 +97,17 @@ func touristSpotRouteHandler(db *gorm.DB) gin.HandlerFunc {
 			StartSpotID uint `json:"start_spot_id" binding:"required"`
 			EndSpotID   uint `json:"end_spot_id" binding:"required"`
 		}
-		
+
 		if err := c.ShouldBindJSON(&req); err != nil {
 			c.JSON(400, gin.H{"error": "リクエストが無効です", "details": err.Error()})
 			return
 		}
-		
+
 		if req.StartSpotID == req.EndSpotID {
 			c.JSON(400, gin.H{"error": "開始観光地と終了観光地は異なる必要があります"})
 			return
 		}
-		
+
 		// 観光地の存在確認とノード情報取得
 		var startSpot, endSpot TouristSpot
 		if err := db.Preload("Node").First(&startSpot, req.StartSpotID).Error; err != nil {
@@ -118,7 +118,7 @@ func touristSpotRouteHandler(db *gorm.DB) gin.HandlerFunc {
 			c.JSON(404, gin.H{"error": "終了観光地が見つかりません"})
 			return
 		}
-		
+
 		// 観光地に関連付けられたノードがあるかチェック
 		if startSpot.NodeID == nil {
 			c.JSON(400, gin.H{"error": "開始観光地にノードが関連付けられていません"})
@@ -128,35 +128,35 @@ func touristSpotRouteHandler(db *gorm.DB) gin.HandlerFunc {
 			c.JSON(400, gin.H{"error": "終了観光地にノードが関連付けられていません"})
 			return
 		}
-		
+
 		// グラフを構築
 		graph, err := BuildGraph(db)
 		if err != nil {
 			c.JSON(500, gin.H{"error": "グラフ構築に失敗しました", "details": err.Error()})
 			return
 		}
-		
+
 		// Dijkstraアルゴリズムを実行
 		result, err := Dijkstra(graph, *startSpot.NodeID, *endSpot.NodeID, db)
 		if err != nil {
 			c.JSON(500, gin.H{"error": "経路計算に失敗しました", "details": err.Error()})
 			return
 		}
-		
+
 		if result == nil {
 			c.JSON(404, gin.H{"error": "経路が見つかりませんでした"})
 			return
 		}
-		
+
 		// データベース操作ログを記録
 		var userID *uint = nil
 		sessionID := c.GetHeader("X-Session-Id")
 		if sessionID == "" {
 			sessionID = generateHandlerSessionID()
 		}
-		LogDatabaseOperation(db, userID, sessionID, "read", "tourist_spot_route", 
+		LogDatabaseOperation(db, userID, sessionID, "read", "tourist_spot_route",
 			strconv.Itoa(int(req.StartSpotID))+"-"+strconv.Itoa(int(req.EndSpotID)), c)
-		
+
 		c.JSON(200, gin.H{
 			"result":         "ok",
 			"start_spot":     startSpot,
@@ -178,14 +178,14 @@ func debugGraphHandler(db *gorm.DB) gin.HandlerFunc {
 			c.JSON(500, gin.H{"error": "ノードの取得に失敗しました"})
 			return
 		}
-		
+
 		// 全リンク取得
 		var links []Link
 		if err := db.Preload("FromNode").Preload("ToNode").Find(&links).Error; err != nil {
 			c.JSON(500, gin.H{"error": "リンクの取得に失敗しました"})
 			return
 		}
-		
+
 		// 隣接リスト形式での表現
 		adjacencyList := make(map[uint][]gin.H)
 		for _, link := range links {
@@ -196,7 +196,7 @@ func debugGraphHandler(db *gorm.DB) gin.HandlerFunc {
 				"distance":   link.Distance,
 				"weight":     link.Weight,
 			})
-			
+
 			// 双方向リンクの場合、逆方向も追加
 			if !link.IsDirected {
 				toID := link.ToNodeID
@@ -208,19 +208,19 @@ func debugGraphHandler(db *gorm.DB) gin.HandlerFunc {
 				})
 			}
 		}
-		
+
 		// 観光地情報も取得
 		var spots []TouristSpot
 		db.Where("node_id IS NOT NULL").Find(&spots)
-		
+
 		c.JSON(200, gin.H{
-			"result":          "ok",
-			"node_count":      len(nodes),
-			"link_count":      len(links),
-			"nodes":           nodes,
-			"links":           links,
-			"adjacency_list":  adjacencyList,
-			"tourist_spots":   spots,
+			"result":         "ok",
+			"node_count":     len(nodes),
+			"link_count":     len(links),
+			"nodes":          nodes,
+			"links":          links,
+			"adjacency_list": adjacencyList,
+			"tourist_spots":  spots,
 		})
 	}
 }
@@ -232,12 +232,12 @@ func debugDistanceHandler(db *gorm.DB) gin.HandlerFunc {
 			FromNodeID uint `json:"from_node_id" binding:"required"`
 			ToNodeID   uint `json:"to_node_id" binding:"required"`
 		}
-		
+
 		if err := c.ShouldBindJSON(&req); err != nil {
 			c.JSON(400, gin.H{"error": "リクエストが無効です", "details": err.Error()})
 			return
 		}
-		
+
 		// ノードの存在確認
 		var fromNode, toNode Node
 		if err := db.First(&fromNode, req.FromNodeID).Error; err != nil {
@@ -248,22 +248,22 @@ func debugDistanceHandler(db *gorm.DB) gin.HandlerFunc {
 			c.JSON(404, gin.H{"error": "終了ノードが見つかりません"})
 			return
 		}
-		
+
 		// 直線距離を計算
-		directDistance := calculateDistance(fromNode.Latitude, fromNode.Longitude, toNode.Latitude, toNode.Longitude)
-		
+		directDistance := calculateDistance(fromNode.X, fromNode.Y, toNode.X, toNode.Y)
+
 		// リンクが存在するかチェック
 		var link Link
 		linkExists := false
 		linkDistance := 0.0
-		
+
 		// 双方向チェック
-		if err := db.Where("(from_node_id = ? AND to_node_id = ?) OR (from_node_id = ? AND to_node_id = ? AND is_directed = false)", 
+		if err := db.Where("(from_node_id = ? AND to_node_id = ?) OR (from_node_id = ? AND to_node_id = ? AND is_directed = false)",
 			req.FromNodeID, req.ToNodeID, req.ToNodeID, req.FromNodeID).First(&link).Error; err == nil {
 			linkExists = true
 			linkDistance = link.Distance
 		}
-		
+
 		c.JSON(200, gin.H{
 			"result":          "ok",
 			"from_node":       fromNode,

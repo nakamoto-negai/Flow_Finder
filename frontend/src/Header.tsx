@@ -3,20 +3,22 @@ import React, { useState, useEffect } from 'react';
 interface Node {
   id: number;
   name: string;
-  latitude: number;
-  longitude: number;
+  x: number;
+  y: number;
 }
 
 interface HeaderProps {
   currentNodeId?: number | null;
   onNodeChange?: (nodeId: number) => void;
   showLocationPicker?: boolean;
+  onLogout?: () => void;
 }
 
 const Header: React.FC<HeaderProps> = ({ 
   currentNodeId, 
   onNodeChange, 
-  showLocationPicker = true 
+  showLocationPicker = true,
+  onLogout
 }) => {
   const [nodes, setNodes] = useState<Node[]>([]);
   const [selectedNodeId, setSelectedNodeId] = useState<number | null>(currentNodeId || null);
@@ -54,21 +56,10 @@ const Header: React.FC<HeaderProps> = ({
 
     setIsGettingLocation(true);
     navigator.geolocation.getCurrentPosition(
-      (position) => {
-        const userLat = position.coords.latitude;
-        const userLng = position.coords.longitude;
-        
-        // 最も近いノードを計算
-        let nearestNode: Node | null = null;
-        let minDistance = Infinity;
-        
-        for (const node of nodes) {
-          const distance = calculateDistance(userLat, userLng, node.latitude, node.longitude);
-          if (distance < minDistance) {
-            minDistance = distance;
-            nearestNode = node;
-          }
-        }
+      (_position) => {
+        // 注：現在はXY座標系のため、GPS位置情報との比較は無効化
+        // 仮として最初のノードを選択
+        const nearestNode = nodes.length > 0 ? nodes[0] : null;
         
         if (nearestNode !== null) {
           const foundNode = nearestNode as Node;
@@ -76,7 +67,7 @@ const Header: React.FC<HeaderProps> = ({
           if (onNodeChange) {
             onNodeChange(foundNode.id);
           }
-          alert(`最も近い地点: ${foundNode.name} (約${Math.round(minDistance * 1000)}m)`);
+          alert(`最も近い地点: ${foundNode.name} (XY座標系での仮選択)`);
         }
         
         setIsGettingLocation(false);
@@ -92,19 +83,6 @@ const Header: React.FC<HeaderProps> = ({
         maximumAge: 60000
       }
     );
-  };
-
-  // 2点間の距離を計算（ハヴァーサイン公式）
-  const calculateDistance = (lat1: number, lng1: number, lat2: number, lng2: number): number => {
-    const R = 6371; // 地球の半径（km）
-    const dLat = (lat2 - lat1) * Math.PI / 180;
-    const dLng = (lng2 - lng1) * Math.PI / 180;
-    const a = 
-      Math.sin(dLat/2) * Math.sin(dLat/2) +
-      Math.cos(lat1 * Math.PI / 180) * Math.cos(lat2 * Math.PI / 180) * 
-      Math.sin(dLng/2) * Math.sin(dLng/2);
-    const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a));
-    return R * c;
   };
 
   const handleNodeChange = (nodeId: number) => {
@@ -267,6 +245,26 @@ const Header: React.FC<HeaderProps> = ({
           >
             ⚙️ 管理
           </button>
+
+          {onLogout && (
+            <button
+              onClick={onLogout}
+              style={{
+                background: 'rgba(220, 53, 69, 0.8)',
+                color: 'white',
+                border: '1px solid rgba(255,255,255,0.3)',
+                borderRadius: '6px',
+                padding: '6px 12px',
+                fontSize: '0.9rem',
+                cursor: 'pointer',
+                transition: 'all 0.2s ease'
+              }}
+              onMouseOver={(e) => e.currentTarget.style.background = 'rgba(220, 53, 69, 1)'}
+              onMouseOut={(e) => e.currentTarget.style.background = 'rgba(220, 53, 69, 0.8)'}
+            >
+              🚪 ログアウト
+            </button>
+          )}
         </nav>
       </div>
     </header>
