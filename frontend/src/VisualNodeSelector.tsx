@@ -62,15 +62,29 @@ const VisualNodeSelector: React.FC<VisualNodeSelectorProps> = ({
   const handleImageClick = (event: React.MouseEvent<HTMLImageElement>) => {
     if (!activeField) return;
 
-    const rect = event.currentTarget.getBoundingClientRect();
-    const x = event.clientX - rect.left;
-    const y = event.clientY - rect.top;
+    const img = event.currentTarget;
+    const rect = img.getBoundingClientRect();
+    
+    // クリック位置を取得（表示画像上の座標）
+    const displayX = event.clientX - rect.left;
+    const displayY = event.clientY - rect.top;
+    
+    // 画像の実際のサイズと表示サイズの比率を計算
+    const scaleX = activeField.width / img.offsetWidth;
+    const scaleY = activeField.height / img.offsetHeight;
+    
+    // 実際の画像座標に変換
+    const actualX = displayX * scaleX;
+    const actualY = displayY * scaleY;
 
-    // 既存ノードがクリックされたかチェック
+    // 既存ノードがクリックされたかチェック（表示座標で判定）
     const clickedNode = nodes
       .filter(node => node.field_id === activeField.id)
       .find(node => {
-        const distance = Math.sqrt((node.x - x) ** 2 + (node.y - y) ** 2);
+        // ノードの座標を表示座標に変換して距離を計算
+        const nodeDisplayX = node.x / scaleX;
+        const nodeDisplayY = node.y / scaleY;
+        const distance = Math.sqrt((nodeDisplayX - displayX) ** 2 + (nodeDisplayY - displayY) ** 2);
         return distance < 15; // 15ピクセル以内
       });
 
@@ -79,8 +93,8 @@ const VisualNodeSelector: React.FC<VisualNodeSelectorProps> = ({
         onNodeSelected(clickedNode);
       }
     } else if (isAddingNode && allowAddition) {
-      // 新しいノード追加モード
-      setClickPosition({ x, y });
+      // 新しいノード追加モード（実際の画像座標を使用）
+      setClickPosition({ x: actualX, y: actualY });
       setShowNodeForm(true);
     }
   };
@@ -205,8 +219,9 @@ const VisualNodeSelector: React.FC<VisualNodeSelectorProps> = ({
             alt={activeField.name}
             style={{
               width: '100%',
-              height: '600px',
-              objectFit: 'cover',
+              maxWidth: '800px',
+              height: 'auto',
+              display: 'block',
               cursor: isAddingNode ? 'crosshair' : allowSelection ? 'pointer' : 'default'
             }}
             onClick={handleImageClick}
@@ -215,39 +230,49 @@ const VisualNodeSelector: React.FC<VisualNodeSelectorProps> = ({
           {/* ノードを表示 */}
           {nodes
             .filter(node => node.field_id === activeField.id)
-            .map((node) => (
-              <div
-                key={node.id}
-                style={{
-                  position: 'absolute',
-                  left: node.x - 12,
-                  top: node.y - 12,
-                  width: 24,
-                  height: 24,
-                  backgroundColor: getNodeColor(node),
-                  border: '2px solid white',
-                  borderRadius: '50%',
-                  cursor: allowSelection ? 'pointer' : 'default',
-                  boxShadow: '0 2px 4px rgba(0,0,0,0.3)',
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                  fontSize: '10px',
-                  fontWeight: 'bold',
-                  color: 'white',
-                  zIndex: 10
-                }}
-                onClick={(e) => {
-                  e.stopPropagation();
-                  if (allowSelection && onNodeSelected) {
-                    onNodeSelected(node);
-                  }
-                }}
-                title={`${node.name} (混雑度: ${node.congestion})`}
-              >
-                {node.id}
-              </div>
-            ))
+            .map((node) => {
+              // ノードの座標を表示座標に変換
+              const displayX = activeField && imageRef.current 
+                ? (node.x * imageRef.current.offsetWidth) / activeField.width
+                : node.x;
+              const displayY = activeField && imageRef.current 
+                ? (node.y * imageRef.current.offsetHeight) / activeField.height
+                : node.y;
+
+              return (
+                <div
+                  key={node.id}
+                  style={{
+                    position: 'absolute',
+                    left: displayX - 12,
+                    top: displayY - 12,
+                    width: 24,
+                    height: 24,
+                    backgroundColor: getNodeColor(node),
+                    border: '2px solid white',
+                    borderRadius: '50%',
+                    cursor: allowSelection ? 'pointer' : 'default',
+                    boxShadow: '0 2px 4px rgba(0,0,0,0.3)',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    fontSize: '10px',
+                    fontWeight: 'bold',
+                    color: 'white',
+                    zIndex: 10
+                  }}
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    if (allowSelection && onNodeSelected) {
+                      onNodeSelected(node);
+                    }
+                  }}
+                  title={`${node.name} (混雑度: ${node.congestion})`}
+                >
+                  {node.id}
+                </div>
+              );
+            })
           }
 
           {/* 凡例 */}

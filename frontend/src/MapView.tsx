@@ -1,5 +1,6 @@
 
 import React, { useEffect, useState, useRef } from "react";
+import type { Field } from './types';
 
 type Node = {
   id: number;
@@ -25,7 +26,7 @@ const MapView: React.FC<{ linkMode?: boolean, onLinkCreated?: () => void }> = ({
   const [newNodeName, setNewNodeName] = useState("");
   const [showNodeForm, setShowNodeForm] = useState(false);
   const [clickPosition, setClickPosition] = useState<{ x: number, y: number } | null>(null);
-  const [activeField, setActiveField] = useState<{ id: number, image_url: string, name: string } | null>(null);
+  const [activeField, setActiveField] = useState<Field | null>(null);
   const imageRef = useRef<HTMLImageElement>(null);
 
   useEffect(() => {
@@ -44,21 +45,33 @@ const MapView: React.FC<{ linkMode?: boolean, onLinkCreated?: () => void }> = ({
 
   // 写真上のクリック処理
   const handleImageClick = (event: React.MouseEvent<HTMLImageElement>) => {
-    const rect = event.currentTarget.getBoundingClientRect();
-    const x = event.clientX - rect.left;
-    const y = event.clientY - rect.top;
+    const img = event.currentTarget;
+    const rect = img.getBoundingClientRect();
     
-    // 既存ノードがクリックされたかチェック
+    // クリック位置を取得（表示画像上の座標）
+    const displayX = event.clientX - rect.left;
+    const displayY = event.clientY - rect.top;
+    
+    // 画像の実際のサイズと表示サイズの比率を計算
+    const scaleX = activeField ? activeField.width / img.offsetWidth : 1;
+    const scaleY = activeField ? activeField.height / img.offsetHeight : 1;
+    
+    // 既存ノードがクリックされたかチェック（表示座標で判定）
     const clickedNode = nodes.find(node => {
-      const distance = Math.sqrt((node.x - x) ** 2 + (node.y - y) ** 2);
+      // ノードの座標を表示座標に変換して距離を計算
+      const nodeDisplayX = activeField ? (node.x * img.offsetWidth) / activeField.width : node.x;
+      const nodeDisplayY = activeField ? (node.y * img.offsetHeight) / activeField.height : node.y;
+      const distance = Math.sqrt((nodeDisplayX - displayX) ** 2 + (nodeDisplayY - displayY) ** 2);
       return distance < 15; // 15ピクセル以内
     });
 
     if (clickedNode) {
       handleNodeClick(clickedNode);
     } else if (isAddingNode) {
-      // 新しいノード追加モード
-      setClickPosition({ x, y });
+      // 新しいノード追加モード（実際の画像座標を使用）
+      const actualX = displayX * scaleX;
+      const actualY = displayY * scaleY;
+      setClickPosition({ x: actualX, y: actualY });
       setShowNodeForm(true);
     }
   };
@@ -128,7 +141,7 @@ const MapView: React.FC<{ linkMode?: boolean, onLinkCreated?: () => void }> = ({
   };
 
   return (
-    <div style={{ width: 800, height: 650, margin: "24px auto", display: "block", position: "relative" }}>
+    <div style={{ width: "100%", maxWidth: 800, margin: "24px auto", display: "block", position: "relative" }}>
       {/* コントロールパネル */}
       <div style={{ 
         marginBottom: 16, 
@@ -169,44 +182,55 @@ const MapView: React.FC<{ linkMode?: boolean, onLinkCreated?: () => void }> = ({
           alt={activeField ? activeField.name : "マップ画像"}
           style={{ 
             width: "100%", 
-            height: 600, 
-            objectFit: "cover",
+            maxWidth: 800,
+            height: "auto",
+            display: "block",
             cursor: isAddingNode ? "crosshair" : "default"
           }}
           onClick={handleImageClick}
         />
         
         {/* ノードを表示 */}
-        {nodes.map((node) => (
-          <div
-            key={node.id}
-            style={{
-              position: "absolute",
-              left: node.x - 10,
-              top: node.y - 10,
-              width: 20,
-              height: 20,
-              backgroundColor: selected.some(s => s.id === node.id) ? "#ff6b6b" : "#4ecdc4",
-              border: "2px solid white",
-              borderRadius: "50%",
-              cursor: "pointer",
-              boxShadow: "0 2px 4px rgba(0,0,0,0.3)",
-              display: "flex",
-              alignItems: "center",
-              justifyContent: "center",
-              fontSize: "10px",
-              fontWeight: "bold",
-              color: "white"
-            }}
-            onClick={(e) => {
-              e.stopPropagation();
-              handleNodeClick(node);
-            }}
-            title={`${node.name} (混雑度: ${node.congestion})`}
-          >
-            {node.id}
-          </div>
-        ))}
+        {nodes.map((node) => {
+          // ノードの座標を表示座標に変換
+          const displayX = activeField && imageRef.current 
+            ? (node.x * imageRef.current.offsetWidth) / activeField.width
+            : node.x;
+          const displayY = activeField && imageRef.current 
+            ? (node.y * imageRef.current.offsetHeight) / activeField.height
+            : node.y;
+
+          return (
+            <div
+              key={node.id}
+              style={{
+                position: "absolute",
+                left: displayX - 10,
+                top: displayY - 10,
+                width: 20,
+                height: 20,
+                backgroundColor: selected.some(s => s.id === node.id) ? "#ff6b6b" : "#4ecdc4",
+                border: "2px solid white",
+                borderRadius: "50%",
+                cursor: "pointer",
+                boxShadow: "0 2px 4px rgba(0,0,0,0.3)",
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "center",
+                fontSize: "10px",
+                fontWeight: "bold",
+                color: "white"
+              }}
+              onClick={(e) => {
+                e.stopPropagation();
+                handleNodeClick(node);
+              }}
+              title={`${node.name} (混雑度: ${node.congestion})`}
+            >
+              {node.id}
+            </div>
+          );
+        })}
       </div>
 
       {/* ノード追加フォーム */}

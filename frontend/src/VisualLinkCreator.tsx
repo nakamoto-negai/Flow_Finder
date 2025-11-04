@@ -125,7 +125,11 @@ const VisualLinkCreator: React.FC<VisualLinkCreatorProps> = ({ onLinkCreated }) 
   };
 
   const renderLinks = () => {
-    if (!activeField) return null;
+    if (!activeField || !imageRef.current) return null;
+
+    // 座標変換用の比率を計算
+    const scaleX = imageRef.current.offsetWidth / activeField.width;
+    const scaleY = imageRef.current.offsetHeight / activeField.height;
 
     return links
       .filter(link => {
@@ -139,20 +143,26 @@ const VisualLinkCreator: React.FC<VisualLinkCreatorProps> = ({ onLinkCreated }) 
         
         if (!fromNode || !toNode) return null;
 
+        // ノード座標を表示座標に変換
+        const fromDisplayX = fromNode.x * scaleX;
+        const fromDisplayY = fromNode.y * scaleY;
+        const toDisplayX = toNode.x * scaleX;
+        const toDisplayY = toNode.y * scaleY;
+
         return (
           <g key={link.id}>
             <line
-              x1={fromNode.x}
-              y1={fromNode.y}
-              x2={toNode.x}
-              y2={toNode.y}
+              x1={fromDisplayX}
+              y1={fromDisplayY}
+              x2={toDisplayX}
+              y2={toDisplayY}
               stroke="#6b7280"
               strokeWidth="2"
               opacity="0.7"
             />
             {link.is_directed && (
               <polygon
-                points={`${toNode.x - 5},${toNode.y - 5} ${toNode.x + 5},${toNode.y - 5} ${toNode.x},${toNode.y + 5}`}
+                points={`${toDisplayX - 5},${toDisplayY - 5} ${toDisplayX + 5},${toDisplayY - 5} ${toDisplayX},${toDisplayY + 5}`}
                 fill="#6b7280"
                 opacity="0.7"
               />
@@ -249,8 +259,9 @@ const VisualLinkCreator: React.FC<VisualLinkCreatorProps> = ({ onLinkCreated }) 
             alt={activeField.name}
             style={{
               width: '100%',
-              height: '600px',
-              objectFit: 'cover',
+              maxWidth: '800px',
+              height: 'auto',
+              display: 'block',
               cursor: isCreatingLink ? 'pointer' : 'default'
             }}
           />
@@ -265,17 +276,18 @@ const VisualLinkCreator: React.FC<VisualLinkCreatorProps> = ({ onLinkCreated }) 
               height: '100%',
               pointerEvents: 'none'
             }}
-            viewBox={`0 0 ${imageRef.current?.offsetWidth || 800} ${imageRef.current?.offsetHeight || 600}`}
+            viewBox={imageRef.current ? `0 0 ${imageRef.current.offsetWidth} ${imageRef.current.offsetHeight}` : '0 0 800 600'}
+            preserveAspectRatio="xMidYMid meet"
           >
             {renderLinks()}
             
             {/* 選択中のリンクをプレビュー */}
-            {selectedNodes.length === 2 && (
+            {selectedNodes.length === 2 && activeField && imageRef.current && (
               <line
-                x1={selectedNodes[0].x}
-                y1={selectedNodes[0].y}
-                x2={selectedNodes[1].x}
-                y2={selectedNodes[1].y}
+                x1={(selectedNodes[0].x * imageRef.current.offsetWidth) / activeField.width}
+                y1={(selectedNodes[0].y * imageRef.current.offsetHeight) / activeField.height}
+                x2={(selectedNodes[1].x * imageRef.current.offsetWidth) / activeField.width}
+                y2={(selectedNodes[1].y * imageRef.current.offsetHeight) / activeField.height}
                 stroke="#ff6b6b"
                 strokeWidth="3"
                 strokeDasharray="5,5"
@@ -287,37 +299,47 @@ const VisualLinkCreator: React.FC<VisualLinkCreatorProps> = ({ onLinkCreated }) 
           {/* ノードを表示 */}
           {nodes
             .filter(node => node.field_id === activeField.id)
-            .map((node) => (
-              <div
-                key={node.id}
-                style={{
-                  position: 'absolute',
-                  left: node.x - 12,
-                  top: node.y - 12,
-                  width: 24,
-                  height: 24,
-                  backgroundColor: getNodeColor(node),
-                  border: '2px solid white',
-                  borderRadius: '50%',
-                  cursor: isCreatingLink ? 'pointer' : 'default',
-                  boxShadow: '0 2px 4px rgba(0,0,0,0.3)',
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                  fontSize: '10px',
-                  fontWeight: 'bold',
-                  color: 'white',
-                  zIndex: 10
-                }}
-                onClick={(e) => {
-                  e.stopPropagation();
-                  handleNodeClick(node);
-                }}
-                title={`${node.name} (混雑度: ${node.congestion})`}
-              >
-                {node.id}
-              </div>
-            ))
+            .map((node) => {
+              // ノードの座標を表示座標に変換
+              const displayX = activeField && imageRef.current 
+                ? (node.x * imageRef.current.offsetWidth) / activeField.width
+                : node.x;
+              const displayY = activeField && imageRef.current 
+                ? (node.y * imageRef.current.offsetHeight) / activeField.height
+                : node.y;
+
+              return (
+                <div
+                  key={node.id}
+                  style={{
+                    position: 'absolute',
+                    left: displayX - 12,
+                    top: displayY - 12,
+                    width: 24,
+                    height: 24,
+                    backgroundColor: getNodeColor(node),
+                    border: '2px solid white',
+                    borderRadius: '50%',
+                    cursor: isCreatingLink ? 'pointer' : 'default',
+                    boxShadow: '0 2px 4px rgba(0,0,0,0.3)',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    fontSize: '10px',
+                    fontWeight: 'bold',
+                    color: 'white',
+                    zIndex: 10
+                  }}
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    handleNodeClick(node);
+                  }}
+                  title={`${node.name} (混雑度: ${node.congestion})`}
+                >
+                  {node.id}
+                </div>
+              );
+            })
           }
 
           {/* 凡例 */}
