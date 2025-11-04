@@ -2,6 +2,7 @@ import React, { useState } from "react";
 import FieldManager from "./FieldManager";
 import NodeManager from "./NodeManager";
 import LinkManager from "./LinkManager";
+import ImageManager from "./ImageManager";
 import Header from "./Header";
 import "./App.css";
 
@@ -47,11 +48,7 @@ const Admin: React.FC = () => {
         
         {currentView === 'links' && <LinkManager />}
         
-        {currentView === 'images' && (
-          <div style={{ maxWidth: 500, margin: "0 auto" }}>
-            <p>画像管理機能は今後実装予定です</p>
-          </div>
-        )}
+        {currentView === 'images' && <ImageManager />}
         
         {currentView === 'logs' && (
           <div style={{ maxWidth: 800, margin: "0 auto" }}>

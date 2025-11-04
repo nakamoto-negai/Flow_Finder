@@ -37,6 +37,10 @@ const LinkListPage: React.FC = () => {
             nodeArray = data.value;
           } else if (Array.isArray(data)) {
             nodeArray = data;
+          } else {
+            // データが配列でない場合は空配列を設定
+            nodeArray = [];
+            console.warn("Nodes data is not an array:", data);
           }
           console.log("Processed nodes array:", nodeArray);
           setNodes(nodeArray);
@@ -78,6 +82,10 @@ const LinkListPage: React.FC = () => {
             linkArray = data.value;
           } else if (Array.isArray(data)) {
             linkArray = data;
+          } else {
+            // データが配列でない場合は空配列を設定
+            linkArray = [];
+            console.warn("Links data is not an array:", data);
           }
           console.log("Processed links array:", linkArray);
           setLinks(linkArray);

@@ -31,9 +31,11 @@ const FieldManager: React.FC = () => {
     try {
       const response = await fetch('http://localhost:8080/fields');
       const data = await response.json();
-      setFields(data);
+      // データが配列でない場合は空配列を設定
+      setFields(Array.isArray(data) ? data : []);
     } catch (error) {
       console.error('フィールド取得エラー:', error);
+      setFields([]); // エラー時も空配列を設定
     }
   };
 

@@ -34,12 +34,33 @@ func RegisterImageRoutes(r *gin.Engine, db *gorm.DB) {
 // 画像アップロードハンドラ
 func imageUploadHandler(db *gorm.DB) gin.HandlerFunc {
 	return func(c *gin.Context) {
-		// ファイルを取得
-		file, err := c.FormFile("image")
-		if err != nil {
-			c.JSON(400, gin.H{"error": "ファイルが選択されていません"})
-			return
+		log.Printf("=== 画像アップロード開始 ===")
+		log.Printf("Content-Type: %s", c.GetHeader("Content-Type"))
+		log.Printf("Form data keys available:")
+		if err := c.Request.ParseMultipartForm(32 << 20); err != nil {
+			log.Printf("ParseMultipartForm エラー: %v", err)
+		} else {
+			for key := range c.Request.MultipartForm.Value {
+				log.Printf("  Value key: %s", key)
+			}
+			for key := range c.Request.MultipartForm.File {
+				log.Printf("  File key: %s", key)
+			}
 		}
+
+		// ファイルを取得（"file"または"image"フィールドから）
+		file, err := c.FormFile("file")
+		if err != nil {
+			// "image"フィールドも試行
+			file, err = c.FormFile("image")
+			if err != nil {
+				log.Printf("ファイル取得エラー (both 'file' and 'image'): %v", err)
+				c.JSON(400, gin.H{"error": "ファイルが選択されていません"})
+				return
+			}
+		}
+
+		log.Printf("取得したファイル: %s, サイズ: %d", file.Filename, file.Size)
 
 		// ファイルサイズチェック（10MB制限）
 		if file.Size > 10*1024*1024 {
@@ -58,6 +79,7 @@ func imageUploadHandler(db *gorm.DB) gin.HandlerFunc {
 			}
 		}
 		if !isAllowed {
+			log.Printf("許可されていない拡張子: %s", ext)
 			c.JSON(400, gin.H{"error": "サポートされていないファイル形式です"})
 			return
 		}
@@ -99,10 +121,10 @@ func imageUploadHandler(db *gorm.DB) gin.HandlerFunc {
 		// ユニークなファイル名を生成
 		timestamp := time.Now().Unix()
 		filename := fmt.Sprintf("%d_%s%s", timestamp, hashString[:8], ext)
-		filepath := filepath.Join(uploadDir, filename)
+		filePath := filepath.Join(uploadDir, filename)
 
 		// ファイルを保存
-		if err := c.SaveUploadedFile(file, filepath); err != nil {
+		if err := c.SaveUploadedFile(file, filePath); err != nil {
 			log.Printf("ファイル保存エラー: %v", err)
 			c.JSON(500, gin.H{"error": "ファイルの保存に失敗しました"})
 			return
@@ -112,16 +134,33 @@ func imageUploadHandler(db *gorm.DB) gin.HandlerFunc {
 		image := Image{
 			OriginalName: file.Filename,
 			FileName:     filename,
-			FilePath:     filepath,
+			FilePath:     filePath,
 			FileSize:     file.Size,
 			FileHash:     hashString,
 			MimeType:     file.Header.Get("Content-Type"),
 			UploadedAt:   time.Now(),
+			Order:        1, // デフォルト値
+		}
+
+		// オプションのフィールドを設定
+		if linkIdStr := c.PostForm("link_id"); linkIdStr != "" {
+			log.Printf("link_id パラメータ: %s", linkIdStr)
+			if linkId, err := strconv.ParseUint(linkIdStr, 10, 32); err == nil {
+				linkIdUint := uint(linkId)
+				image.LinkID = &linkIdUint
+			}
+		}
+
+		if orderStr := c.PostForm("order"); orderStr != "" {
+			log.Printf("order パラメータ: %s", orderStr)
+			if order, err := strconv.Atoi(orderStr); err == nil {
+				image.Order = order
+			}
 		}
 
 		if err := db.Create(&image).Error; err != nil {
 			// データベース保存に失敗した場合、ファイルを削除
-			os.Remove(filepath)
+			os.Remove(filePath)
 			log.Printf("データベース保存エラー: %v", err)
 			c.JSON(500, gin.H{"error": "画像情報の保存に失敗しました"})
 			return
@@ -135,6 +174,7 @@ func imageUploadHandler(db *gorm.DB) gin.HandlerFunc {
 		}
 		LogDatabaseOperation(db, userID, sessionID, "create", "images", strconv.Itoa(int(image.ID)), c)
 
+		log.Printf("画像アップロード成功: %s", filename)
 		// アップロード成功
 		c.JSON(201, gin.H{
 			"result":  "ok",
@@ -200,15 +240,8 @@ func imageListHandler(db *gorm.DB) gin.HandlerFunc {
 			images[i].URL = fmt.Sprintf("/uploads/%s", images[i].FileName)
 		}
 
-		c.JSON(200, gin.H{
-			"images": images,
-			"pagination": gin.H{
-				"page":        page,
-				"limit":       limit,
-				"total":       total,
-				"total_pages": (total + int64(limit) - 1) / int64(limit),
-			},
-		})
+		// シンプルな配列形式で返す（ImageManagerとの互換性のため）
+		c.JSON(200, images)
 	}
 }
 

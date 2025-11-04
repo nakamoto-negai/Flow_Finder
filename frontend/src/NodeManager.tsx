@@ -38,8 +38,9 @@ const NodeManager: React.FC = () => {
       const response = await fetch('http://localhost:8080/nodes');
       if (!response.ok) throw new Error('ノード取得に失敗しました');
       const data = await response.json();
-      setNodes(data);
+      setNodes(Array.isArray(data) ? data : []);
     } catch (err) {
+      setNodes([]); // エラー時も空配列を設定
       setError('ノード取得エラー: ' + (err as Error).message);
     }
   };
@@ -49,8 +50,9 @@ const NodeManager: React.FC = () => {
       const response = await fetch('http://localhost:8080/fields');
       if (!response.ok) throw new Error('フィールド取得に失敗しました');
       const data = await response.json();
-      setFields(data);
+      setFields(Array.isArray(data) ? data : []);
     } catch (err) {
+      setFields([]); // エラー時も空配列を設定
       setError('フィールド取得エラー: ' + (err as Error).message);
     } finally {
       setLoading(false);

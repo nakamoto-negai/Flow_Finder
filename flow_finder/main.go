@@ -26,22 +26,36 @@ func main() {
 	dsn := fmt.Sprintf("host=%s port=%s user=%s password=%s dbname=%s sslmode=disable", dbHost, dbPort, dbUser, dbPassword, dbName)
 	var db *gorm.DB
 	var err error
-	maxRetries := 60
+	maxRetries := 120
+
+	fmt.Printf("データベース接続を開始します: %s:%s\n", dbHost, dbPort)
+
 	for i := 0; i < maxRetries; i++ {
 		db, err = gorm.Open(postgres.Open(dsn), &gorm.Config{})
 		if err == nil {
-			fmt.Println("データベース接続成功")
+			fmt.Println("✅ データベース接続成功")
 			break
 		}
-		fmt.Printf("DB接続リトライ中... (%d/%d): %v\n", i+1, maxRetries, err)
-		time.Sleep(5 * time.Second)
+
+		// 接続試行の詳細な情報をログ出力
+		fmt.Printf("🔄 DB接続リトライ中... (%d/%d)\n", i+1, maxRetries)
+		fmt.Printf("   エラー詳細: %v\n", err)
+
+		// 指数バックオフ + 最大5秒の待機時間
+		sleepDuration := time.Duration(2+i/10) * time.Second
+		if sleepDuration > 5*time.Second {
+			sleepDuration = 5 * time.Second
+		}
+
+		fmt.Printf("   %v秒後に再試行します...\n", sleepDuration.Seconds())
+		time.Sleep(sleepDuration)
 	}
 	if err != nil {
 		panic(fmt.Sprintf("GORM DB接続失敗: %v", err))
 	}
 
-	// GORMでテーブル自動作成（外部キー制約の依存関係順序: Node → Link → Image → 独立テーブル）
-	if err := db.AutoMigrate(&User{}, &Node{}, &Link{}, &Image{}, &UserLog{}, &TouristSpot{}); err != nil {
+	// GORMでテーブル自動作成（外部キー制約の依存関係順序: Field → Node → Link → Image → 独立テーブル）
+	if err := db.AutoMigrate(&Field{}, &User{}, &Node{}, &Link{}, &Image{}, &UserLog{}, &TouristSpot{}); err != nil {
 		panic(fmt.Sprintf("AutoMigrate失敗: %v", err))
 	}
 
