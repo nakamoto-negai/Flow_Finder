@@ -1,5 +1,7 @@
 import React, { useState } from "react";
 import FieldManager from "./FieldManager";
+import NodeManager from "./NodeManager";
+import LinkManager from "./LinkManager";
 import Header from "./Header";
 import "./App.css";
 
@@ -41,17 +43,9 @@ const Admin: React.FC = () => {
       <div style={{ padding: '20px' }}>
         {currentView === 'fields' && <FieldManager />}
         
-        {currentView === 'nodes' && (
-          <div style={{ maxWidth: 500, margin: "0 auto" }}>
-            <p>ノード管理機能は今後実装予定です</p>
-          </div>
-        )}
+        {currentView === 'nodes' && <NodeManager />}
         
-        {currentView === 'links' && (
-          <div style={{ maxWidth: 500, margin: "0 auto" }}>
-            <p>リンク管理機能は今後実装予定です</p>
-          </div>
-        )}
+        {currentView === 'links' && <LinkManager />}
         
         {currentView === 'images' && (
           <div style={{ maxWidth: 500, margin: "0 auto" }}>
