@@ -2,6 +2,8 @@
 import { useState, useEffect } from 'react';
 import MapView from './MapView';
 import Admin from './Admin';
+import DijkstraTestPage from './DijkstraTestPage';
+import Header from './Header';
 import { logger } from './logger';
 import './App.css';
 
@@ -10,9 +12,7 @@ function App() {
   const [name, setName] = useState('');
   const [token, setToken] = useState<string | null>(localStorage.getItem('token'));
   const [loginError, setLoginError] = useState<string | null>(null);
-  // 現在地ノード選択用
-  const [nodes, setNodes] = useState<{ id: number; name: string }[]>([]);
-  const [currentNodeId, setCurrentNodeId] = useState<number | null>(null);
+  const [isSignupMode, setIsSignupMode] = useState(false);
 
   useEffect(() => {
     // ページビューログを送信
@@ -24,13 +24,6 @@ function App() {
     };
     
     window.addEventListener('beforeunload', handleBeforeUnload);
-    
-    if (!token) return;
-    
-    fetch("http://localhost:8080/nodes")
-      .then(res => res.json())
-      .then(data => setNodes(data))
-      .catch(() => setNodes([]));
       
     return () => {
       window.removeEventListener('beforeunload', handleBeforeUnload);
@@ -71,6 +64,61 @@ function App() {
     }
   };
 
+  // サインアップ処理
+  const handleSignup = async (e: any) => {
+    e.preventDefault();
+    setLoginError(null);
+    try {
+      // ユーザーを作成
+      const signupRes = await fetch('http://localhost:8080/users', {
+        method: 'POST',
+        headers: { 
+          'Content-Type': 'application/json',
+          'X-Session-Id': logger.sessionId || ''
+        },
+        body: JSON.stringify({ name }),
+      });
+      
+      if (signupRes.status === 409) {
+        throw new Error('このユーザーIDは既に使用されています');
+      }
+      if (!signupRes.ok) {
+        throw new Error('ユーザー作成に失敗しました');
+      }
+      
+      // 作成後、自動的にログイン
+      const loginRes = await fetch('http://localhost:8080/login', {
+        method: 'POST',
+        headers: { 
+          'Content-Type': 'application/json',
+          'X-Session-Id': logger.sessionId || ''
+        },
+        body: JSON.stringify({ name }),
+      });
+      if (!loginRes.ok) throw new Error('自動ログインに失敗しました');
+      
+      const data = await loginRes.json();
+      setToken(data.token);
+      localStorage.setItem('token', data.token);
+      localStorage.setItem('user_id', String(data.user_id));
+      
+      // ログイン成功をログに記録
+      logger.logLogin(data.user_id);
+      logger.logAction('signup', 'auth', { user_id: data.user_id, name });
+      
+      // セッションIDがサーバーから返された場合は更新
+      if (data.session_id) {
+        logger.updateSessionId(data.session_id);
+      }
+      
+      setName('');
+      setIsSignupMode(false);
+    } catch (err: any) {
+      setLoginError(err.message);
+      logger.logError('Signup failed: ' + err.message, 'signup_form');
+    }
+  };
+
   // ログアウト処理
   const handleLogout = () => {
     logger.logLogout();
@@ -80,51 +128,63 @@ function App() {
   };
 
 
-  // 簡易ルーティング: /adminなら管理画面、それ以外は通常画面
+  // 簡易ルーティング
   if (window.location.pathname === "/admin") {
     return <Admin />;
+  }
+  
+  if (window.location.pathname === "/dijkstra") {
+    return <DijkstraTestPage />;
   }
 
   return (
     <div className="App">
-      {!token && <h1>ログイン</h1>}
+      {!token && <h1>{isSignupMode ? 'ユーザー登録' : 'ログイン'}</h1>}
       {!token ? (
-        <form onSubmit={handleLogin} style={{ marginBottom: 24 }}>
-          <input
-            type="text"
-            value={name}
-            onChange={e => setName(e.target.value)}
-            placeholder="ユーザー名"
-            required
-          />
-          <button type="submit">ログイン</button>
-          {loginError && <p style={{ color: 'red' }}>{loginError}</p>}
-        </form>
-      ) : (
-        <div style={{ marginBottom: 24 }}>
-          <h1>現在地を選択してください</h1>
-          <button onClick={handleLogout}>ログアウト</button>
-          <div style={{ marginTop: 16 }}>
-            <select value={currentNodeId ?? ''} onChange={e => {
-              const nodeId = Number(e.target.value);
-              setCurrentNodeId(nodeId);
-              if (nodeId) {
-                const node = nodes.find(n => n.id === nodeId);
-                if (node) {
-                  logger.logNodeSelect(nodeId, node.name);
-                }
-              }
-            }} style={{ fontSize: 16, padding: 4 }}>
-              <option value="">ノードを選択</option>
-              {nodes.map(n => (
-                <option key={n.id} value={n.id}>{n.name} (ID:{n.id})</option>
-              ))}
-            </select>
+        <div className="card">
+          <form onSubmit={isSignupMode ? handleSignup : handleLogin} className="login-form">
+            <input
+              type="text"
+              value={name}
+              onChange={e => setName(e.target.value)}
+              placeholder="ユーザーID"
+              required
+            />
+            <button type="submit">
+              {isSignupMode ? 'ユーザー登録' : 'ログイン'}
+            </button>
+            {loginError && <p style={{ color: 'red' }}>{loginError}</p>}
+          </form>
+          
+          <div style={{ marginTop: '16px', textAlign: 'center' }}>
+            <button
+              type="button"
+              onClick={() => {
+                setIsSignupMode(!isSignupMode);
+                setLoginError(null);
+                setName('');
+              }}
+              style={{
+                background: 'none',
+                border: 'none',
+                color: '#3b82f6',
+                textDecoration: 'underline',
+                cursor: 'pointer',
+                fontSize: '14px'
+              }}
+            >
+              {isSignupMode ? 'すでにアカウントをお持ちの方はこちら' : '新規ユーザー登録はこちら'}
+            </button>
           </div>
         </div>
+      ) : (
+        <>
+          <Header 
+            onLogout={handleLogout}
+          />
+          <MapView />
+        </>
       )}
-
-      {token && <MapView />}
     </div>
   );
 }
