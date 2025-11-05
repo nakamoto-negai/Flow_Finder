@@ -15,6 +15,9 @@ func RegisterDijkstraRoutes(r *gin.Engine, db *gorm.DB) {
 	// 観光地間の最短経路
 	r.POST("/tourist-spots/route", touristSpotRouteHandler(db))
 
+	// 進行可能なリンク一覧取得
+	r.GET("/nodes/:id/available-links", availableLinksHandler(db))
+
 	// デバッグ用：グラフ構造表示
 	r.GET("/debug/graph", debugGraphHandler(db))
 
@@ -70,6 +73,24 @@ func dijkstraCalculationHandler(db *gorm.DB) gin.HandlerFunc {
 			return
 		}
 
+		// 経路上のノード情報を取得
+		var pathNodes []Node
+		if len(result.Path) > 0 {
+			// 開始ノードを追加
+			pathNodes = append(pathNodes, startNode)
+
+			// 経路の各ステップから終了ノードを取得
+			for _, step := range result.Path {
+				var toNode Node
+				if err := db.First(&toNode, step.ToNodeID).Error; err == nil {
+					pathNodes = append(pathNodes, toNode)
+				}
+			}
+		} else {
+			// 経路がない場合は開始ノードのみ
+			pathNodes = append(pathNodes, startNode)
+		}
+
 		// データベース操作ログを記録
 		var userID *uint = nil
 		sessionID := c.GetHeader("X-Session-Id")
@@ -83,9 +104,10 @@ func dijkstraCalculationHandler(db *gorm.DB) gin.HandlerFunc {
 			"result":         "ok",
 			"start_node":     startNode,
 			"end_node":       endNode,
-			"path":           result.Path,
+			"path":           pathNodes,
+			"path_steps":     result.Path,
 			"total_distance": result.TotalDistance,
-			"node_count":     len(result.Path),
+			"node_count":     len(pathNodes),
 		})
 	}
 }
@@ -148,6 +170,28 @@ func touristSpotRouteHandler(db *gorm.DB) gin.HandlerFunc {
 			return
 		}
 
+		// 経路上のノード情報を取得
+		var pathNodes []Node
+		if len(result.Path) > 0 {
+			// 開始ノードを追加
+			if startSpot.Node != nil {
+				pathNodes = append(pathNodes, *startSpot.Node)
+			}
+
+			// 経路の各ステップから終了ノードを取得
+			for _, step := range result.Path {
+				var toNode Node
+				if err := db.First(&toNode, step.ToNodeID).Error; err == nil {
+					pathNodes = append(pathNodes, toNode)
+				}
+			}
+		} else {
+			// 経路がない場合は開始ノードのみ
+			if startSpot.Node != nil {
+				pathNodes = append(pathNodes, *startSpot.Node)
+			}
+		}
+
 		// データベース操作ログを記録
 		var userID *uint = nil
 		sessionID := c.GetHeader("X-Session-Id")
@@ -161,9 +205,10 @@ func touristSpotRouteHandler(db *gorm.DB) gin.HandlerFunc {
 			"result":         "ok",
 			"start_spot":     startSpot,
 			"end_spot":       endSpot,
-			"path":           result.Path,
+			"path":           pathNodes,
+			"path_steps":     result.Path,
 			"total_distance": result.TotalDistance,
-			"node_count":     len(result.Path),
+			"node_count":     len(pathNodes),
 			"estimated_time": result.TotalDistance / 5.0, // 時速5km想定での所要時間（時間）
 		})
 	}
@@ -272,6 +317,66 @@ func debugDistanceHandler(db *gorm.DB) gin.HandlerFunc {
 			"link_exists":     linkExists,
 			"link_distance":   linkDistance,
 			"difference":      linkDistance - directDistance,
+		})
+	}
+}
+
+// 進行可能なリンク一覧取得ハンドラ
+func availableLinksHandler(db *gorm.DB) gin.HandlerFunc {
+	return func(c *gin.Context) {
+		nodeIDStr := c.Param("id")
+		nodeID, err := strconv.ParseUint(nodeIDStr, 10, 32)
+		if err != nil {
+			c.JSON(400, gin.H{"error": "無効なノードIDです"})
+			return
+		}
+
+		// ノードの存在確認
+		var currentNode Node
+		if err := db.First(&currentNode, uint(nodeID)).Error; err != nil {
+			c.JSON(404, gin.H{"error": "ノードが見つかりません"})
+			return
+		}
+
+		// 現在のノードから進行可能なリンクを取得（自身が開始ノードのもののみ）
+		var availableLinks []struct {
+			Link     Link `json:"link"`
+			ToNode   Node `json:"to_node"`
+			Distance float64 `json:"distance"`
+		}
+
+		// 出発ノードとしてのリンクのみ取得
+		var outgoingLinks []Link
+		if err := db.Preload("ToNode").Where("from_node_id = ?", nodeID).Find(&outgoingLinks).Error; err != nil {
+			c.JSON(500, gin.H{"error": "リンクの取得に失敗しました"})
+			return
+		}
+
+		for _, link := range outgoingLinks {
+			availableLinks = append(availableLinks, struct {
+				Link     Link `json:"link"`
+				ToNode   Node `json:"to_node"`
+				Distance float64 `json:"distance"`
+			}{
+				Link:     link,
+				ToNode:   link.ToNode,
+				Distance: link.Distance,
+			})
+		}
+
+		// データベース操作ログを記録
+		var userID *uint = nil
+		sessionID := c.GetHeader("X-Session-Id")
+		if sessionID == "" {
+			sessionID = generateHandlerSessionID()
+		}
+		LogDatabaseOperation(db, userID, sessionID, "read", "available_links", nodeIDStr, c)
+
+		c.JSON(200, gin.H{
+			"result":           "ok",
+			"current_node":     currentNode,
+			"available_links":  availableLinks,
+			"link_count":       len(availableLinks),
 		})
 	}
 }

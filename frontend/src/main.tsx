@@ -12,9 +12,11 @@ const linkImageMatch = path.match(/^\/links\/(\d+)$/);
 createRoot(document.getElementById('root')!).render(
   <>
     {linkImageMatch ? (
-      <ErrorBoundary><LinkImagePage linkId={Number(linkImageMatch[1])} /></ErrorBoundary>
+      <ErrorBoundary><LinkImagePage /></ErrorBoundary>
     ) : path === "/links" ? (
       <ErrorBoundary><LinkListPage /></ErrorBoundary>
+    ) : path === "/link-image" ? (
+      <ErrorBoundary><LinkImagePage /></ErrorBoundary>
     ) : path === "/admin" ? (
       <ErrorBoundary><Admin /></ErrorBoundary>
     ) : path === "/dijkstra" ? (
