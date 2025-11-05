@@ -340,8 +340,8 @@ func availableLinksHandler(db *gorm.DB) gin.HandlerFunc {
 
 		// 現在のノードから進行可能なリンクを取得（自身が開始ノードのもののみ）
 		var availableLinks []struct {
-			Link     Link `json:"link"`
-			ToNode   Node `json:"to_node"`
+			Link     Link    `json:"link"`
+			ToNode   Node    `json:"to_node"`
 			Distance float64 `json:"distance"`
 		}
 
@@ -354,8 +354,8 @@ func availableLinksHandler(db *gorm.DB) gin.HandlerFunc {
 
 		for _, link := range outgoingLinks {
 			availableLinks = append(availableLinks, struct {
-				Link     Link `json:"link"`
-				ToNode   Node `json:"to_node"`
+				Link     Link    `json:"link"`
+				ToNode   Node    `json:"to_node"`
 				Distance float64 `json:"distance"`
 			}{
 				Link:     link,
@@ -373,10 +373,10 @@ func availableLinksHandler(db *gorm.DB) gin.HandlerFunc {
 		LogDatabaseOperation(db, userID, sessionID, "read", "available_links", nodeIDStr, c)
 
 		c.JSON(200, gin.H{
-			"result":           "ok",
-			"current_node":     currentNode,
-			"available_links":  availableLinks,
-			"link_count":       len(availableLinks),
+			"result":          "ok",
+			"current_node":    currentNode,
+			"available_links": availableLinks,
+			"link_count":      len(availableLinks),
 		})
 	}
 }
