@@ -1,4 +1,4 @@
-## 🛠️ 技術スタック
+## 技術スタック
 
 ### バックエンド
 - **Go** - メインプログラミング言語
@@ -16,7 +16,7 @@
 - **Docker** - コンテナ化
 - **Docker Compose** - オーケストレーション
 
-## 🚀 起動方法
+## 起動方法
 
 ### 開発環境（デバッグモード）
 
@@ -56,7 +56,7 @@ docker-compose up --build
 docker-compose -f docker-compose.prod.yml up --build -d
 ```
 
-## 📱 アクセス方法
+## アクセス方法
 
 起動後、以下のURLにアクセスしてください：
 
@@ -66,7 +66,7 @@ docker-compose -f docker-compose.prod.yml up --build -d
 - **お気に入り**: http://localhost:5173/favorites
 - **経路探索**: http://localhost:5173/dijkstra
 
-## 🔧 環境変数
+## 環境変数
 
 ### 開発環境
 ```bash
@@ -119,7 +119,7 @@ REDIS_ADDR=redis:6379
 - `POST /dijkstra` - 経路探索
 - `GET /fields` - フィールド一覧
 
-## 🗂️ プロジェクト構造
+## プロジェクト構造
 
 ```
 Flow_Finder/
@@ -142,7 +142,7 @@ Flow_Finder/
 └── README.md
 ```
 
-## 🔄 開発フロー
+## 開発フロー
 
 1. **環境セットアップ**
    ```bash
