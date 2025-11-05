@@ -90,7 +90,7 @@ DB_NAME=postgres
 REDIS_ADDR=redis:6379
 ```
 
-## 📊 API エンドポイント
+## API エンドポイント
 
 ### 認証
 - `POST /login` - ログイン
