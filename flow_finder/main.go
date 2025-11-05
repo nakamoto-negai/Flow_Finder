@@ -16,6 +16,19 @@ import (
 )
 
 func main() {
+	// Ginのモード設定（環境変数で制御）
+	ginMode := os.Getenv("GIN_MODE")
+	if ginMode == "" {
+		ginMode = "debug" // デフォルトはdebugモード
+	}
+	gin.SetMode(ginMode)
+
+	if ginMode == gin.ReleaseMode {
+		fmt.Println("Ginリリースモードで起動中...")
+	} else {
+		fmt.Println("Ginデバッグモードで起動中...")
+	}
+
 	// 環境変数からDB接続情報を取得
 	dbHost := os.Getenv("DB_HOST")
 	dbPort := os.Getenv("DB_PORT")
@@ -55,8 +68,13 @@ func main() {
 	}
 
 	// GORMでテーブル自動作成（外部キー制約の依存関係順序: Field → Node → Link → Image → 独立テーブル）
-	if err := db.AutoMigrate(&Field{}, &User{}, &Node{}, &Link{}, &Image{}, &UserLog{}, &TouristSpot{}); err != nil {
+	if err := db.AutoMigrate(&Field{}, &User{}, &Node{}, &Link{}, &Image{}, &UserLog{}, &TouristSpot{}, &UserFavoriteTouristSpot{}); err != nil {
 		panic(fmt.Sprintf("AutoMigrate失敗: %v", err))
+	}
+
+	// お気に入りテーブルの複合インデックスを作成
+	if err := MigrateUserFavoriteTouristSpot(db); err != nil {
+		panic(fmt.Sprintf("UserFavoriteTouristSpot migration failed: %v", err))
 	}
 
 	// Redis接続情報
@@ -97,5 +115,6 @@ func GenerateToken(n int) (string, error) {
 
 // Redisにトークンを保存
 func SaveTokenToRedis(ctx context.Context, client *redis.Client, userID uint, token string, ttl time.Duration) error {
-	return client.Set(ctx, fmt.Sprintf("auth_token:%d", userID), token, ttl).Err()
+	// トークンをキーとして、ユーザーIDを値として保存
+	return client.Set(ctx, fmt.Sprintf("auth_token:%s", token), fmt.Sprintf("%d", userID), ttl).Err()
 }

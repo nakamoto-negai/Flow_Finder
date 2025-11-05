@@ -28,6 +28,19 @@ func RegisterTouristSpotRoutes(r *gin.Engine, db *gorm.DB) {
 			c.JSON(500, gin.H{"error": "データ取得エラー"})
 			return
 		}
+
+		// 最寄りノードが設定されていない観光地を自動設定
+		for i := range spots {
+			if spots[i].NodeID == nil {
+				nearestNodeID, err := spots[i].FindNearestNode(db)
+				if err == nil && nearestNodeID > 0 {
+					spots[i].NodeID = &nearestNodeID
+					// データベースを更新
+					db.Model(&spots[i]).Update("node_id", nearestNodeID)
+				}
+			}
+		}
+
 		c.JSON(200, spots)
 	})
 

@@ -12,10 +12,11 @@ services:
       - DB_USER=postgres
       - DB_PASSWORD=postgres
       - DB_NAME=postgres
-      - GIN_MODE=debug  # 開発用: debug, 本番用: release
+      - GIN_MODE=release  # 本番用リリースモード
       - REDIS_ADDR=redis:6379
     volumes:
       - ./flow_finder/uploads:/app/uploads
+    restart: unless-stopped  # 本番用: 自動再起動
   frontend:
     build:
       context: ./frontend
@@ -23,6 +24,7 @@ services:
       - "5173:80"
     depends_on:
       - app
+    restart: unless-stopped  # 本番用: 自動再起動
   db:
     image: postgres:16
     restart: always

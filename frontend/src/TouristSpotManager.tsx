@@ -44,6 +44,10 @@ const TouristSpotManager: React.FC = () => {
   const [editingSpot, setEditingSpot] = useState<TouristSpot | null>(null);
   const [uploading, setUploading] = useState(false);
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
+  
+  // お気に入り機能用の状態
+  const [favoriteStates, setFavoriteStates] = useState<Record<number, boolean>>({});
+  const [favoriteLoading, setFavoriteLoading] = useState<Record<number, boolean>>({});
 
   // 新規作成/編集用のフォームデータ
   const [formData, setFormData] = useState({
@@ -108,6 +112,70 @@ const TouristSpotManager: React.FC = () => {
     }
   };
 
+  // お気に入り状態を確認する関数
+  const checkFavoriteStatus = async (spotId: number) => {
+    try {
+      const response = await fetch(`http://localhost:8080/favorites/tourist-spots/${spotId}/check`);
+      if (response.ok) {
+        const data = await response.json();
+        setFavoriteStates(prev => ({ ...prev, [spotId]: data.is_favorite }));
+      }
+    } catch (err) {
+      console.error('お気に入り状態確認エラー:', err);
+    }
+  };
+
+  // 観光地取得時にお気に入り状態もチェック
+  useEffect(() => {
+    if (touristSpots.length > 0) {
+      touristSpots.forEach(spot => checkFavoriteStatus(spot.id));
+    }
+  }, [touristSpots]);
+
+  // お気に入りの追加/削除
+  const toggleFavorite = async (spotId: number) => {
+    setFavoriteLoading(prev => ({ ...prev, [spotId]: true }));
+    
+    try {
+      const isFavorite = favoriteStates[spotId];
+      
+      if (isFavorite) {
+        // お気に入りから削除
+        const response = await fetch(`http://localhost:8080/favorites/tourist-spots/${spotId}`, {
+          method: 'DELETE',
+        });
+        
+        if (response.ok) {
+          setFavoriteStates(prev => ({ ...prev, [spotId]: false }));
+        } else {
+          setError('お気に入りの削除に失敗しました');
+        }
+      } else {
+        // お気に入りに追加
+        const response = await fetch('http://localhost:8080/favorites/tourist-spots', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ 
+            tourist_spot_id: spotId,
+            notes: '',
+            priority: 1
+          }),
+        });
+        
+        if (response.ok) {
+          setFavoriteStates(prev => ({ ...prev, [spotId]: true }));
+        } else {
+          const errorData = await response.json();
+          setError(errorData.error || 'お気に入りの追加に失敗しました');
+        }
+      }
+    } catch (err: any) {
+      setError(err.message);
+    } finally {
+      setFavoriteLoading(prev => ({ ...prev, [spotId]: false }));
+    }
+  };
+
   // フォームのリセット
   const resetForm = () => {
     setFormData({
@@ -164,8 +232,8 @@ const TouristSpotManager: React.FC = () => {
       const formData = new FormData();
       formData.append('image', selectedFile);
 
-      // PostgreSQLストレージを使用
-      const response = await fetch('http://localhost:8080/upload-db', {
+      // 画像アップロードAPI（ファイルストレージ）を使用
+      const response = await fetch('http://localhost:8080/upload', {
         method: 'POST',
         body: formData,
       });
@@ -176,7 +244,9 @@ const TouristSpotManager: React.FC = () => {
       }
 
       const data = await response.json();
-      return data.image_url || data.url;
+      const imageUrl = data.image_url || data.url;
+      // 相対パスを絶対URLに変換
+      return imageUrl.startsWith('http') ? imageUrl : `http://localhost:8080${imageUrl}`;
     } catch (err: any) {
       setError(err.message);
       return null;
@@ -962,6 +1032,29 @@ const TouristSpotManager: React.FC = () => {
                         -1
                       </button>
                     </div>
+                    
+                    {/* お気に入りボタン */}
+                    <button
+                      onClick={() => toggleFavorite(spot.id)}
+                      disabled={favoriteLoading[spot.id]}
+                      style={{
+                        padding: '6px 12px',
+                        backgroundColor: favoriteStates[spot.id] ? '#dc2626' : '#f59e0b',
+                        color: 'white',
+                        border: 'none',
+                        borderRadius: '4px',
+                        cursor: favoriteLoading[spot.id] ? 'not-allowed' : 'pointer',
+                        fontSize: '12px',
+                        opacity: favoriteLoading[spot.id] ? 0.6 : 1
+                      }}
+                    >
+                      {favoriteLoading[spot.id] 
+                        ? '処理中...' 
+                        : favoriteStates[spot.id] 
+                          ? '💔 お気に入り解除' 
+                          : '💖 お気に入り'}
+                    </button>
+                    
                     <button
                       onClick={() => handleEdit(spot)}
                       style={{
