@@ -4,6 +4,7 @@ import MapView from './MapView';
 import Admin from './Admin';
 import DijkstraTestPage from './DijkstraTestPage';
 import FavoriteTouristSpots from './FavoriteTouristSpots';
+import MyPage from './MyPage';
 import Header from './Header';
 import Login from './Login';
 import { logger } from './logger';
@@ -73,6 +74,13 @@ function App() {
         <FavoriteTouristSpots />
       </>
     );
+  }
+
+  if (window.location.pathname === "/mypage") {
+    if (!token) {
+      return <Login onLogin={handleLogin} />;
+    }
+    return <MyPage />;
   }
 
   return (
