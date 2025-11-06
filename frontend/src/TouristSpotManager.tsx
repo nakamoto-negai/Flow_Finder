@@ -426,7 +426,7 @@ const TouristSpotManager: React.FC = () => {
 
   return (
     <div style={{ maxWidth: '1200px', margin: '0 auto' }}>
-      <h2 style={{ marginBottom: '20px', color: '#1f2937' }}>🏛️ 観光地管理</h2>
+      <h2 style={{ marginBottom: '20px', color: '#1f2937' }}>観光地管理</h2>
 
       {/* 作成ボタン */}
       <div style={{ marginBottom: '20px' }}>
@@ -767,7 +767,7 @@ const TouristSpotManager: React.FC = () => {
                   alignItems: 'center',
                   gap: '8px'
                 }}>
-                  📁 選択済み: {selectedFile.name}
+                  選択済み: {selectedFile.name}
                   <button
                     type="button"
                     onClick={() => setSelectedFile(null)}
@@ -1051,8 +1051,8 @@ const TouristSpotManager: React.FC = () => {
                       {favoriteLoading[spot.id] 
                         ? '処理中...' 
                         : favoriteStates[spot.id] 
-                          ? '💔 お気に入り解除' 
-                          : '💖 お気に入り'}
+                          ? 'お気に入り解除' 
+                          : 'お気に入り'}
                     </button>
                     
                     <button

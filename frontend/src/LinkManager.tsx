@@ -199,7 +199,7 @@ const LinkManager: React.FC = () => {
         alignItems: 'center', 
         marginBottom: '20px' 
       }}>
-        <h2>🔗 リンク管理</h2>
+        <h2>リンク管理</h2>
         <div style={{ display: 'flex', gap: '10px' }}>
           <button
             onClick={() => setShowVisualCreator(!showVisualCreator)}
@@ -212,7 +212,7 @@ const LinkManager: React.FC = () => {
               cursor: 'pointer'
             }}
           >
-            {showVisualCreator ? '🗂️ リスト表示' : '🗺️ マップ表示'}
+            {showVisualCreator ? 'リスト表示' : 'マップ表示'}
           </button>
           <button
             onClick={() => setShowAddForm(true)}
@@ -251,7 +251,7 @@ const LinkManager: React.FC = () => {
           boxShadow: '0 2px 4px rgba(0,0,0,0.1)',
           marginBottom: '20px'
         }}>
-          <h3 style={{ marginBottom: '16px' }}>🔗 フィールド上でリンクを作成</h3>
+          <h3 style={{ marginBottom: '16px' }}>フィールド上でリンクを作成</h3>
           <VisualLinkCreator onLinkCreated={handleLinkCreated} />
         </div>
       )}

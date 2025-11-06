@@ -34,7 +34,7 @@ const Header: React.FC<HeaderProps> = ({
             fontWeight: 'bold',
             cursor: 'pointer'
           }} onClick={() => window.location.href = '/'}>
-            🗺️ Flow Finder
+            Flow Finder
           </h1>
         </div>
 
@@ -55,26 +55,10 @@ const Header: React.FC<HeaderProps> = ({
             onMouseOver={(e) => e.currentTarget.style.background = 'rgba(255,255,255,0.2)'}
             onMouseOut={(e) => e.currentTarget.style.background = 'transparent'}
           >
-            💖 お気に入り
+            お気に入り
           </button>
           
-          <button
-            onClick={() => window.location.href = '/links'}
-            style={{
-              background: 'transparent',
-              color: 'white',
-              border: '1px solid rgba(255,255,255,0.3)',
-              borderRadius: '6px',
-              padding: '6px 12px',
-              fontSize: '0.9rem',
-              cursor: 'pointer',
-              transition: 'all 0.2s ease'
-            }}
-            onMouseOver={(e) => e.currentTarget.style.background = 'rgba(255,255,255,0.2)'}
-            onMouseOut={(e) => e.currentTarget.style.background = 'transparent'}
-          >
-            リンク
-          </button>
+        
           
           <button
             onClick={() => window.location.href = '/dijkstra'}
@@ -109,7 +93,7 @@ const Header: React.FC<HeaderProps> = ({
             onMouseOver={(e) => e.currentTarget.style.background = 'rgba(255,255,255,0.2)'}
             onMouseOut={(e) => e.currentTarget.style.background = 'transparent'}
           >
-            ⚙️ 管理
+            管理
           </button>
 
           {onLogout && (

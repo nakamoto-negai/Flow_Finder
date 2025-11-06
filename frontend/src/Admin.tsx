@@ -17,12 +17,12 @@ const Admin: React.FC = () => {
       <div style={{ borderBottom: '1px solid #e5e7eb', background: 'white' }}>
         <div style={{ maxWidth: '1200px', margin: '0 auto', display: 'flex' }}>
           {[
-            { key: 'fields', label: '🏞️ フィールド管理' },
-            { key: 'nodes', label: '📍 ノード管理' },
-            { key: 'links', label: '🔗 リンク管理' },
-            { key: 'tourist-spots', label: '🏛️ 観光地管理' },
-            { key: 'images', label: '🖼️ 画像管理' },
-            { key: 'logs', label: '📊 ログ表示' }
+            { key: 'fields', label: 'フィールド管理' },
+            { key: 'nodes', label: 'ノード管理' },
+            { key: 'links', label: 'リンク管理' },
+            { key: 'tourist-spots', label: '観光地管理' },
+            { key: 'images', label: '画像管理' },
+            { key: 'logs', label: 'ログ表示' }
           ].map(tab => (
             <button
               key={tab.key}

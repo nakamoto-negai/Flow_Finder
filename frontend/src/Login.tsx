@@ -116,7 +116,7 @@ const Login: React.FC<LoginProps> = ({ onLogin }) => {
         maxWidth: '400px'
       }}>
         <h2 style={{ textAlign: 'center', marginBottom: '30px', color: '#333' }}>
-          🗺️ Flow Finder {isSignupMode ? 'ユーザー登録' : 'ログイン'}
+          Flow Finder {isSignupMode ? 'ユーザー登録' : 'ログイン'}
         </h2>
         
         <form onSubmit={handleSubmit}>
