@@ -124,7 +124,7 @@ const MapView: React.FC<{ linkMode?: boolean, onLinkCreated?: () => void }> = ({
       }}>
         {/* フィールド選択 */}
         <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-          <label style={{ fontWeight: 'bold', fontSize: '0.9rem' }}>🏞️ フィールド:</label>
+          <label style={{ fontWeight: 'bold', fontSize: '0.9rem' }}>フィールド:</label>
           <select
             value={activeField?.id || ''}
             onChange={(e) => handleFieldChange(Number(e.target.value))}
@@ -154,7 +154,7 @@ const MapView: React.FC<{ linkMode?: boolean, onLinkCreated?: () => void }> = ({
             alignItems: "center",
             gap: "4px"
           }}>
-            💡 ノードをクリックするとリンク一覧ページに移動します
+            ノードをクリックするとリンク一覧ページに移動します
           </div>
         )}
       </div>

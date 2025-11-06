@@ -44,6 +44,42 @@ const Header: React.FC<HeaderProps> = ({
         {/* ナビゲーションメニュー */}
         <nav style={{ display: 'flex', gap: '16px' }}>
           <button
+            onClick={() => window.location.href = '/mypage'}
+            style={{
+              background: 'transparent',
+              color: 'white',
+              border: '1px solid rgba(255,255,255,0.3)',
+              borderRadius: '6px',
+              padding: '6px 12px',
+              fontSize: '0.9rem',
+              cursor: 'pointer',
+              transition: 'all 0.2s ease'
+            }}
+            onMouseOver={(e) => e.currentTarget.style.background = 'rgba(255,255,255,0.2)'}
+            onMouseOut={(e) => e.currentTarget.style.background = 'transparent'}
+          >
+            マイページ
+          </button>
+
+          <button
+            onClick={() => window.location.href = ''}
+            style={{
+              background: 'transparent',
+              color: 'white',
+              border: '1px solid rgba(255,255,255,0.3)',
+              borderRadius: '6px',
+              padding: '6px 12px',
+              fontSize: '0.9rem',
+              cursor: 'pointer',
+              transition: 'all 0.2s ease'
+            }}
+            onMouseOver={(e) => e.currentTarget.style.background = 'rgba(255,255,255,0.2)'}
+            onMouseOut={(e) => e.currentTarget.style.background = 'transparent'}
+          >
+            現在地選択
+          </button>
+
+          <button
             onClick={() => window.location.href = '/favorites'}
             style={{
               background: 'transparent',
@@ -61,7 +97,6 @@ const Header: React.FC<HeaderProps> = ({
             お気に入り
           </button>
           
-        
           {isAdmin && (
           <button
             onClick={() => window.location.href = '/dijkstra'}
