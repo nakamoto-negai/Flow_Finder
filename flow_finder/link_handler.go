@@ -4,13 +4,14 @@ import (
 	"fmt"
 
 	"github.com/gin-gonic/gin"
+	"github.com/redis/go-redis/v9"
 	"gorm.io/gorm"
 )
 
 // リンク関連のルートを登録
-func RegisterLinkRoutes(r *gin.Engine, db *gorm.DB) {
-	// Link追加
-	r.POST("/links", func(c *gin.Context) {
+func RegisterLinkRoutes(r *gin.Engine, db *gorm.DB, redisClient *redis.Client) {
+	// Link追加（管理者専用）
+	r.POST("/links", AdminRequired(db, redisClient), func(c *gin.Context) {
 		var req struct {
 			FromNodeID uint    `json:"from_node_id"`
 			ToNodeID   uint    `json:"to_node_id"`
@@ -77,8 +78,8 @@ func RegisterLinkRoutes(r *gin.Engine, db *gorm.DB) {
 		})
 	})
 
-	// Link更新
-	r.PUT("/links/:id", func(c *gin.Context) {
+	// Link更新（管理者専用）
+	r.PUT("/links/:id", AdminRequired(db, redisClient), func(c *gin.Context) {
 		id := c.Param("id")
 		var link Link
 		if err := db.First(&link, id).Error; err != nil {
@@ -156,8 +157,8 @@ func RegisterLinkRoutes(r *gin.Engine, db *gorm.DB) {
 		c.JSON(200, gin.H{"result": "ok", "link": link})
 	})
 
-	// Link削除
-	r.DELETE("/links/:id", func(c *gin.Context) {
+	// Link削除（管理者専用）
+	r.DELETE("/links/:id", AdminRequired(db, redisClient), func(c *gin.Context) {
 		id := c.Param("id")
 		
 		if err := db.Delete(&Link{}, id).Error; err != nil {

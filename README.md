@@ -66,6 +66,33 @@ docker-compose -f docker-compose.prod.yml up --build -d
 - **お気に入り**: http://localhost:5173/favorites
 - **経路探索**: http://localhost:5173/dijkstra
 
+## 管理者ユーザーの作成
+
+管理画面にアクセスするには、管理者権限を持つユーザーが必要です。以下のcurlコマンドで管理者ユーザーを作成できます：
+
+```bash
+# 管理者ユーザーを作成
+curl -X POST http://localhost:8080/users \
+  -H "Content-Type: application/json" \
+  -d '{"name": "admin"}'
+
+# データベースで管理者フラグを設定（Docker内で実行）
+docker-compose exec db psql -U postgres -d postgres -c "UPDATE users SET is_admin = true WHERE name = 'admin';"
+```
+
+または、PostgreSQLに直接接続して設定することもできます：
+
+```bash
+# PostgreSQLコンテナに接続
+docker-compose exec db psql -U postgres -d postgres
+
+# SQL実行
+UPDATE users SET is_admin = true WHERE name = 'admin';
+\q
+```
+
+管理者ユーザーでログイン後、管理画面にアクセスできます。
+
 ## 環境変数
 
 ### 開発環境

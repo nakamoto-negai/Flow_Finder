@@ -10,11 +10,12 @@ import (
 	"time"
 
 	"github.com/gin-gonic/gin"
+	"github.com/redis/go-redis/v9"
 	"gorm.io/gorm"
 )
 
 // フィールド関連のルートを登録
-func RegisterFieldRoutes(r *gin.Engine, db *gorm.DB) {
+func RegisterFieldRoutes(r *gin.Engine, db *gorm.DB, redisClient *redis.Client) {
 	// フィールド一覧取得
 	r.GET("/fields", func(c *gin.Context) {
 		var fields []Field
@@ -46,14 +47,14 @@ func RegisterFieldRoutes(r *gin.Engine, db *gorm.DB) {
 		c.JSON(200, field)
 	})
 
-	// フィールド作成（画像アップロード付き）
-	r.POST("/fields", fieldCreateHandler(db))
+	// フィールド作成（画像アップロード付き）（管理者専用）
+	r.POST("/fields", AdminRequired(db, redisClient), fieldCreateHandler(db))
 
-	// フィールド更新
-	r.PUT("/fields/:id", fieldUpdateHandler(db))
+	// フィールド更新（管理者専用）
+	r.PUT("/fields/:id", AdminRequired(db, redisClient), fieldUpdateHandler(db))
 
-	// フィールドをアクティブに設定
-	r.POST("/fields/:id/activate", func(c *gin.Context) {
+	// フィールドをアクティブに設定（管理者専用）
+	r.POST("/fields/:id/activate", AdminRequired(db, redisClient), func(c *gin.Context) {
 		id := c.Param("id")
 		var field Field
 		if err := db.First(&field, id).Error; err != nil {
@@ -69,8 +70,8 @@ func RegisterFieldRoutes(r *gin.Engine, db *gorm.DB) {
 		c.JSON(200, gin.H{"result": "ok", "message": "フィールドをアクティブにしました"})
 	})
 
-	// フィールド削除
-	r.DELETE("/fields/:id", func(c *gin.Context) {
+	// フィールド削除（管理者専用）
+	r.DELETE("/fields/:id", AdminRequired(db, redisClient), func(c *gin.Context) {
 		id := c.Param("id")
 		var field Field
 		if err := db.First(&field, id).Error; err != nil {

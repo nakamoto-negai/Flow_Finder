@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import FieldManager from "./FieldManager";
 import NodeManager from "./NodeManager";
 import LinkManager from "./LinkManager";
@@ -9,6 +9,68 @@ import "./App.css";
 
 const Admin: React.FC = () => {
   const [currentView, setCurrentView] = useState<'fields' | 'nodes' | 'links' | 'images' | 'tourist-spots' | 'logs'>('fields');
+  const [isAdmin, setIsAdmin] = useState<boolean>(false);
+  const [isLoading, setIsLoading] = useState<boolean>(true);
+
+  useEffect(() => {
+    // localStorageから管理者フラグを確認
+    const adminFlag = localStorage.getItem('isAdmin');
+    setIsAdmin(adminFlag === 'true');
+    setIsLoading(false);
+  }, []);
+
+  if (isLoading) {
+    return (
+      <div style={{ 
+        minHeight: '100vh', 
+        display: 'flex', 
+        alignItems: 'center', 
+        justifyContent: 'center' 
+      }}>
+        <div>読み込み中...</div>
+      </div>
+    );
+  }
+
+  if (!isAdmin) {
+    return (
+      <div style={{ minHeight: '100vh', background: '#f8fafc' }}>
+        <Header />
+        <div style={{ 
+          maxWidth: '600px', 
+          margin: '100px auto', 
+          padding: '40px',
+          background: 'white',
+          borderRadius: '8px',
+          boxShadow: '0 2px 8px rgba(0,0,0,0.1)',
+          textAlign: 'center'
+        }}>
+          <h2 style={{ color: '#dc2626', marginBottom: '20px' }}>アクセス拒否</h2>
+          <p style={{ color: '#6b7280', marginBottom: '30px' }}>
+            この管理画面にアクセスする権限がありません。<br />
+            管理者ユーザーとしてログインしてください。
+          </p>
+          <button
+            onClick={() => {
+              localStorage.clear();
+              window.location.href = '/';
+            }}
+            style={{
+              padding: '10px 30px',
+              background: '#3b82f6',
+              color: 'white',
+              border: 'none',
+              borderRadius: '4px',
+              cursor: 'pointer',
+              fontSize: '16px'
+            }}
+          >
+            ログイン画面へ戻る
+          </button>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div style={{ minHeight: '100vh', background: '#f8fafc' }}>

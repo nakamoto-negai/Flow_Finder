@@ -69,6 +69,11 @@ func RegisterAuthRoutes(r *gin.Engine, db *gorm.DB, redisClient *redis.Client) {
 			IPAddress: c.ClientIP(),
 		})
 		
-		c.JSON(http.StatusOK, gin.H{"token": token, "user_id": user.ID, "session_id": sessionID})
+		c.JSON(http.StatusOK, gin.H{
+			"token":      token,
+			"user_id":    user.ID,
+			"session_id": sessionID,
+			"is_admin":   user.IsAdmin,
+		})
 	})
 }
