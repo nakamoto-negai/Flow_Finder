@@ -183,7 +183,7 @@ const NodeManager: React.FC = () => {
         alignItems: 'center', 
         marginBottom: '20px' 
       }}>
-        <h2>📍 ノード管理</h2>
+        <h2>ノード管理</h2>
         <div style={{ display: 'flex', gap: '10px' }}>
           <button
             onClick={() => setShowVisualSelector(!showVisualSelector)}
@@ -196,7 +196,7 @@ const NodeManager: React.FC = () => {
               cursor: 'pointer'
             }}
           >
-            {showVisualSelector ? '🗂️ リスト表示' : '🗺️ マップ表示'}
+            {showVisualSelector ? 'リスト表示' : 'マップ表示'}
           </button>
           <button
             onClick={() => setShowAddForm(true)}
@@ -235,7 +235,7 @@ const NodeManager: React.FC = () => {
           boxShadow: '0 2px 4px rgba(0,0,0,0.1)',
           marginBottom: '20px'
         }}>
-          <h3 style={{ marginBottom: '16px' }}>📍 フィールド上でノードを選択・追加</h3>
+          <h3 style={{ marginBottom: '16px' }}>フィールド上でノードを選択・追加</h3>
           <VisualNodeSelector
             onNodeSelected={handleNodeSelected}
             onNodeAdded={handleNodeAdded}

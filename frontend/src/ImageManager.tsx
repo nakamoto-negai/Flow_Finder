@@ -158,7 +158,7 @@ const ImageManager: React.FC = () => {
 
   return (
     <div style={{ maxWidth: '1000px', margin: '0 auto' }}>
-      <h2 style={{ marginBottom: '20px', color: '#1f2937' }}>🖼️ 画像管理</h2>
+      <h2 style={{ marginBottom: '20px', color: '#1f2937' }}>画像管理</h2>
 
       {/* アップロードセクション */}
       <div style={{ 

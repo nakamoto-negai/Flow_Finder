@@ -4,11 +4,12 @@ import (
 	"strconv"
 
 	"github.com/gin-gonic/gin"
+	"github.com/redis/go-redis/v9"
 	"gorm.io/gorm"
 )
 
 // 観光地関連のルートを登録
-func RegisterTouristSpotRoutes(r *gin.Engine, db *gorm.DB) {
+func RegisterTouristSpotRoutes(r *gin.Engine, db *gorm.DB, redisClient *redis.Client) {
 	// 観光地一覧取得
 	r.GET("/tourist-spots", func(c *gin.Context) {
 		var spots []TouristSpot
@@ -55,14 +56,14 @@ func RegisterTouristSpotRoutes(r *gin.Engine, db *gorm.DB) {
 		c.JSON(200, spot)
 	})
 
-	// 観光地作成
-	r.POST("/tourist-spots", touristSpotCreateHandler(db))
+	// 観光地作成（管理者専用）
+	r.POST("/tourist-spots", AdminRequired(db, redisClient), touristSpotCreateHandler(db))
 
-	// 観光地更新
-	r.PUT("/tourist-spots/:id", touristSpotUpdateHandler(db))
+	// 観光地更新（管理者専用）
+	r.PUT("/tourist-spots/:id", AdminRequired(db, redisClient), touristSpotUpdateHandler(db))
 
-	// 観光地削除
-	r.DELETE("/tourist-spots/:id", touristSpotDeleteHandler(db))
+	// 観光地削除（管理者専用）
+	r.DELETE("/tourist-spots/:id", AdminRequired(db, redisClient), touristSpotDeleteHandler(db))
 
 	// 観光地の来場者数管理
 	r.POST("/tourist-spots/:id/visitors", touristSpotVisitorHandler(db))

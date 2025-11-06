@@ -7,7 +7,8 @@ import "gorm.io/gorm"
 // gorm.ModelにはID, CreatedAt, UpdatedAt, DeletedAtが含まれる
 type User struct {
 	gorm.Model
-	Name string `json:"name"`
+	Name    string `json:"name"`
+	IsAdmin bool   `json:"is_admin" gorm:"default:false"` // 管理者フラグ
 }
 
 // デフォルトユーザーを作成（存在しない場合）

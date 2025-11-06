@@ -28,11 +28,11 @@ func SetupRoutes(r *gin.Engine, db *gorm.DB, redisClient *redis.Client) {
 	// 各機能別ハンドラを登録
 	RegisterAuthRoutes(r, db, redisClient)
 	RegisterUserRoutes(r, db)
-	RegisterNodeRoutes(r, db)
-	RegisterLinkRoutes(r, db)
-	RegisterTouristSpotRoutes(r, db)
-	RegisterImageRoutes(r, db)
+	RegisterNodeRoutes(r, db, redisClient)
+	RegisterLinkRoutes(r, db, redisClient)
+	RegisterTouristSpotRoutes(r, db, redisClient)
+	RegisterImageRoutes(r, db, redisClient)
 	RegisterDijkstraRoutes(r, db)
-	RegisterFieldRoutes(r, db)
+	RegisterFieldRoutes(r, db, redisClient)
 	RegisterFavoriteRoutes(r, db, redisClient)
 }

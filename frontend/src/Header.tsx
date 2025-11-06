@@ -7,6 +7,9 @@ interface HeaderProps {
 const Header: React.FC<HeaderProps> = ({ 
   onLogout
 }) => {
+  // localStorageから管理者フラグを取得
+  const isAdmin = localStorage.getItem('isAdmin') === 'true';
+
   return (
     <header style={{
       background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
@@ -34,7 +37,7 @@ const Header: React.FC<HeaderProps> = ({
             fontWeight: 'bold',
             cursor: 'pointer'
           }} onClick={() => window.location.href = '/'}>
-            🗺️ Flow Finder
+            Flow Finder
           </h1>
         </div>
 
@@ -55,27 +58,11 @@ const Header: React.FC<HeaderProps> = ({
             onMouseOver={(e) => e.currentTarget.style.background = 'rgba(255,255,255,0.2)'}
             onMouseOut={(e) => e.currentTarget.style.background = 'transparent'}
           >
-            💖 お気に入り
+            お気に入り
           </button>
           
-          <button
-            onClick={() => window.location.href = '/links'}
-            style={{
-              background: 'transparent',
-              color: 'white',
-              border: '1px solid rgba(255,255,255,0.3)',
-              borderRadius: '6px',
-              padding: '6px 12px',
-              fontSize: '0.9rem',
-              cursor: 'pointer',
-              transition: 'all 0.2s ease'
-            }}
-            onMouseOver={(e) => e.currentTarget.style.background = 'rgba(255,255,255,0.2)'}
-            onMouseOut={(e) => e.currentTarget.style.background = 'transparent'}
-          >
-            リンク
-          </button>
-          
+        
+          {isAdmin && (
           <button
             onClick={() => window.location.href = '/dijkstra'}
             style={{
@@ -93,24 +80,27 @@ const Header: React.FC<HeaderProps> = ({
           >
             経路探索
           </button>
-          
-          <button
-            onClick={() => window.location.href = '/admin'}
-            style={{
-              background: 'transparent',
-              color: 'white',
-              border: '1px solid rgba(255,255,255,0.3)',
-              borderRadius: '6px',
-              padding: '6px 12px',
-              fontSize: '0.9rem',
-              cursor: 'pointer',
-              transition: 'all 0.2s ease'
-            }}
-            onMouseOver={(e) => e.currentTarget.style.background = 'rgba(255,255,255,0.2)'}
-            onMouseOut={(e) => e.currentTarget.style.background = 'transparent'}
-          >
-            ⚙️ 管理
-          </button>
+          )}
+          {/* 管理者のみ表示 */}
+          {isAdmin && (
+            <button
+              onClick={() => window.location.href = '/admin'}
+              style={{
+                background: 'transparent',
+                color: 'white',
+                border: '1px solid rgba(255,255,255,0.3)',
+                borderRadius: '6px',
+                padding: '6px 12px',
+                fontSize: '0.9rem',
+                cursor: 'pointer',
+                transition: 'all 0.2s ease'
+              }}
+              onMouseOver={(e) => e.currentTarget.style.background = 'rgba(255,255,255,0.2)'}
+              onMouseOut={(e) => e.currentTarget.style.background = 'transparent'}
+            >
+              管理
+            </button>
+          )}
 
           {onLogout && (
             <button
@@ -128,7 +118,7 @@ const Header: React.FC<HeaderProps> = ({
               onMouseOver={(e) => e.currentTarget.style.background = 'rgba(220, 53, 69, 1)'}
               onMouseOut={(e) => e.currentTarget.style.background = 'rgba(220, 53, 69, 0.8)'}
             >
-              🚪 ログアウト
+              ログアウト
             </button>
           )}
         </nav>

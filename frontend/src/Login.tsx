@@ -37,6 +37,7 @@ const Login: React.FC<LoginProps> = ({ onLogin }) => {
       const data = await response.json();
       localStorage.setItem('authToken', data.token);
       localStorage.setItem('userId', data.user_id);
+      localStorage.setItem('isAdmin', data.is_admin ? 'true' : 'false');
       onLogin(data.token, data.user_id);
     } catch (err: any) {
       setError(err.message);
@@ -89,6 +90,7 @@ const Login: React.FC<LoginProps> = ({ onLogin }) => {
       const data = await loginRes.json();
       localStorage.setItem('authToken', data.token);
       localStorage.setItem('userId', data.user_id);
+      localStorage.setItem('isAdmin', data.is_admin ? 'true' : 'false');
       onLogin(data.token, data.user_id);
     } catch (err: any) {
       setError(err.message);
@@ -116,7 +118,7 @@ const Login: React.FC<LoginProps> = ({ onLogin }) => {
         maxWidth: '400px'
       }}>
         <h2 style={{ textAlign: 'center', marginBottom: '30px', color: '#333' }}>
-          🗺️ Flow Finder {isSignupMode ? 'ユーザー登録' : 'ログイン'}
+          Flow Finder {isSignupMode ? 'ユーザー登録' : 'ログイン'}
         </h2>
         
         <form onSubmit={handleSubmit}>

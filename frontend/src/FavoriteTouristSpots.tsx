@@ -1,10 +1,9 @@
 import React, { useState, useEffect } from 'react';
-import type { UserFavoriteTouristSpot, FavoriteStats, TouristSpot } from './types';
+import type { UserFavoriteTouristSpot, TouristSpot } from './types';
 import { apiRequest } from './api';
 
 const FavoriteTouristSpots: React.FC = () => {
   const [favorites, setFavorites] = useState<UserFavoriteTouristSpot[]>([]);
-  const [stats, setStats] = useState<FavoriteStats | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [filter, setFilter] = useState<'all' | 'priority' | 'visit_status'>('all');
@@ -19,7 +18,6 @@ const FavoriteTouristSpots: React.FC = () => {
   // データ取得
   useEffect(() => {
     fetchFavorites();
-    fetchStats();
     fetchAllTouristSpots();
   }, [filter, priorityFilter, visitStatusFilter]);
 
@@ -52,17 +50,7 @@ const FavoriteTouristSpots: React.FC = () => {
     }
   };
 
-  const fetchStats = async () => {
-    try {
-      const response = await apiRequest('http://localhost:8080/favorites/stats');
-      if (response.ok) {
-        const data = await response.json();
-        setStats(data);
-      }
-    } catch (err) {
-      console.error('統計情報の取得に失敗:', err);
-    }
-  };
+
 
   // 全観光地を取得
   const fetchAllTouristSpots = async () => {
@@ -88,7 +76,6 @@ const FavoriteTouristSpots: React.FC = () => {
 
       if (response.ok) {
         setFavorites(prev => prev.filter(fav => fav.tourist_spot_id !== touristSpotId));
-        fetchStats(); // 統計情報を更新
       } else {
         setError('削除に失敗しました');
       }
@@ -111,7 +98,6 @@ const FavoriteTouristSpots: React.FC = () => {
 
       if (response.ok) {
         await fetchFavorites(); // リストを再取得
-        fetchStats(); // 統計情報を更新
       } else {
         setError('更新に失敗しました');
       }
@@ -152,7 +138,6 @@ const FavoriteTouristSpots: React.FC = () => {
 
       if (response.ok) {
         await fetchFavorites(); // リストを再取得
-        fetchStats(); // 統計情報を更新
         setShowAddDialog(false);
       } else {
         const errorData = await response.json();
@@ -184,7 +169,7 @@ const FavoriteTouristSpots: React.FC = () => {
 
   return (
     <div style={{ maxWidth: '1200px', margin: '0 auto' }}>
-      <h2 style={{ marginBottom: '20px', color: '#1f2937' }}>💖 お気に入り観光地</h2>
+      <h2 style={{ marginBottom: '20px', color: '#1f2937' }}>お気に入り観光地</h2>
 
       {/* お気に入り追加ボタン */}
       <div style={{ marginBottom: '20px' }}>
@@ -203,41 +188,6 @@ const FavoriteTouristSpots: React.FC = () => {
           ➕ 新しい観光地をお気に入りに追加
         </button>
       </div>
-
-      {/* 統計情報 */}
-      {stats && (
-        <div style={{ 
-          background: 'white', 
-          padding: '20px', 
-          borderRadius: '8px', 
-          boxShadow: '0 2px 8px rgba(0,0,0,0.1)',
-          marginBottom: '20px'
-        }}>
-          <h3 style={{ margin: '0 0 15px 0', color: '#374151' }}>📊 統計情報</h3>
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(150px, 1fr))', gap: '15px' }}>
-            <div style={{ textAlign: 'center', padding: '10px', background: '#f3f4f6', borderRadius: '6px' }}>
-              <div style={{ fontSize: '24px', fontWeight: 'bold', color: '#3b82f6' }}>{stats.total_count}</div>
-              <div style={{ fontSize: '14px', color: '#6b7280' }}>総数</div>
-            </div>
-            <div style={{ textAlign: 'center', padding: '10px', background: '#f3f4f6', borderRadius: '6px' }}>
-              <div style={{ fontSize: '24px', fontWeight: 'bold', color: '#10b981' }}>{stats.visited_count}</div>
-              <div style={{ fontSize: '14px', color: '#6b7280' }}>訪問済み</div>
-            </div>
-            <div style={{ textAlign: 'center', padding: '10px', background: '#f3f4f6', borderRadius: '6px' }}>
-              <div style={{ fontSize: '24px', fontWeight: 'bold', color: '#f59e0b' }}>{stats.planned_count}</div>
-              <div style={{ fontSize: '14px', color: '#6b7280' }}>訪問予定</div>
-            </div>
-            <div style={{ textAlign: 'center', padding: '10px', background: '#f3f4f6', borderRadius: '6px' }}>
-              <div style={{ fontSize: '24px', fontWeight: 'bold', color: '#6b7280' }}>{stats.not_visited_count}</div>
-              <div style={{ fontSize: '14px', color: '#6b7280' }}>未訪問</div>
-            </div>
-            <div style={{ textAlign: 'center', padding: '10px', background: '#f3f4f6', borderRadius: '6px' }}>
-              <div style={{ fontSize: '20px', fontWeight: 'bold', color: '#8b5cf6' }}>{stats.visited_rate.toFixed(1)}%</div>
-              <div style={{ fontSize: '14px', color: '#6b7280' }}>訪問率</div>
-            </div>
-          </div>
-        </div>
-      )}
 
       {/* フィルター */}
       <div style={{ 
@@ -635,7 +585,7 @@ const FavoriteTouristSpots: React.FC = () => {
                             fontSize: '12px'
                           }}
                         >
-                          💔 お気に入り解除
+                          お気に入り解除
                         </button>
                       </div>
                     </div>
