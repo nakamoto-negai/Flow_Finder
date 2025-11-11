@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { getApiUrl, API_BASE_URL } from './config';
 
 interface Field {
   id: number;
@@ -29,7 +30,7 @@ const FieldManager: React.FC = () => {
 
   const loadFields = async () => {
     try {
-      const response = await fetch('http://localhost:8080/fields');
+      const response = await fetch(getApiUrl('/fields'));
       const data = await response.json();
       // データが配列でない場合は空配列を設定
       setFields(Array.isArray(data) ? data : []);
@@ -55,7 +56,7 @@ const FieldManager: React.FC = () => {
     formData.append('image', uploadData.image);
 
     try {
-      const response = await fetch('http://localhost:8080/fields', {
+      const response = await fetch(getApiUrl('/fields'), {
         method: 'POST',
         body: formData
       });
@@ -78,7 +79,7 @@ const FieldManager: React.FC = () => {
 
   const activateField = async (fieldId: number) => {
     try {
-      const response = await fetch(`http://localhost:8080/fields/${fieldId}/activate`, {
+      const response = await fetch(getApiUrl(`/fields/${fieldId}/activate`), {
         method: 'POST'
       });
 
@@ -97,7 +98,7 @@ const FieldManager: React.FC = () => {
     if (!confirm('このフィールドを削除しますか？')) return;
 
     try {
-      const response = await fetch(`http://localhost:8080/fields/${fieldId}`, {
+      const response = await fetch(getApiUrl(`/fields/${fieldId}`), {
         method: 'DELETE'
       });
 
@@ -254,7 +255,7 @@ const FieldManager: React.FC = () => {
           >
             <div style={{ position: 'relative', marginBottom: '10px' }}>
               <img
-                src={`http://localhost:8080${field.image_url}`}
+                src={`${API_BASE_URL}${field.image_url}`}
                 alt={field.name}
                 style={{ width: '100%', height: '150px', objectFit: 'cover', borderRadius: '4px' }}
               />

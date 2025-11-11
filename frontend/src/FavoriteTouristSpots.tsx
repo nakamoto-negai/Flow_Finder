@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import type { UserFavoriteTouristSpot, TouristSpot } from './types';
 import { apiRequest } from './api';
+import { getApiUrl } from './config';
 
 const FavoriteTouristSpots: React.FC = () => {
   const [favorites, setFavorites] = useState<UserFavoriteTouristSpot[]>([]);
@@ -24,7 +25,7 @@ const FavoriteTouristSpots: React.FC = () => {
   const fetchFavorites = async () => {
     setLoading(true);
     try {
-      let url = 'http://localhost:8080/favorites/tourist-spots';
+      let url = getApiUrl('/favorites/tourist-spots');
       const params = new URLSearchParams();
 
       if (filter === 'priority' && priorityFilter > 0) {
@@ -55,7 +56,7 @@ const FavoriteTouristSpots: React.FC = () => {
   // 全観光地を取得
   const fetchAllTouristSpots = async () => {
     try {
-      const response = await apiRequest('http://localhost:8080/tourist-spots');
+      const response = await apiRequest(getApiUrl('/tourist-spots'));
       if (response.ok) {
         const data = await response.json();
         setAllTouristSpots(Array.isArray(data) ? data : []);
@@ -70,7 +71,7 @@ const FavoriteTouristSpots: React.FC = () => {
     if (!confirm('お気に入りから削除しますか？')) return;
 
     try {
-      const response = await apiRequest(`http://localhost:8080/favorites/tourist-spots/${touristSpotId}`, {
+      const response = await apiRequest(getApiUrl(`/favorites/tourist-spots/${touristSpotId}`), {
         method: 'DELETE',
       });
 
@@ -90,7 +91,7 @@ const FavoriteTouristSpots: React.FC = () => {
     updates: { notes?: string; priority?: number; visit_status?: string; visit_date?: string }
   ) => {
     try {
-      const response = await apiRequest(`http://localhost:8080/favorites/tourist-spots/${touristSpotId}`, {
+      const response = await apiRequest(getApiUrl(`/favorites/tourist-spots/${touristSpotId}`), {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(updates),
@@ -126,7 +127,7 @@ const FavoriteTouristSpots: React.FC = () => {
   const addToFavorites = async (touristSpotId: number, priority: number = 1, notes: string = '') => {
     setAddDialogLoading(true);
     try {
-      const response = await apiRequest('http://localhost:8080/favorites/tourist-spots', {
+      const response = await apiRequest(getApiUrl('/favorites/tourist-spots'), {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ 

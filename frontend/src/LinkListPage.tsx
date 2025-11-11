@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from "react";
 import Header from "./Header";
 import { apiRequest } from './api';
+import { getApiUrl } from './config';
 import type { UserFavoriteTouristSpot, Node } from './types';
 
 interface RouteInfo {
@@ -35,7 +36,7 @@ const LinkListPage: React.FC = () => {
     }
 
     // ノード情報を取得
-    fetch("http://localhost:8080/nodes")
+    fetch(getApiUrl("/nodes"))
       .then(res => res.json())
       .then(data => {
         let nodeArray = [];
@@ -64,7 +65,7 @@ const LinkListPage: React.FC = () => {
   const fetchAvailableLinks = async (nodeId: number) => {
     setIsLoadingLinks(true);
     try {
-      const response = await fetch(`http://localhost:8080/nodes/${nodeId}/available-links`);
+      const response = await fetch(getApiUrl(`/nodes/${nodeId}/available-links`));
       if (response.ok) {
         const data = await response.json();
         setAvailableLinks(data.available_links || []);
@@ -92,7 +93,7 @@ const LinkListPage: React.FC = () => {
         return;
       }
 
-      const response = await apiRequest('http://localhost:8080/favorites/tourist-spots');
+      const response = await apiRequest(getApiUrl('/favorites/tourist-spots'));
       if (response.ok) {
         const data = await response.json();
         const favoritesData = Array.isArray(data) ? data : [];
@@ -131,7 +132,7 @@ const LinkListPage: React.FC = () => {
     setRouteLoading(prev => ({ ...prev, [favorite.id]: true }));
 
     try {
-      const response = await fetch('http://localhost:8080/dijkstra', {
+      const response = await fetch(getApiUrl('/dijkstra'), {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({

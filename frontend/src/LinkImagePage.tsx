@@ -1,6 +1,7 @@
 
 import { useEffect, useState } from "react";
 import Header from "./Header";
+import { getApiUrl, API_BASE_URL } from './config';
 
 interface Image {
   id: number;
@@ -32,7 +33,7 @@ const LinkImagePage: React.FC = () => {
     
     setLinkId(urlLinkId);
 
-    fetch("http://localhost:8080/images")
+    fetch(getApiUrl("/images"))
       .then(res => res.json())
       .then((data) => {
         let imageArray = [];
@@ -50,7 +51,7 @@ const LinkImagePage: React.FC = () => {
       });
     
     // リンクの到着ノードID取得
-    fetch(`http://localhost:8080/links`)
+    fetch(getApiUrl("/links"))
       .then(res => res.json())
       .then((data) => {
         let linkArray = [];
@@ -67,7 +68,7 @@ const LinkImagePage: React.FC = () => {
       });
   }, []);
 
-  const apiHost = `${window.location.protocol}//${window.location.hostname}:8080`;
+  const apiHost = API_BASE_URL;
 
   return (
     <div style={{ minHeight: '100vh', background: '#f8fafc' }}>

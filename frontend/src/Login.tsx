@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import { getApiUrl } from './config';
 
 interface LoginProps {
   onLogin: (token: string, userId: number) => void;
@@ -21,7 +22,7 @@ const Login: React.FC<LoginProps> = ({ onLogin }) => {
     setError(null);
 
     try {
-      const response = await fetch('http://localhost:8080/login', {
+      const response = await fetch(getApiUrl('/login'), {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -58,7 +59,7 @@ const Login: React.FC<LoginProps> = ({ onLogin }) => {
 
     try {
       // ユーザーを作成
-      const signupRes = await fetch('http://localhost:8080/users', {
+      const signupRes = await fetch(getApiUrl('/users'), {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -75,7 +76,7 @@ const Login: React.FC<LoginProps> = ({ onLogin }) => {
       }
 
       // 作成後、自動的にログイン
-      const loginRes = await fetch('http://localhost:8080/login', {
+      const loginRes = await fetch(getApiUrl('/login'), {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',

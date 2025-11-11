@@ -1,5 +1,6 @@
 
-import React, { useEffect, useState, useRef } from "react";
+import React, { useState, useEffect, useRef } from 'react';
+import { getApiUrl, API_BASE_URL } from './config';
 import type { Field, Node } from './types';
 
 // 2点間の距離（ピクセル）を計算
@@ -19,7 +20,7 @@ const MapView: React.FC<{ linkMode?: boolean, onLinkCreated?: () => void }> = ({
 
   useEffect(() => {
     // 全フィールドを取得
-    fetch("http://localhost:8080/fields")
+    fetch(getApiUrl("/fields"))
       .then((res) => res.json())
       .then((data) => {
         const fieldsData = Array.isArray(data) ? data : [];
@@ -34,7 +35,7 @@ const MapView: React.FC<{ linkMode?: boolean, onLinkCreated?: () => void }> = ({
       });
 
     // ノード一覧を取得
-    fetch("http://localhost:8080/nodes")
+    fetch(getApiUrl("/nodes"))
       .then((res) => res.json())
       .then((data) => setNodes(Array.isArray(data) ? data : []))
       .catch(() => setNodes([]));
@@ -91,7 +92,7 @@ const MapView: React.FC<{ linkMode?: boolean, onLinkCreated?: () => void }> = ({
     if (selected.length !== 2) return;
     setLinkMsg(null);
     try {
-      const res = await fetch("http://localhost:8080/links", {
+      const res = await fetch(getApiUrl("/links"), {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
@@ -163,7 +164,7 @@ const MapView: React.FC<{ linkMode?: boolean, onLinkCreated?: () => void }> = ({
       <div style={{ position: "relative", border: "2px solid #dee2e6", borderRadius: 8, overflow: "hidden" }}>
         <img
           ref={imageRef}
-          src={activeField ? `http://localhost:8080${activeField.image_url}` : "/map-image.jpg"}
+          src={activeField ? `${API_BASE_URL}${activeField.image_url}` : "/map-image.jpg"}
           alt={activeField ? activeField.name : "マップ画像"}
           style={{ 
             width: "100%", 

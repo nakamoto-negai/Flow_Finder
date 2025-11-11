@@ -1,4 +1,5 @@
 import React, { useState, useEffect, Fragment } from 'react';
+import { getApiUrl } from './config';
 
 interface Node {
   id: number;
@@ -48,7 +49,7 @@ const DijkstraTestPage: React.FC = () => {
 
   // ノード一覧を取得
   useEffect(() => {
-    fetch('http://localhost:8080/nodes')
+    fetch(getApiUrl('/nodes'))
       .then(res => res.json())
       .then(data => setNodes(data))
       .catch(err => console.error('ノード取得エラー:', err));
@@ -56,13 +57,13 @@ const DijkstraTestPage: React.FC = () => {
 
   // 観光地一覧を取得
   useEffect(() => {
-    fetch('http://localhost:8080/tourist-spots')
+    fetch(getApiUrl('/tourist-spots'))
       .then(res => res.json())
       .then(data => {
         setTouristSpots(data);
         // 観光地を持つノードを抽出
         const uniqueNodeIds = [...new Set(data.filter((spot: TouristSpot) => spot.node_id).map((spot: TouristSpot) => spot.node_id))];
-        fetch('http://localhost:8080/nodes')
+        fetch(getApiUrl('/nodes'))
           .then(res => res.json())
           .then(nodeData => {
             const spotsNodes = nodeData.filter((node: Node) => uniqueNodeIds.includes(node.id));
@@ -83,7 +84,7 @@ const DijkstraTestPage: React.FC = () => {
     setError(null);
 
     try {
-      const response = await fetch(`http://localhost:8080/api/shortest-path/${startNodeId}/${endNodeId}`);
+      const response = await fetch(getApiUrl(`/api/shortest-path/${startNodeId}/${endNodeId}`));
       if (!response.ok) {
         const errorData = await response.json();
         throw new Error(errorData.error || '経路計算に失敗しました');
@@ -108,7 +109,7 @@ const DijkstraTestPage: React.FC = () => {
   // デバッグ情報を取得
   const fetchDebugInfo = async () => {
     try {
-      const response = await fetch('http://localhost:8080/api/debug/graph');
+      const response = await fetch(getApiUrl('/api/debug/graph'));
       if (response.ok) {
         const data = await response.json();
         setDebugInfo(data);

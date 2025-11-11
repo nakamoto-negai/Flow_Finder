@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { getApiUrl, API_BASE_URL } from './config';
 
 interface Image {
   id: number;
@@ -40,7 +41,7 @@ const ImageManager: React.FC = () => {
 
   const fetchImages = async () => {
     try {
-      const response = await fetch('http://localhost:8080/images');
+      const response = await fetch(getApiUrl('/images'));
       if (!response.ok) throw new Error('画像の取得に失敗しました');
       const data = await response.json();
       // データが配列でない場合は空配列を設定
@@ -54,7 +55,7 @@ const ImageManager: React.FC = () => {
 
   const fetchLinks = async () => {
     try {
-      const response = await fetch('http://localhost:8080/links');
+      const response = await fetch(getApiUrl('/links'));
       if (!response.ok) throw new Error('リンクの取得に失敗しました');
       const data = await response.json();
       // データが配列でない場合は空配列を設定
@@ -100,7 +101,7 @@ const ImageManager: React.FC = () => {
       }
       formData.append('order', order.toString());
 
-      const response = await fetch('http://localhost:8080/upload', {
+      const response = await fetch(getApiUrl('/upload'), {
         method: 'POST',
         body: formData,
       });
@@ -131,7 +132,7 @@ const ImageManager: React.FC = () => {
     if (!confirm('この画像を削除しますか？')) return;
 
     try {
-      const response = await fetch(`http://localhost:8080/images/${imageId}`, {
+      const response = await fetch(getApiUrl(`/images/${imageId}`), {
         method: 'DELETE',
       });
 
@@ -290,7 +291,7 @@ const ImageManager: React.FC = () => {
                 {/* 画像プレビュー */}
                 <div style={{ flexShrink: 0 }}>
                   <img
-                    src={`http://localhost:8080${image.file_path}`}
+                    src={`${API_BASE_URL}${image.file_path}`}
                     alt={image.original_name}
                     style={{
                       width: '100px',
