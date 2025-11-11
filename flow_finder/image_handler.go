@@ -19,8 +19,8 @@ import (
 
 // 画像関連のルートを登録
 func RegisterImageRoutes(r *gin.Engine, db *gorm.DB, redisClient *redis.Client) {
-	// 画像アップロード（管理者専用）
-	r.POST("/upload", AdminRequired(db, redisClient), imageUploadHandler(db))
+	// 画像アップロード（認証不要）
+	r.POST("/upload", imageUploadHandler(db))
 
 	// 画像一覧取得
 	r.GET("/images", imageListHandler(db))
