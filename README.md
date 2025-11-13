@@ -42,6 +42,13 @@ npm install
 
 npm run build
 
+#ステップ4:API_BASE_URLを編集
+
+.envファイルに
+VITE_API_BASE_URL=http://localhost:8080
+を記載する
+
+
 #ステップ4：Dockerで開発サーバを起動
 
 cd ..
