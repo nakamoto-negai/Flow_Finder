@@ -44,9 +44,9 @@ npm run build
 
 #ステップ4:API_BASE_URLを編集
 
-.envファイルに
+#.envファイルに
 VITE_API_BASE_URL=http://localhost:8080
-を記載する
+#を記載する
 
 
 #ステップ4：Dockerで開発サーバを起動
@@ -56,12 +56,6 @@ cd ..
 docker-compose up --build
 ```
 
-### 本番環境（リリースモード）
-
-```bash
-# 本番環境で起動（Ginリリースモード）
-docker-compose -f docker-compose.prod.yml up --build -d
-```
 
 ## アクセス方法
 
