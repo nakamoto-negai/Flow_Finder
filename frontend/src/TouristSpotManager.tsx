@@ -1,4 +1,6 @@
 import React, { useState, useEffect } from 'react';
+import { getApiUrl, API_BASE_URL } from './config';
+import { getAuthHeaders, getAuthHeadersForFormData } from './api';
 
 interface TouristSpot {
   id: number;
@@ -90,7 +92,7 @@ const TouristSpotManager: React.FC = () => {
 
   const fetchTouristSpots = async () => {
     try {
-      const response = await fetch('http://localhost:8080/tourist-spots');
+      const response = await fetch(getApiUrl('/tourist-spots'));
       if (!response.ok) throw new Error('観光地の取得に失敗しました');
       const data = await response.json();
       setTouristSpots(Array.isArray(data) ? data : []);
@@ -102,7 +104,7 @@ const TouristSpotManager: React.FC = () => {
 
   const fetchNodes = async () => {
     try {
-      const response = await fetch('http://localhost:8080/nodes');
+      const response = await fetch(getApiUrl('/nodes'));
       if (!response.ok) throw new Error('ノードの取得に失敗しました');
       const data = await response.json();
       setNodes(Array.isArray(data) ? data : []);
@@ -115,7 +117,7 @@ const TouristSpotManager: React.FC = () => {
   // お気に入り状態を確認する関数
   const checkFavoriteStatus = async (spotId: number) => {
     try {
-      const response = await fetch(`http://localhost:8080/favorites/tourist-spots/${spotId}/check`);
+      const response = await fetch(getApiUrl(`/favorites/tourist-spots/${spotId}/check`));
       if (response.ok) {
         const data = await response.json();
         setFavoriteStates(prev => ({ ...prev, [spotId]: data.is_favorite }));
@@ -141,8 +143,9 @@ const TouristSpotManager: React.FC = () => {
       
       if (isFavorite) {
         // お気に入りから削除
-        const response = await fetch(`http://localhost:8080/favorites/tourist-spots/${spotId}`, {
+        const response = await fetch(getApiUrl(`/favorites/tourist-spots/${spotId}`), {
           method: 'DELETE',
+          headers: getAuthHeaders(),
         });
         
         if (response.ok) {
@@ -152,9 +155,9 @@ const TouristSpotManager: React.FC = () => {
         }
       } else {
         // お気に入りに追加
-        const response = await fetch('http://localhost:8080/favorites/tourist-spots', {
+        const response = await fetch(getApiUrl('/favorites/tourist-spots'), {
           method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
+          headers: getAuthHeaders(),
           body: JSON.stringify({ 
             tourist_spot_id: spotId,
             notes: '',
@@ -233,8 +236,9 @@ const TouristSpotManager: React.FC = () => {
       formData.append('image', selectedFile);
 
       // 画像アップロードAPI（ファイルストレージ）を使用
-      const response = await fetch('http://localhost:8080/upload', {
+      const response = await fetch(getApiUrl('/upload'), {
         method: 'POST',
+        headers: getAuthHeadersForFormData(),
         body: formData,
       });
 
@@ -246,7 +250,7 @@ const TouristSpotManager: React.FC = () => {
       const data = await response.json();
       const imageUrl = data.image_url || data.url;
       // 相対パスを絶対URLに変換
-      return imageUrl.startsWith('http') ? imageUrl : `http://localhost:8080${imageUrl}`;
+      return imageUrl.startsWith('http') ? imageUrl : `${API_BASE_URL}${imageUrl}`;
     } catch (err: any) {
       setError(err.message);
       return null;
@@ -282,9 +286,9 @@ const TouristSpotManager: React.FC = () => {
         nearest_node_id: formData.nearest_node_id ? Number(formData.nearest_node_id) : null
       };
 
-      const response = await fetch('http://localhost:8080/tourist-spots', {
+      const response = await fetch(getApiUrl('/tourist-spots'), {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: getAuthHeaders(),
         body: JSON.stringify(submitData),
       });
 
@@ -350,9 +354,9 @@ const TouristSpotManager: React.FC = () => {
         nearest_node_id: formData.nearest_node_id ? Number(formData.nearest_node_id) : null
       };
 
-      const response = await fetch(`http://localhost:8080/tourist-spots/${editingSpot.id}`, {
+      const response = await fetch(getApiUrl(`/tourist-spots/${editingSpot.id}`), {
         method: 'PUT',
-        headers: { 'Content-Type': 'application/json' },
+        headers: getAuthHeaders(),
         body: JSON.stringify(submitData),
       });
 
@@ -375,8 +379,9 @@ const TouristSpotManager: React.FC = () => {
     if (!confirm('この観光地を削除しますか？')) return;
 
     try {
-      const response = await fetch(`http://localhost:8080/tourist-spots/${id}`, {
+      const response = await fetch(getApiUrl(`/tourist-spots/${id}`), {
         method: 'DELETE',
+        headers: getAuthHeaders(),
       });
 
       if (!response.ok) throw new Error('削除に失敗しました');
@@ -390,9 +395,9 @@ const TouristSpotManager: React.FC = () => {
   // 来場者数の増減
   const handleVisitorChange = async (spotId: number, change: number) => {
     try {
-      const response = await fetch(`http://localhost:8080/tourist-spots/${spotId}/visitors`, {
+      const response = await fetch(getApiUrl(`/tourist-spots/${spotId}/visitors`), {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: getAuthHeaders(),
         body: JSON.stringify({ count: change }),
       });
 

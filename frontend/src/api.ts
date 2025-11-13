@@ -13,6 +13,18 @@ export const getAuthHeaders = (): Record<string, string> => {
   return headers;
 };
 
+// FormData用の認証ヘッダー（Content-Typeなし）
+export const getAuthHeadersForFormData = (): Record<string, string> => {
+  const token = localStorage.getItem('authToken');
+  const headers: Record<string, string> = {};
+  
+  if (token) {
+    headers['Authorization'] = `Bearer ${token}`;
+  }
+  
+  return headers;
+};
+
 export const apiRequest = async (url: string, options: RequestInit = {}): Promise<Response> => {
   const authHeaders = getAuthHeaders();
   

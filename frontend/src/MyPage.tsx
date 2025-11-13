@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import Header from './Header';
 import { apiRequest } from './api';
+import { getApiUrl } from './config';
 
 const MyPage: React.FC = () => {
   const [userName, setUserName] = useState<string>('');
@@ -27,7 +28,7 @@ const MyPage: React.FC = () => {
     }
 
     try {
-      const response = await apiRequest(`http://localhost:8080/users`);
+      const response = await apiRequest(getApiUrl('/users'));
       if (response.ok) {
         const users = await response.json();
         const user = users.find((u: any) => u.ID === parseInt(userId));

@@ -1,6 +1,8 @@
 import React, { useState, useEffect } from 'react';
 import VisualNodeSelector from './VisualNodeSelector';
 import type { Node as CommonNode, Field as CommonField } from './types';
+import { getApiUrl } from './config';
+import { getAuthHeaders } from './api';
 
 interface Node extends CommonNode {
   created_at: string;
@@ -35,7 +37,7 @@ const NodeManager: React.FC = () => {
 
   const fetchNodes = async () => {
     try {
-      const response = await fetch('http://localhost:8080/nodes');
+      const response = await fetch(getApiUrl('/nodes'));
       if (!response.ok) throw new Error('ノード取得に失敗しました');
       const data = await response.json();
       setNodes(Array.isArray(data) ? data : []);
@@ -47,7 +49,7 @@ const NodeManager: React.FC = () => {
 
   const fetchFields = async () => {
     try {
-      const response = await fetch('http://localhost:8080/fields');
+      const response = await fetch(getApiUrl('/fields'));
       if (!response.ok) throw new Error('フィールド取得に失敗しました');
       const data = await response.json();
       setFields(Array.isArray(data) ? data : []);
@@ -89,16 +91,14 @@ const NodeManager: React.FC = () => {
 
     try {
       const url = editingNode 
-        ? `http://localhost:8080/nodes/${editingNode.id}`
-        : 'http://localhost:8080/nodes';
+        ? getApiUrl(`/nodes/${editingNode.id}`)
+        : getApiUrl('/nodes');
       
       const method = editingNode ? 'PUT' : 'POST';
       
       const response = await fetch(url, {
         method,
-        headers: {
-          'Content-Type': 'application/json',
-        },
+        headers: getAuthHeaders(),
         body: JSON.stringify(nodeData),
       });
 
@@ -144,8 +144,9 @@ const NodeManager: React.FC = () => {
     if (!confirm('このノードを削除しますか？')) return;
 
     try {
-      const response = await fetch(`http://localhost:8080/nodes/${nodeId}`, {
+      const response = await fetch(getApiUrl(`/nodes/${nodeId}`), {
         method: 'DELETE',
+        headers: getAuthHeaders(),
       });
 
       if (!response.ok) {

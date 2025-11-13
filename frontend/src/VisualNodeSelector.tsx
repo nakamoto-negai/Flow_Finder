@@ -1,5 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import type { Node, Field } from './types';
+import { getApiUrl, API_BASE_URL } from './config';
+import { getAuthHeaders } from './api';
 
 interface VisualNodeSelectorProps {
   onNodeSelected?: (node: Node) => void;
@@ -39,7 +41,7 @@ const VisualNodeSelector: React.FC<VisualNodeSelectorProps> = ({
 
   const fetchFields = async () => {
     try {
-      const response = await fetch('http://localhost:8080/fields');
+      const response = await fetch(getApiUrl('/fields'));
       if (!response.ok) throw new Error('フィールド取得に失敗しました');
       const data = await response.json();
       setFields(data);
@@ -50,7 +52,7 @@ const VisualNodeSelector: React.FC<VisualNodeSelectorProps> = ({
 
   const fetchNodes = async () => {
     try {
-      const response = await fetch('http://localhost:8080/nodes');
+      const response = await fetch(getApiUrl('/nodes'));
       if (!response.ok) throw new Error('ノード取得に失敗しました');
       const data = await response.json();
       setNodes(data);
@@ -110,9 +112,9 @@ const VisualNodeSelector: React.FC<VisualNodeSelectorProps> = ({
     };
 
     try {
-      const response = await fetch('http://localhost:8080/nodes', {
+      const response = await fetch(getApiUrl('/nodes'), {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: getAuthHeaders(),
         body: JSON.stringify({
           ...nodeData,
           congestion: 1,
@@ -215,7 +217,7 @@ const VisualNodeSelector: React.FC<VisualNodeSelectorProps> = ({
         }}>
           <img
             ref={imageRef}
-            src={`http://localhost:8080${activeField.image_url}`}
+            src={`${API_BASE_URL}${activeField.image_url}`}
             alt={activeField.name}
             style={{
               width: '100%',

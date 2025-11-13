@@ -1,4 +1,6 @@
 import React, { useState, useEffect } from 'react';
+import { getApiUrl } from './config';
+import { getAuthHeaders } from './api';
 import VisualLinkCreator from './VisualLinkCreator';
 import type { Link, Node } from './types';
 
@@ -25,7 +27,7 @@ const LinkManager: React.FC = () => {
 
   const fetchLinks = async () => {
     try {
-      const response = await fetch('http://localhost:8080/links');
+      const response = await fetch(getApiUrl('/links'));
       if (!response.ok) throw new Error('リンク取得に失敗しました');
       const data = await response.json();
       setLinks(Array.isArray(data) ? data : []);
@@ -37,7 +39,7 @@ const LinkManager: React.FC = () => {
 
   const fetchNodes = async () => {
     try {
-      const response = await fetch('http://localhost:8080/nodes');
+      const response = await fetch(getApiUrl('/nodes'));
       if (!response.ok) throw new Error('ノード取得に失敗しました');
       const data = await response.json();
       setNodes(Array.isArray(data) ? data : []);
@@ -83,17 +85,13 @@ const LinkManager: React.FC = () => {
     };
 
     try {
-      const url = editingLink 
-        ? `http://localhost:8080/links/${editingLink.id}`
-        : 'http://localhost:8080/links';
-      
-      const method = editingLink ? 'PUT' : 'POST';
+      const url = editingLink
+        ? getApiUrl(`/links/${editingLink.id}`)
+        : getApiUrl('/links');      const method = editingLink ? 'PUT' : 'POST';
       
       const response = await fetch(url, {
         method,
-        headers: {
-          'Content-Type': 'application/json',
-        },
+        headers: getAuthHeaders(),
         body: JSON.stringify(linkData),
       });
 
@@ -135,8 +133,9 @@ const LinkManager: React.FC = () => {
     if (!confirm('このリンクを削除しますか？')) return;
 
     try {
-      const response = await fetch(`http://localhost:8080/links/${linkId}`, {
+      const response = await fetch(getApiUrl(`/links/${linkId}`), {
         method: 'DELETE',
+        headers: getAuthHeaders(),
       });
 
       if (!response.ok) {

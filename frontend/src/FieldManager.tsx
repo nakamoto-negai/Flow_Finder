@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { getApiUrl, API_BASE_URL } from './config';
+import { getAuthHeaders, getAuthHeadersForFormData } from './api';
 
 interface Field {
   id: number;
@@ -58,6 +59,7 @@ const FieldManager: React.FC = () => {
     try {
       const response = await fetch(getApiUrl('/fields'), {
         method: 'POST',
+        headers: getAuthHeadersForFormData(),
         body: formData
       });
 
@@ -80,7 +82,8 @@ const FieldManager: React.FC = () => {
   const activateField = async (fieldId: number) => {
     try {
       const response = await fetch(getApiUrl(`/fields/${fieldId}/activate`), {
-        method: 'POST'
+        method: 'POST',
+        headers: getAuthHeaders()
       });
 
       if (response.ok) {
@@ -99,7 +102,8 @@ const FieldManager: React.FC = () => {
 
     try {
       const response = await fetch(getApiUrl(`/fields/${fieldId}`), {
-        method: 'DELETE'
+        method: 'DELETE',
+        headers: getAuthHeaders()
       });
 
       if (response.ok) {

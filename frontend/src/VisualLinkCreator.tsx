@@ -1,5 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import type { Node, Field, Link } from './types';
+import { getApiUrl, API_BASE_URL } from './config';
+import { getAuthHeaders } from './api';
 
 interface VisualLinkCreatorProps {
   onLinkCreated?: () => void;
@@ -30,7 +32,7 @@ const VisualLinkCreator: React.FC<VisualLinkCreatorProps> = ({ onLinkCreated }) 
 
   const fetchFields = async () => {
     try {
-      const response = await fetch('http://localhost:8080/fields');
+      const response = await fetch(getApiUrl('/fields'));
       if (!response.ok) throw new Error('フィールド取得に失敗しました');
       const data = await response.json();
       setFields(data);
@@ -41,7 +43,7 @@ const VisualLinkCreator: React.FC<VisualLinkCreatorProps> = ({ onLinkCreated }) 
 
   const fetchNodes = async () => {
     try {
-      const response = await fetch('http://localhost:8080/nodes');
+      const response = await fetch(getApiUrl('/nodes'));
       if (!response.ok) throw new Error('ノード取得に失敗しました');
       const data = await response.json();
       setNodes(data);
@@ -52,7 +54,7 @@ const VisualLinkCreator: React.FC<VisualLinkCreatorProps> = ({ onLinkCreated }) 
 
   const fetchLinks = async () => {
     try {
-      const response = await fetch('http://localhost:8080/links');
+      const response = await fetch(getApiUrl('/links'));
       if (!response.ok) throw new Error('リンク取得に失敗しました');
       const data = await response.json();
       setLinks(data);
@@ -90,9 +92,9 @@ const VisualLinkCreator: React.FC<VisualLinkCreatorProps> = ({ onLinkCreated }) 
     const distance = calculateDistance(fromNode, toNode);
 
     try {
-      const response = await fetch('http://localhost:8080/links', {
+      const response = await fetch(getApiUrl('/links'), {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: getAuthHeaders(),
         body: JSON.stringify({
           from_node_id: fromNode.id,
           to_node_id: toNode.id,
@@ -255,7 +257,7 @@ const VisualLinkCreator: React.FC<VisualLinkCreatorProps> = ({ onLinkCreated }) 
         }}>
           <img
             ref={imageRef}
-            src={`http://localhost:8080${activeField.image_url}`}
+            src={`${API_BASE_URL}${activeField.image_url}`}
             alt={activeField.name}
             style={{
               width: '100%',

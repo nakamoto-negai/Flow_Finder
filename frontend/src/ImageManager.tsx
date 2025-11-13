@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { getApiUrl, API_BASE_URL } from './config';
+import { getAuthHeaders } from './api';
 
 interface Image {
   id: number;
@@ -134,6 +135,7 @@ const ImageManager: React.FC = () => {
     try {
       const response = await fetch(getApiUrl(`/images/${imageId}`), {
         method: 'DELETE',
+        headers: getAuthHeaders(),
       });
 
       if (!response.ok) throw new Error('削除に失敗しました');
