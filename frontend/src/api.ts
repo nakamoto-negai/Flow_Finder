@@ -2,12 +2,14 @@
 
 export const getAuthHeaders = (): Record<string, string> => {
   const token = localStorage.getItem('authToken');
+  const userId = localStorage.getItem('userId');
   const headers: Record<string, string> = {
     'Content-Type': 'application/json',
   };
   
-  if (token) {
-    headers['Authorization'] = `Bearer ${token}`;
+  if (token && userId) {
+    headers['Authorization'] = token; // Bearer プレフィックスを除去
+    headers['X-User-Id'] = userId;
   }
   
   return headers;
@@ -16,10 +18,12 @@ export const getAuthHeaders = (): Record<string, string> => {
 // FormData用の認証ヘッダー（Content-Typeなし）
 export const getAuthHeadersForFormData = (): Record<string, string> => {
   const token = localStorage.getItem('authToken');
+  const userId = localStorage.getItem('userId');
   const headers: Record<string, string> = {};
   
-  if (token) {
-    headers['Authorization'] = `Bearer ${token}`;
+  if (token && userId) {
+    headers['Authorization'] = token; // Bearer プレフィックスを除去
+    headers['X-User-Id'] = userId;
   }
   
   return headers;

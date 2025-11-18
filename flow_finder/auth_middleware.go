@@ -4,7 +4,6 @@ import (
 	"context"
 	"net/http"
 	"strconv"
-	"strings"
 
 	"github.com/gin-gonic/gin"
 	"github.com/redis/go-redis/v9"
@@ -15,28 +14,16 @@ import (
 func AuthRequired(redisClient *redis.Client) gin.HandlerFunc {
 	return func(c *gin.Context) {
 		// Authorization ヘッダーからトークンを取得
-		authHeader := c.GetHeader("Authorization")
-		if authHeader == "" {
+		userID := c.GetHeader("X-User-Id")
+		token := c.GetHeader("Authorization")
+		if userID == "" || token == "" {
 			c.JSON(http.StatusUnauthorized, gin.H{
 				"error":   "認証が必要です",
-				"message": "Authorization ヘッダーが見つかりません",
+				"message": "認証ヘッダーが見つかりません",
 			})
 			c.Abort()
 			return
 		}
-
-		// Bearer トークンの形式をチェック
-		tokenParts := strings.Split(authHeader, " ")
-		if len(tokenParts) != 2 || tokenParts[0] != "Bearer" {
-			c.JSON(http.StatusUnauthorized, gin.H{
-				"error":   "無効なトークン形式です",
-				"message": "Bearer トークン形式を使用してください",
-			})
-			c.Abort()
-			return
-		}
-
-		token := tokenParts[1]
 
 		// Redisからトークンに対応するユーザーIDを取得
 		userIDStr, err := redisClient.Get(context.Background(), "auth_token:"+token).Result()
@@ -49,8 +36,18 @@ func AuthRequired(redisClient *redis.Client) gin.HandlerFunc {
 			return
 		}
 
+		// ユーザーIDの整合性チェック
+		if userIDStr != userID {
+			c.JSON(http.StatusUnauthorized, gin.H{
+				"error":   "無効なトークンです",
+				"message": "再度ログインしてください",
+			})
+			c.Abort()
+			return
+		}
+
 		// ユーザーIDを数値に変換
-		userID, err := strconv.ParseUint(userIDStr, 10, 32)
+		userIDNum, err := strconv.ParseUint(userID, 10, 32)
 		if err != nil {
 			c.JSON(http.StatusUnauthorized, gin.H{
 				"error":   "無効なユーザーIDです",
@@ -61,7 +58,7 @@ func AuthRequired(redisClient *redis.Client) gin.HandlerFunc {
 		}
 
 		// コンテキストにユーザーIDを設定
-		c.Set("user_id", uint(userID))
+		c.Set("user_id", uint(userIDNum))
 		c.Next()
 	}
 }
@@ -80,32 +77,31 @@ func GetUserIDFromContext(c *gin.Context) (uint, bool) {
 // 認証不要だが、ログイン済みの場合はユーザーIDを設定するミドルウェア
 func OptionalAuth(redisClient *redis.Client) gin.HandlerFunc {
 	return func(c *gin.Context) {
-		authHeader := c.GetHeader("Authorization")
-		if authHeader == "" {
+		userID := c.GetHeader("X-User-Id")
+		token := c.GetHeader("Authorization")
+		if userID == "" || token == "" {
 			c.Next()
 			return
 		}
 
-		tokenParts := strings.Split(authHeader, " ")
-		if len(tokenParts) != 2 || tokenParts[0] != "Bearer" {
-			c.Next()
-			return
-		}
-
-		token := tokenParts[1]
 		userIDStr, err := redisClient.Get(context.Background(), "auth_token:"+token).Result()
 		if err != nil {
 			c.Next()
 			return
 		}
 
-		userID, err := strconv.ParseUint(userIDStr, 10, 32)
+		if userIDStr != userID {
+			c.Next()
+			return
+		}
+
+		userIDNum, err := strconv.ParseUint(userID, 10, 32)
 		if err != nil {
 			c.Next()
 			return
 		}
 
-		c.Set("user_id", uint(userID))
+		c.Set("user_id", uint(userIDNum))
 		c.Next()
 	}
 }
@@ -114,27 +110,16 @@ func OptionalAuth(redisClient *redis.Client) gin.HandlerFunc {
 func AdminRequired(db *gorm.DB, redisClient *redis.Client) gin.HandlerFunc {
 	return func(c *gin.Context) {
 		// まず認証チェック
-		authHeader := c.GetHeader("Authorization")
-		if authHeader == "" {
+		userID := c.GetHeader("X-User-Id")
+		token := c.GetHeader("Authorization")
+		if userID == "" || token == "" {
 			c.JSON(http.StatusUnauthorized, gin.H{
 				"error":   "認証が必要です",
-				"message": "Authorization ヘッダーが見つかりません",
+				"message": "認証ヘッダーが見つかりません",
 			})
 			c.Abort()
 			return
 		}
-
-		tokenParts := strings.Split(authHeader, " ")
-		if len(tokenParts) != 2 || tokenParts[0] != "Bearer" {
-			c.JSON(http.StatusUnauthorized, gin.H{
-				"error":   "無効なトークン形式です",
-				"message": "Bearer トークン形式を使用してください",
-			})
-			c.Abort()
-			return
-		}
-
-		token := tokenParts[1]
 
 		// Redisからトークンに対応するユーザーIDを取得
 		userIDStr, err := redisClient.Get(context.Background(), "auth_token:"+token).Result()
@@ -147,8 +132,18 @@ func AdminRequired(db *gorm.DB, redisClient *redis.Client) gin.HandlerFunc {
 			return
 		}
 
+		// ユーザーIDの整合性チェック
+		if userIDStr != userID {
+			c.JSON(http.StatusUnauthorized, gin.H{
+				"error":   "無効なトークンです",
+				"message": "再度ログインしてください",
+			})
+			c.Abort()
+			return
+		}
+
 		// ユーザーIDを数値に変換
-		userID, err := strconv.ParseUint(userIDStr, 10, 32)
+		userIDNum, err := strconv.ParseUint(userID, 10, 32)
 		if err != nil {
 			c.JSON(http.StatusUnauthorized, gin.H{
 				"error":   "無効なユーザーIDです",
@@ -160,7 +155,7 @@ func AdminRequired(db *gorm.DB, redisClient *redis.Client) gin.HandlerFunc {
 
 		// データベースからユーザー情報を取得して管理者かチェック
 		var user User
-		if err := db.First(&user, userID).Error; err != nil {
+		if err := db.First(&user, userIDNum).Error; err != nil {
 			c.JSON(http.StatusUnauthorized, gin.H{
 				"error":   "ユーザーが見つかりません",
 				"message": "無効なユーザーです",
@@ -180,7 +175,7 @@ func AdminRequired(db *gorm.DB, redisClient *redis.Client) gin.HandlerFunc {
 		}
 
 		// コンテキストにユーザーIDを設定
-		c.Set("user_id", uint(userID))
+		c.Set("user_id", uint(userIDNum))
 		c.Next()
 	}
 }

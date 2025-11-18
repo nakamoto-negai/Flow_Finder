@@ -31,15 +31,18 @@ func AuthMiddleware(redisClient *redis.Client) gin.HandlerFunc {
 			c.AbortWithStatusJSON(http.StatusUnauthorized, gin.H{"error": "missing auth headers"})
 			return
 		}
-		key := "auth_token:" + userID
+		// トークンベースでRedisキーを生成（実際の保存形式と一致）
+		key := "auth_token:" + token
 		val, err := redisClient.Get(context.Background(), key).Result()
-		if err == redis.Nil || val != token {
+		if err == redis.Nil || val != userID {
 			c.AbortWithStatusJSON(http.StatusUnauthorized, gin.H{"error": "invalid or expired token"})
 			return
 		} else if err != nil {
 			c.AbortWithStatusJSON(http.StatusInternalServerError, gin.H{"error": "redis error"})
 			return
 		}
+		// ユーザーIDをコンテキストに設定
+		c.Set("userID", userID)
 		c.Next()
 	}
 }
