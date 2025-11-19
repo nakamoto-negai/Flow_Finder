@@ -57,16 +57,21 @@ const FieldManager: React.FC = () => {
     formData.append('image', uploadData.image);
 
     try {
+      console.log('🚀 フィールドアップロード開始');
+      console.log('📱 localStorage authToken:', localStorage.getItem('authToken'));
+      console.log('👤 localStorage userId:', localStorage.getItem('userId'));
+      
       const authHeaders = getAuthHeadersForFormData();
-      console.log('送信するヘッダー:', authHeaders);
-      console.log('localStorage authToken:', localStorage.getItem('authToken'));
-      console.log('localStorage userId:', localStorage.getItem('userId'));
+      console.log('🔐 送信するヘッダー:', authHeaders);
+      console.log('🌐 API URL:', getApiUrl('/fields'));
 
       const response = await fetch(getApiUrl('/fields'), {
         method: 'POST',
         headers: authHeaders,
         body: formData
       });
+      
+      console.log('📡 レスポンス受信:', response.status);
 
       if (response.ok) {
         setShowUploadForm(false);
