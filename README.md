@@ -49,7 +49,7 @@ VITE_API_BASE_URL=http://localhost:8080
 #を記載する
 
 
-#ステップ4：Dockerで開発サーバを起動
+#ステップ5：Dockerで開発サーバを起動
 
 cd ..
 
@@ -186,7 +186,7 @@ Flow_Finder/
 
 4. **デプロイ**
    ```bash
-   docker-compose -f docker-compose.prod.yml up --build -d
+   docker-compose -f docker-compose.prod.yml up -d --build --force-recreate
    ```
 # Flow_Finder
 
