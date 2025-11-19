@@ -5,6 +5,7 @@ import (
 	"crypto/rand"
 	"encoding/hex"
 	"fmt"
+	"net/http"
 	"os"
 	"time"
 
@@ -100,7 +101,16 @@ func main() {
 	// ログ関連APIを登録
 	RegisterLogRoutes(r, db)
 
-	r.Run() // デフォルトでlocalhost:8080
+	// HTTPサーバーの設定
+	s := &http.Server{
+		Addr:           ":8080",
+		Handler:        r,
+		ReadTimeout:    120 * time.Second,
+		WriteTimeout:   120 * time.Second,
+		MaxHeaderBytes: 1 << 20, // 1 MB
+	}
+
+	s.ListenAndServe()
 }
 
 // ランダムなトークンを生成
