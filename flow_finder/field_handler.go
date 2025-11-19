@@ -98,11 +98,19 @@ func RegisterFieldRoutes(r *gin.Engine, db *gorm.DB, redisClient *redis.Client) 
 // フィールド作成ハンドラ
 func fieldCreateHandler(db *gorm.DB) gin.HandlerFunc {
 	return func(c *gin.Context) {
+		// デバッグ情報の出力
+		fmt.Printf("🚀 フィールド作成開始 - IP: %s, UserAgent: %s\n", c.ClientIP(), c.Request.UserAgent())
+		fmt.Printf("📊 Content-Length: %d, Content-Type: %s\n", c.Request.ContentLength, c.Request.Header.Get("Content-Type"))
+
 		// マルチパートフォームの解析
+		fmt.Printf("🔄 マルチパートフォーム解析開始...\n")
+		parseStart := time.Now()
 		if err := c.Request.ParseMultipartForm(10 << 20); err != nil { // 10MB制限
-			c.JSON(400, gin.H{"error": "フォームの解析に失敗しました"})
+			fmt.Printf("❌ フォーム解析失敗 (時間: %v): %v\n", time.Since(parseStart), err)
+			c.JSON(400, gin.H{"error": "フォームの解析に失敗しました", "detail": err.Error()})
 			return
 		}
+		fmt.Printf("✅ フォーム解析成功 (時間: %v)\n", time.Since(parseStart))
 
 		// フォームデータの取得
 		name := c.PostForm("name")
@@ -130,12 +138,17 @@ func fieldCreateHandler(db *gorm.DB) gin.HandlerFunc {
 		}
 
 		// ファイルアップロード処理
+		fmt.Printf("📁 ファイルアップロード処理開始...\n")
+		fileStart := time.Now()
 		file, header, err := c.Request.FormFile("image")
 		if err != nil {
-			c.JSON(400, gin.H{"error": "画像ファイルが必要です"})
+			fmt.Printf("❌ ファイル取得失敗 (時間: %v): %v\n", time.Since(fileStart), err)
+			c.JSON(400, gin.H{"error": "画像ファイルが必要です", "detail": err.Error()})
 			return
 		}
 		defer file.Close()
+		fmt.Printf("✅ ファイル取得成功 (時間: %v) - ファイル名: %s, サイズ: %d bytes\n",
+			time.Since(fileStart), header.Filename, header.Size)
 
 		// ファイル拡張子チェック
 		ext := strings.ToLower(filepath.Ext(header.Filename))
@@ -145,30 +158,42 @@ func fieldCreateHandler(db *gorm.DB) gin.HandlerFunc {
 		}
 
 		// アップロードディレクトリの作成
+		fmt.Printf("📂 ディレクトリ作成開始...\n")
 		uploadDir := "./uploads/fields"
 		if err := os.MkdirAll(uploadDir, 0755); err != nil {
-			c.JSON(500, gin.H{"error": "アップロードディレクトリの作成に失敗しました"})
+			fmt.Printf("❌ ディレクトリ作成失敗: %v\n", err)
+			c.JSON(500, gin.H{"error": "アップロードディレクトリの作成に失敗しました", "detail": err.Error()})
 			return
 		}
+		fmt.Printf("✅ ディレクトリ作成成功: %s\n", uploadDir)
 
 		// ファイル名の生成（タイムスタンプ + 元の拡張子）
 		filename := fmt.Sprintf("%d%s", time.Now().Unix(), ext)
 		filepath := filepath.Join(uploadDir, filename)
+		fmt.Printf("💾 ファイル保存開始: %s\n", filepath)
 
 		// ファイル保存
+		saveStart := time.Now()
 		dst, err := os.Create(filepath)
 		if err != nil {
-			c.JSON(500, gin.H{"error": "ファイル保存に失敗しました"})
+			fmt.Printf("❌ ファイル作成失敗 (時間: %v): %v\n", time.Since(saveStart), err)
+			c.JSON(500, gin.H{"error": "ファイル保存に失敗しました", "detail": err.Error()})
 			return
 		}
 		defer dst.Close()
 
-		if _, err := io.Copy(dst, file); err != nil {
-			c.JSON(500, gin.H{"error": "ファイルのコピーに失敗しました"})
+		copyStart := time.Now()
+		bytesWritten, err := io.Copy(dst, file)
+		if err != nil {
+			fmt.Printf("❌ ファイルコピー失敗 (時間: %v): %v\n", time.Since(copyStart), err)
+			c.JSON(500, gin.H{"error": "ファイルのコピーに失敗しました", "detail": err.Error()})
 			return
 		}
+		fmt.Printf("✅ ファイル保存成功 (時間: %v) - %d bytes書き込み\n", time.Since(saveStart), bytesWritten)
 
 		// フィールドをデータベースに保存
+		fmt.Printf("🗃️  データベース保存開始...\n")
+		dbStart := time.Now()
 		field := Field{
 			Name:        name,
 			Description: description,
@@ -180,11 +205,13 @@ func fieldCreateHandler(db *gorm.DB) gin.HandlerFunc {
 		}
 
 		if err := db.Create(&field).Error; err != nil {
+			fmt.Printf("❌ データベース保存失敗 (時間: %v): %v\n", time.Since(dbStart), err)
 			// ファイルを削除
 			os.Remove(filepath)
-			c.JSON(500, gin.H{"error": "データベース保存に失敗しました"})
+			c.JSON(500, gin.H{"error": "データベース保存に失敗しました", "detail": err.Error()})
 			return
 		}
+		fmt.Printf("✅ データベース保存成功 (時間: %v) - ID: %d\n", time.Since(dbStart), field.ID)
 
 		c.JSON(201, gin.H{
 			"result":  "ok",
