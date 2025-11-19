@@ -57,9 +57,14 @@ const FieldManager: React.FC = () => {
     formData.append('image', uploadData.image);
 
     try {
+      const authHeaders = getAuthHeadersForFormData();
+      console.log('送信するヘッダー:', authHeaders);
+      console.log('localStorage authToken:', localStorage.getItem('authToken'));
+      console.log('localStorage userId:', localStorage.getItem('userId'));
+
       const response = await fetch(getApiUrl('/fields'), {
         method: 'POST',
-        headers: getAuthHeadersForFormData(),
+        headers: authHeaders,
         body: formData
       });
 
