@@ -4,6 +4,7 @@ import (
 	"context"
 	"crypto/rand"
 	"encoding/hex"
+	"log"
 	"net/http"
 
 	"github.com/gin-gonic/gin"
@@ -25,10 +26,25 @@ func generateHandlerSessionID() string {
 // 認証ミドルウェア: AuthorizationヘッダーのトークンをRedisで検証
 func AuthMiddleware(redisClient *redis.Client) gin.HandlerFunc {
 	return func(c *gin.Context) {
+		// リクエストの詳細ログ
+		sessionID := generateHandlerSessionID()
+		log.Printf("[%s] === AuthMiddleware 開始 ===", sessionID)
+		log.Printf("[%s] Path: %s %s", sessionID, c.Request.Method, c.Request.URL.Path)
+
+		// 全ヘッダーをログ出力
+		log.Printf("[%s] 受信したヘッダー:", sessionID)
+		for key, values := range c.Request.Header {
+			log.Printf("[%s]   %s: %v", sessionID, key, values)
+		}
+
 		userID := c.GetHeader("X-User-Id")
 		token := c.GetHeader("Authorization")
+		log.Printf("[%s] 認証ヘッダー - X-User-Id: '%s'", sessionID, userID)
+		log.Printf("[%s] 認証ヘッダー - Authorization: '%s'", sessionID, token)
+
 		if userID == "" || token == "" {
-			c.AbortWithStatusJSON(http.StatusUnauthorized, gin.H{"error": "missing auth headers"})
+			log.Printf("[%s] 認証ヘッダーが見つかりません", sessionID)
+			c.AbortWithStatusJSON(http.StatusUnauthorized, gin.H{"error": "認証ヘッダーが見つかりません"})
 			return
 		}
 		// トークンベースでRedisキーを生成（実際の保存形式と一致）
