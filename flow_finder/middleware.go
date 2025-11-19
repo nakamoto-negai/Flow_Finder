@@ -30,18 +30,18 @@ func AuthMiddleware(redisClient *redis.Client) gin.HandlerFunc {
 		sessionID := generateHandlerSessionID()
 		log.Printf("[%s] === AuthMiddleware 開始 ===", sessionID)
 		log.Printf("[%s] Path: %s %s", sessionID, c.Request.Method, c.Request.URL.Path)
-		
+
 		// 全ヘッダーをログ出力
 		log.Printf("[%s] 受信したヘッダー:", sessionID)
 		for key, values := range c.Request.Header {
 			log.Printf("[%s]   %s: %v", sessionID, key, values)
 		}
-		
+
 		userID := c.GetHeader("X-User-Id")
 		token := c.GetHeader("Authorization")
 		log.Printf("[%s] 認証ヘッダー - X-User-Id: '%s'", sessionID, userID)
 		log.Printf("[%s] 認証ヘッダー - Authorization: '%s'", sessionID, token)
-		
+
 		if userID == "" || token == "" {
 			log.Printf("[%s] 認証ヘッダーが見つかりません", sessionID)
 			c.AbortWithStatusJSON(http.StatusUnauthorized, gin.H{"error": "認証ヘッダーが見つかりません"})

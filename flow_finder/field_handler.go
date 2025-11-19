@@ -101,13 +101,13 @@ func fieldCreateHandler(db *gorm.DB) gin.HandlerFunc {
 		// デバッグ情報の出力
 		fmt.Printf("🚀 フィールド作成開始 - IP: %s, UserAgent: %s\n", c.ClientIP(), c.Request.UserAgent())
 		fmt.Printf("📊 Content-Length: %d, Content-Type: %s\n", c.Request.ContentLength, c.Request.Header.Get("Content-Type"))
-		
+
 		// 受信ヘッダーの詳細ログ
 		fmt.Printf("📋 受信したヘッダー:\n")
 		for key, values := range c.Request.Header {
 			fmt.Printf("  %s: %v\n", key, values)
 		}
-		
+
 		authToken := c.GetHeader("Authorization")
 		userID := c.GetHeader("X-User-Id")
 		fmt.Printf("🔐 認証情報 - Authorization: '%s'\n", authToken)
