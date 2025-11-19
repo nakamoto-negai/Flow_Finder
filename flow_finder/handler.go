@@ -1,6 +1,9 @@
 package main
 
 import (
+	"fmt"
+	"time"
+
 	"github.com/gin-gonic/gin"
 	"github.com/redis/go-redis/v9"
 	"gorm.io/gorm"
@@ -8,6 +11,17 @@ import (
 
 // メインのルートハンドラ登録関数
 func SetupRoutes(r *gin.Engine, db *gorm.DB, redisClient *redis.Client) {
+	// 全リクエストデバッグミドルウェア
+	r.Use(func(c *gin.Context) {
+		fmt.Printf("🌐 [%s] %s %s - IP: %s, UserAgent: %s\n",
+			time.Now().Format("15:04:05"),
+			c.Request.Method,
+			c.Request.URL.Path,
+			c.ClientIP(),
+			c.Request.UserAgent())
+		c.Next()
+	})
+
 	// CORSミドルウェア
 	r.Use(func(c *gin.Context) {
 		c.Header("Access-Control-Allow-Origin", "*")
