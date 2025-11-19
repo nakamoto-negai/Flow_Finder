@@ -2,6 +2,7 @@ package main
 
 import (
 	"context"
+	"fmt"
 	"net/http"
 	"strconv"
 
@@ -109,10 +110,21 @@ func OptionalAuth(redisClient *redis.Client) gin.HandlerFunc {
 // 管理者権限が必要なミドルウェア
 func AdminRequired(db *gorm.DB, redisClient *redis.Client) gin.HandlerFunc {
 	return func(c *gin.Context) {
+		fmt.Printf("🔐 Admin認証開始 - Path: %s, IP: %s\n", c.Request.URL.Path, c.ClientIP())
+
 		// まず認証チェック
 		userID := c.GetHeader("X-User-Id")
 		token := c.GetHeader("Authorization")
+		fmt.Printf("🔍 認証ヘッダー確認 - UserID: %s, Token: %s\n", userID,
+			func() string {
+				if len(token) > 8 {
+					return token[:8] + "..."
+				}
+				return token
+			}())
+
 		if userID == "" || token == "" {
+			fmt.Printf("❌ 認証ヘッダー不足 - UserID: '%s', Token: '%s'\n", userID, token)
 			c.JSON(http.StatusUnauthorized, gin.H{
 				"error":   "認証が必要です",
 				"message": "認証ヘッダーが見つかりません",
