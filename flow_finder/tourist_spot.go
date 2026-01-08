@@ -10,12 +10,14 @@ import (
 
 // 観光地モデル
 type TouristSpot struct {
-	ID             uint      `gorm:"primaryKey" json:"id"`
-	Name           string    `gorm:"not null" json:"name"`                                                        // 観光地名
-	Description    string    `json:"description"`                                                                 // 説明
-	Category       string    `json:"category"`                                                                    // カテゴリ（神社、公園、博物館など）
-	NodeID         *uint     `gorm:"index;constraint:OnUpdate:CASCADE,OnDelete:SET NULL;" json:"nearest_node_id"` // 最寄りノードID（外部キー）
-	Node           *Node     `gorm:"foreignKey:NodeID;references:ID" json:"-"`                                    // ノードとのリレーション（JSONには含めない）
+	ID               uint                  `gorm:"primaryKey" json:"id"`
+	Name             string                `gorm:"not null" json:"name"`                                                        // 観光地名
+	Description      string                `json:"description"`                                                                 // 説明
+	Category         string                `json:"category"`                                                                    // 旧カテゴリ（後方互換性のため残す）
+	CategoryID       *uint                 `gorm:"index;constraint:OnUpdate:CASCADE,OnDelete:SET NULL;" json:"category_id"`    // カテゴリID（外部キー）
+	TouristCategory  *TouristSpotCategory  `gorm:"foreignKey:CategoryID;references:ID" json:"tourist_category,omitempty"`      // カテゴリとのリレーション
+	NodeID           *uint                 `gorm:"index;constraint:OnUpdate:CASCADE,OnDelete:SET NULL;" json:"nearest_node_id"` // 最寄りノードID（外部キー）
+	Node             *Node                 `gorm:"foreignKey:NodeID;references:ID" json:"-"`                                    // ノードとのリレーション（JSONには含めない）
 	DistanceToNode float64   `json:"distance_to_nearest_node"`                                                    // 最寄りノードまでの距離（ピクセル）
 	X              float64   `json:"x"`                                                                           // X座標
 	Y              float64   `json:"y"`                                                                           // Y座標

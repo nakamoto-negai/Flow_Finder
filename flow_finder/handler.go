@@ -44,6 +44,7 @@ func SetupRoutes(r *gin.Engine, db *gorm.DB, redisClient *redis.Client) {
 	RegisterUserRoutes(r, db)
 	RegisterNodeRoutes(r, db, redisClient)
 	RegisterLinkRoutes(r, db, redisClient)
+	RegisterTouristSpotCategoryRoutes(r, db)  // 🆕 観光地カテゴリルート
 	RegisterTouristSpotRoutes(r, db, redisClient)
 	RegisterImageRoutes(r, db, redisClient)
 	RegisterDijkstraRoutes(r, db)
