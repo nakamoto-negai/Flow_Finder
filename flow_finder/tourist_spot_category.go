@@ -2,8 +2,6 @@ package main
 
 import (
 	"time"
-
-	"gorm.io/gorm"
 )
 
 // 観光地カテゴリモデル

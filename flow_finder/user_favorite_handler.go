@@ -328,5 +328,103 @@ func RegisterFavoriteRoutes(r *gin.Engine, db *gorm.DB, redisClient *redis.Clien
 		favorites.GET("/stats", func(c *gin.Context) {
 			getFavoriteStatsHandler(c, db)
 		})
+
+		// カテゴリーの観光地を一括お気に入り追加
+		favorites.POST("/categories/:categoryId/add-all", func(c *gin.Context) {
+			addCategoryFavoritesHandler(c, db)
+		})
 	}
+}
+
+// カテゴリーの観光地を一括でお気に入りに追加
+func addCategoryFavoritesHandler(c *gin.Context, db *gorm.DB) {
+	// 認証されたユーザーIDを取得
+	userID, exists := GetUserIDFromContext(c)
+	if !exists {
+		c.JSON(http.StatusUnauthorized, gin.H{"error": "認証が必要です"})
+		return
+	}
+
+	// カテゴリーIDを取得
+	categoryIDStr := c.Param("categoryId")
+	categoryID, err := strconv.ParseUint(categoryIDStr, 10, 32)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "無効なカテゴリーIDです"})
+		return
+	}
+
+	// カテゴリーが存在するかチェック
+	var category TouristSpotCategory
+	if err := db.First(&category, categoryID).Error; err != nil {
+		if err == gorm.ErrRecordNotFound {
+			c.JSON(http.StatusNotFound, gin.H{"error": "カテゴリーが見つかりません"})
+		} else {
+			c.JSON(http.StatusInternalServerError, gin.H{"error": "カテゴリーの確認に失敗しました"})
+		}
+		return
+	}
+
+	// そのカテゴリーの観光地を取得
+	var touristSpots []TouristSpot
+	if err := db.Where("category_id = ?", categoryID).Find(&touristSpots).Error; err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "観光地の取得に失敗しました"})
+		return
+	}
+
+	if len(touristSpots) == 0 {
+		c.JSON(http.StatusOK, gin.H{
+			"message": "このカテゴリーには観光地がありません",
+			"category": category.Name,
+			"added_count": 0,
+		})
+		return
+	}
+
+	// 既にお気に入りに追加済みの観光地を確認
+	var existingFavorites []UserFavoriteTouristSpot
+	spotIDs := make([]uint, len(touristSpots))
+	for i, spot := range touristSpots {
+		spotIDs[i] = spot.ID
+	}
+	
+	db.Where("user_id = ? AND tourist_spot_id IN ?", userID, spotIDs).Find(&existingFavorites)
+	
+	// 既に追加済みのIDのマップを作成
+	existingMap := make(map[uint]bool)
+	for _, existing := range existingFavorites {
+		existingMap[existing.TouristSpotID] = true
+	}
+
+	// 新しくお気に入りに追加する観光地のみを処理
+	var newFavorites []UserFavoriteTouristSpot
+	addedCount := 0
+	
+	for _, spot := range touristSpots {
+		if !existingMap[spot.ID] {
+			newFavorites = append(newFavorites, UserFavoriteTouristSpot{
+				UserID:        userID,
+				TouristSpotID: spot.ID,
+				Priority:      1, // デフォルト優先度
+				Notes:         "",
+				VisitStatus:   "未訪問",
+			})
+			addedCount++
+		}
+	}
+
+	// バッチでお気に入りに追加
+	if len(newFavorites) > 0 {
+		if err := db.Create(&newFavorites).Error; err != nil {
+			c.JSON(http.StatusInternalServerError, gin.H{"error": "お気に入りの追加に失敗しました"})
+			return
+		}
+	}
+
+	c.JSON(http.StatusOK, gin.H{
+		"message": "お気に入りに追加しました",
+		"category": category.Name,
+		"total_spots": len(touristSpots),
+		"added_count": addedCount,
+		"already_existing": len(touristSpots) - addedCount,
+	})
 }

@@ -13,7 +13,7 @@ func RegisterTouristSpotRoutes(r *gin.Engine, db *gorm.DB, redisClient *redis.Cl
 	// 観光地一覧取得
 	r.GET("/tourist-spots", func(c *gin.Context) {
 		var spots []TouristSpot
-		query := db.Model(&TouristSpot{}) // NodeをPreloadしない（循環参照回避）
+		query := db.Model(&TouristSpot{}).Preload("TouristCategory") // カテゴリ情報をプリロード
 
 		// カテゴリフィルタ
 		if category := c.Query("category"); category != "" {
@@ -49,7 +49,7 @@ func RegisterTouristSpotRoutes(r *gin.Engine, db *gorm.DB, redisClient *redis.Cl
 	r.GET("/tourist-spots/:id", func(c *gin.Context) {
 		id := c.Param("id")
 		var spot TouristSpot
-		if err := db.Preload("Node").First(&spot, id).Error; err != nil {
+		if err := db.Preload("Node").Preload("TouristCategory").First(&spot, id).Error; err != nil {
 			c.JSON(404, gin.H{"error": "観光地が見つかりません"})
 			return
 		}
@@ -79,6 +79,7 @@ func touristSpotCreateHandler(db *gorm.DB) gin.HandlerFunc {
 			Name         string  `json:"name" binding:"required"`
 			Description  string  `json:"description"`
 			Category     string  `json:"category"`
+			CategoryID   *uint   `json:"category_id"`
 			X            float64 `json:"x"`
 			Y            float64 `json:"y"`
 			MaxCapacity  int     `json:"max_capacity" binding:"required,min=1"`
@@ -101,6 +102,7 @@ func touristSpotCreateHandler(db *gorm.DB) gin.HandlerFunc {
 			Name:         req.Name,
 			Description:  req.Description,
 			Category:     req.Category,
+			CategoryID:   req.CategoryID,
 			X:            req.X,
 			Y:            req.Y,
 			MaxCapacity:  req.MaxCapacity,
@@ -159,6 +161,7 @@ func touristSpotUpdateHandler(db *gorm.DB) gin.HandlerFunc {
 			Name         *string  `json:"name"`
 			Description  *string  `json:"description"`
 			Category     *string  `json:"category"`
+			CategoryID   **uint   `json:"category_id"`
 			X            *float64 `json:"x"`
 			Y            *float64 `json:"y"`
 			MaxCapacity  *int     `json:"max_capacity"`
@@ -186,6 +189,9 @@ func touristSpotUpdateHandler(db *gorm.DB) gin.HandlerFunc {
 		}
 		if req.Category != nil {
 			spot.Category = *req.Category
+		}
+		if req.CategoryID != nil {
+			spot.CategoryID = *req.CategoryID
 		}
 		if req.X != nil {
 			spot.X = *req.X
