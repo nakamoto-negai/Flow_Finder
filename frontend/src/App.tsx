@@ -35,13 +35,19 @@ function App() {
   }, [token]);
 
   // ログイン成功処理
-  const handleLogin = (newToken: string, newUserId: number) => {
+  const handleLogin = (newToken: string, newUserId: number, isNewUser: boolean = false) => {
     setToken(newToken);
     setUserId(newUserId);
-    
+
     // ログイン成功をログに記録
     logger.logLogin(newUserId);
-    
+
+    // 新規ユーザー登録直後であれば強制的にカテゴリー選択を表示
+    if (isNewUser) {
+      setShowCategorySelector(true);
+      return;
+    }
+
     // カテゴリー選択を今回のセッションで既に表示したかチェック
     const hasShownCategorySelector = sessionStorage.getItem('hasShownCategorySelector');
     if (!hasShownCategorySelector) {

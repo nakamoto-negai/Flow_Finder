@@ -373,8 +373,8 @@ func addCategoryFavoritesHandler(c *gin.Context, db *gorm.DB) {
 
 	if len(touristSpots) == 0 {
 		c.JSON(http.StatusOK, gin.H{
-			"message": "このカテゴリーには観光地がありません",
-			"category": category.Name,
+			"message":     "このカテゴリーには観光地がありません",
+			"category":    category.Name,
 			"added_count": 0,
 		})
 		return
@@ -386,9 +386,9 @@ func addCategoryFavoritesHandler(c *gin.Context, db *gorm.DB) {
 	for i, spot := range touristSpots {
 		spotIDs[i] = spot.ID
 	}
-	
+
 	db.Where("user_id = ? AND tourist_spot_id IN ?", userID, spotIDs).Find(&existingFavorites)
-	
+
 	// 既に追加済みのIDのマップを作成
 	existingMap := make(map[uint]bool)
 	for _, existing := range existingFavorites {
@@ -398,7 +398,7 @@ func addCategoryFavoritesHandler(c *gin.Context, db *gorm.DB) {
 	// 新しくお気に入りに追加する観光地のみを処理
 	var newFavorites []UserFavoriteTouristSpot
 	addedCount := 0
-	
+
 	for _, spot := range touristSpots {
 		if !existingMap[spot.ID] {
 			newFavorites = append(newFavorites, UserFavoriteTouristSpot{
@@ -421,10 +421,10 @@ func addCategoryFavoritesHandler(c *gin.Context, db *gorm.DB) {
 	}
 
 	c.JSON(http.StatusOK, gin.H{
-		"message": "お気に入りに追加しました",
-		"category": category.Name,
-		"total_spots": len(touristSpots),
-		"added_count": addedCount,
+		"message":          "お気に入りに追加しました",
+		"category":         category.Name,
+		"total_spots":      len(touristSpots),
+		"added_count":      addedCount,
 		"already_existing": len(touristSpots) - addedCount,
 	})
 }

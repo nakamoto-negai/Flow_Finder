@@ -76,7 +76,30 @@ const TouristSpotCategoryManager: React.FC = () => {
         const errorData = await response.json();
         throw new Error(errorData.error || 'カテゴリーの作成に失敗しました');
       }
-      
+
+      // 作成したカテゴリー情報を取得
+      const created = await response.json();
+      const createdId = (created && (created.id || created.ID)) || null;
+
+      // 作成直後にそのカテゴリーに紐づく観光地をユーザーのお気に入りに追加する
+      if (createdId) {
+        try {
+          const favResp = await fetch(getApiUrl(`/favorites/categories/${createdId}/add-all`), {
+            method: 'POST',
+            headers: {
+              ...getAuthHeaders(),
+            },
+          });
+
+          if (!favResp.ok) {
+            // 成功しなくても処理を止めずにログ出力のみ行う
+            console.warn('カテゴリー作成後のお気に入り一括追加に失敗しました', await favResp.text());
+          }
+        } catch (favErr) {
+          console.error('お気に入り一括追加エラー:', favErr);
+        }
+      }
+
       await fetchCategories();
       setShowCreateForm(false);
       resetForm();

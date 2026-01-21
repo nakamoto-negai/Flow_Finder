@@ -21,6 +21,7 @@ const CategorySelector: React.FC<CategorySelectorProps> = ({ onComplete }) => {
   const [loading, setLoading] = useState(false);
   const [processing, setProcessing] = useState<Record<number, boolean>>({});
   const [completed, setCompleted] = useState<Record<number, boolean>>({});
+  const [favoriteSpotIds, setFavoriteSpotIds] = useState<Set<number>>(new Set());
   const [error, setError] = useState<string | null>(null);
 
   // カテゴリー一覧を取得
@@ -41,28 +42,65 @@ const CategorySelector: React.FC<CategorySelectorProps> = ({ onComplete }) => {
   };
 
   // カテゴリーの観光地を一括お気に入り登録
-  const addCategoryToFavorites = async (categoryId: number) => {
+  const addCategoryToFavorites = async (categoryId: number, categoryName: string) => {
     setProcessing(prev => ({ ...prev, [categoryId]: true }));
     setError(null);
 
     try {
-      const response = await fetch(getApiUrl(`/favorites/categories/${categoryId}/add-all`), {
-        method: 'POST',
-        headers: getAuthHeaders(),
-      });
+      // トグル動作: 既に完了状態なら一括解除、それ以外は追加
+      if (completed[categoryId]) {
+        // そのカテゴリーの観光地を取得
+        const spotsRes = await fetch(getApiUrl(`/tourist-spots?category=${encodeURIComponent(categoryName)}`), {
+          headers: getAuthHeaders(),
+        });
+        if (!spotsRes.ok) throw new Error('観光地の取得に失敗しました');
+        const spots = await spotsRes.json();
 
-      if (!response.ok) {
-        const errorData = await response.json();
-        throw new Error(errorData.error || 'お気に入り登録に失敗しました');
-      }
+        // favoriteSpotIds を使って対象のみ削除
+        const toRemove = spots
+          .map((s: any) => s.id)
+          .filter((id: number) => favoriteSpotIds.has(id));
 
-      await response.json(); // レスポンスを消費
-      setCompleted(prev => ({ ...prev, [categoryId]: true }));
-      
-      // 成功メッセージを一時的に表示
-      setTimeout(() => {
+        // 並列で削除リクエストを送る
+        await Promise.all(toRemove.map((id: number) =>
+          fetch(getApiUrl(`/favorites/tourist-spots/${id}`), {
+            method: 'DELETE',
+            headers: getAuthHeaders(),
+          })
+        ));
+
+        // UI更新
         setCompleted(prev => ({ ...prev, [categoryId]: false }));
-      }, 3000);
+
+        // favoriteSpotIds を更新（削除したものを取り除く）
+        setFavoriteSpotIds(prev => {
+          const next = new Set(prev);
+          toRemove.forEach((id: number) => next.delete(id));
+          return next;
+        });
+      } else {
+        // 追加
+        const response = await fetch(getApiUrl(`/favorites/categories/${categoryId}/add-all`), {
+          method: 'POST',
+          headers: getAuthHeaders(),
+        });
+
+        if (!response.ok) {
+          const errorData = await response.json();
+          throw new Error(errorData.error || 'お気に入り登録に失敗しました');
+        }
+
+        // 追加成功したら完了フラグを永続的に表示
+        setCompleted(prev => ({ ...prev, [categoryId]: true }));
+
+        // 最新の favorites を再取得して favoriteSpotIds を更新
+        const favRes = await fetch(getApiUrl('/favorites/tourist-spots'), { headers: getAuthHeaders() });
+        if (favRes.ok) {
+          const favData = await favRes.json();
+          const ids = new Set<number>(favData.map((f: any) => f.tourist_spot_id));
+          setFavoriteSpotIds(ids);
+        }
+      }
 
     } catch (err) {
       setError(err instanceof Error ? err.message : 'エラーが発生しました');
@@ -74,6 +112,36 @@ const CategorySelector: React.FC<CategorySelectorProps> = ({ onComplete }) => {
   useEffect(() => {
     fetchCategories();
   }, []);
+
+  // 初回ロード時にユーザーのお気に入りを取得して各カテゴリーの状態を決める
+  useEffect(() => {
+    const fetchFavoritesAndSet = async () => {
+      try {
+        const favRes = await fetch(getApiUrl('/favorites/tourist-spots'), { headers: getAuthHeaders() });
+        if (!favRes.ok) return;
+        const favData = await favRes.json();
+        const favIds = new Set<number>(favData.map((f: any) => f.tourist_spot_id));
+        setFavoriteSpotIds(favIds);
+
+        // 各カテゴリーの観光地を取得して、1つでもお気に入りなら completed を true にする
+        await Promise.all(categories.map(async (cat) => {
+          const spotsRes = await fetch(getApiUrl(`/tourist-spots?category=${encodeURIComponent(cat.name)}`), {
+            headers: getAuthHeaders(),
+          });
+          if (!spotsRes.ok) return;
+          const spots = await spotsRes.json();
+          const hasFavorite = spots.some((s: any) => favIds.has(s.id));
+          if (hasFavorite) {
+            setCompleted(prev => ({ ...prev, [cat.id]: true }));
+          }
+        }));
+      } catch (e) {
+        // ignore
+      }
+    };
+
+    if (categories.length > 0) fetchFavoritesAndSet();
+  }, [categories]);
 
   return (
     <div style={{
@@ -213,8 +281,8 @@ const CategorySelector: React.FC<CategorySelectorProps> = ({ onComplete }) => {
                   )}
 
                   <button
-                    onClick={() => addCategoryToFavorites(category.id)}
-                    disabled={processing[category.id] || completed[category.id]}
+                    onClick={() => addCategoryToFavorites(category.id, category.name)}
+                    disabled={processing[category.id]}
                     style={{
                       width: '100%',
                       padding: '12px',
@@ -226,7 +294,7 @@ const CategorySelector: React.FC<CategorySelectorProps> = ({ onComplete }) => {
                       color: 'white',
                       border: 'none',
                       borderRadius: '8px',
-                      cursor: processing[category.id] || completed[category.id] ? 'not-allowed' : 'pointer',
+                      cursor: processing[category.id] ? 'not-allowed' : 'pointer',
                       fontSize: '16px',
                       fontWeight: 'bold',
                       transition: 'all 0.3s ease',
