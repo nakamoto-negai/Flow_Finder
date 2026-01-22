@@ -2,6 +2,7 @@ package main
 
 import (
 	"strconv"
+	"time"
 
 	"github.com/gin-gonic/gin"
 	"github.com/redis/go-redis/v9"
@@ -70,6 +71,8 @@ func RegisterTouristSpotRoutes(r *gin.Engine, db *gorm.DB, redisClient *redis.Cl
 
 	// 観光地の混雑状況取得
 	r.GET("/tourist-spots/:id/congestion", touristSpotCongestionHandler(db))
+	// 管理者が混雑レベルを記録する（時刻付き保存）
+	r.POST("/tourist-spots/:id/congestion", AdminRequired(db, redisClient), touristSpotSetCongestionHandler(db))
 }
 
 // 観光地作成ハンドラ
@@ -338,6 +341,12 @@ func touristSpotCongestionHandler(db *gorm.DB) gin.HandlerFunc {
 			return
 		}
 
+		// 最新の混雑記録（直近10件）を取得
+		var records []CongestionRecord
+		if recs, err := GetCongestionRecords(db, spot.ID, 10); err == nil {
+			records = recs
+		}
+
 		c.JSON(200, gin.H{
 			"id":               spot.ID,
 			"name":             spot.Name,
@@ -346,6 +355,52 @@ func touristSpotCongestionHandler(db *gorm.DB) gin.HandlerFunc {
 			"congestion_level": spot.GetCongestionLevel(),
 			"congestion_ratio": spot.GetCongestionRatio(),
 			"is_open":          spot.IsOpen,
+			"records":          records,
 		})
+	}
+}
+
+// 管理者が混雑レベルを記録するハンドラ
+func touristSpotSetCongestionHandler(db *gorm.DB) gin.HandlerFunc {
+	return func(c *gin.Context) {
+		id := c.Param("id")
+		// 観光地が存在するかチェック
+		var spot TouristSpot
+		if err := db.First(&spot, id).Error; err != nil {
+			c.JSON(404, gin.H{"error": "観光地が見つかりません"})
+			return
+		}
+
+		var req struct {
+			Level      *int   `json:"level" binding:"required"`
+			RecordedAt string `json:"recorded_at"` // RFC3339 optional
+			Note       string `json:"note"`
+		}
+
+		if err := c.ShouldBindJSON(&req); err != nil {
+			c.JSON(400, gin.H{"error": "無効なリクエストです", "details": err.Error()})
+			return
+		}
+
+		if req.Level == nil || *req.Level < 0 || *req.Level > 3 {
+			c.JSON(400, gin.H{"error": "level は0から3の範囲で指定してください"})
+			return
+		}
+
+		recordedAt := time.Now()
+		if req.RecordedAt != "" {
+			if t, err := time.Parse(time.RFC3339, req.RecordedAt); err == nil {
+				recordedAt = t
+			}
+		}
+
+		// DBに記録
+		rec, err := AddCongestionRecord(db, spot.ID, *req.Level, recordedAt, req.Note)
+		if err != nil {
+			c.JSON(500, gin.H{"error": "混雑記録の保存に失敗しました"})
+			return
+		}
+
+		c.JSON(201, gin.H{"result": "ok", "record": rec})
 	}
 }

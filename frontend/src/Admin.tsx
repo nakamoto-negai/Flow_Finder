@@ -4,12 +4,15 @@ import NodeManager from "./NodeManager";
 import LinkManager from "./LinkManager";
 import ImageManager from "./ImageManager";
 import TouristSpotManager from "./TouristSpotManager";
+import TouristSpotDetail from "./TouristSpotDetail";
 import TouristSpotCategoryManager from "./TouristSpotCategoryManager";
+import CongestionManager from "./CongestionManager";
 import Header from "./Header";
 import "./App.css";
 
 const Admin: React.FC = () => {
-  const [currentView, setCurrentView] = useState<'fields' | 'nodes' | 'links' | 'images' | 'tourist-spots' | 'tourist-categories' | 'logs'>('fields');
+  const [currentView, setCurrentView] = useState<'fields' | 'nodes' | 'links' | 'images' | 'tourist-spots' | 'tourist-categories' | 'congestion' | 'logs'>('fields');
+  const [selectedSpotId, setSelectedSpotId] = useState<number | null>(null);
   const [isAdmin, setIsAdmin] = useState<boolean>(false);
   const [isLoading, setIsLoading] = useState<boolean>(true);
 
@@ -85,6 +88,7 @@ const Admin: React.FC = () => {
             { key: 'links', label: 'リンク管理' },
             { key: 'tourist-spots', label: '観光地管理' },
             { key: 'tourist-categories', label: 'カテゴリー管理' },
+            { key: 'congestion', label: '混雑度管理' },
             { key: 'images', label: '画像管理' },
             { key: 'logs', label: 'ログ表示' }
           ].map(tab => (
@@ -114,9 +118,25 @@ const Admin: React.FC = () => {
         
         {currentView === 'links' && <LinkManager />}
         
-        {currentView === 'tourist-spots' && <TouristSpotManager />}
+        {currentView === 'tourist-spots' && selectedSpotId ? (
+          <TouristSpotDetail
+            spotId={selectedSpotId}
+            onBack={() => setSelectedSpotId(null)}
+          />
+        ) : currentView === 'tourist-spots' ? (
+          <TouristSpotManager />
+        ) : null}
         
         {currentView === 'tourist-categories' && <TouristSpotCategoryManager />}
+        
+        {currentView === 'congestion' && selectedSpotId ? (
+          <TouristSpotDetail
+            spotId={selectedSpotId}
+            onBack={() => setSelectedSpotId(null)}
+          />
+        ) : currentView === 'congestion' ? (
+          <CongestionManager onViewDetail={(spotId) => setSelectedSpotId(spotId)} />
+        ) : null}
         
         {currentView === 'images' && <ImageManager />}
         
