@@ -8,6 +8,8 @@ import MyPage from './MyPage';
 import Header from './Header';
 import Login from './Login';
 import CategorySelector from './CategorySelector';
+// import TouristSpotDetail from './TouristSpotDetail'; // 管理者用
+import TouristSpotDetailUser from './TouristSpotDetailUser';
 import { logger } from './logger';
 import './App.css';
 
@@ -103,6 +105,22 @@ function App() {
       return <Login onLogin={handleLogin} />;
     }
     return <MyPage />;
+  }
+
+  if (window.location.pathname.startsWith("/tourist-spot/")) {
+    if (!token) {
+      return <Login onLogin={handleLogin} />;
+    }
+    const spotId = parseInt(window.location.pathname.split("/tourist-spot/")[1]);
+    return (
+      <>
+        <Header onLogout={handleLogout} />
+        <TouristSpotDetailUser 
+          spotId={spotId} 
+          onBack={() => window.history.back()} 
+        />
+      </>
+    );
   }
 
   return (

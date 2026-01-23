@@ -49,6 +49,7 @@ export interface TouristSpot {
   website: string;
   phone_number: string;
   image_url: string;
+  reward_url: string;
   rating: number;
   review_count: number;
   last_updated: string;

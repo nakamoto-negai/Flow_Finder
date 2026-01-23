@@ -83,6 +83,7 @@ func touristSpotCreateHandler(db *gorm.DB) gin.HandlerFunc {
 			Description  string  `json:"description"`
 			Category     string  `json:"category"`
 			CategoryID   *uint   `json:"category_id"`
+			NodeID       *uint   `json:"nearest_node_id"`
 			X            float64 `json:"x"`
 			Y            float64 `json:"y"`
 			MaxCapacity  int     `json:"max_capacity" binding:"required,min=1"`
@@ -94,6 +95,7 @@ func touristSpotCreateHandler(db *gorm.DB) gin.HandlerFunc {
 			Website      string  `json:"website"`
 			PhoneNumber  string  `json:"phone_number"`
 			ImageURL     string  `json:"image_url"`
+			RewardURL    string  `json:"reward_url"`
 		}
 
 		if err := c.ShouldBindJSON(&req); err != nil {
@@ -117,10 +119,14 @@ func touristSpotCreateHandler(db *gorm.DB) gin.HandlerFunc {
 			Website:      req.Website,
 			PhoneNumber:  req.PhoneNumber,
 			ImageURL:     req.ImageURL,
+			RewardURL:    req.RewardURL,
 		}
 
-		// 座標が指定されている場合、最寄りのノードを見つけて関連付ける
-		if req.X != 0 && req.Y != 0 {
+		// 最寄りノードが指定されている場合
+		if req.NodeID != nil {
+			spot.NodeID = req.NodeID
+		} else if req.X != 0 && req.Y != 0 {
+			// 座標が指定されている場合、最寄りのノードを見つけて関連付ける
 			nearestNodeID, err := spot.FindNearestNode(db)
 			if err == nil && nearestNodeID != 0 {
 				spot.NodeID = &nearestNodeID
@@ -165,6 +171,7 @@ func touristSpotUpdateHandler(db *gorm.DB) gin.HandlerFunc {
 			Description  *string  `json:"description"`
 			Category     *string  `json:"category"`
 			CategoryID   **uint   `json:"category_id"`
+			NodeID       **uint   `json:"nearest_node_id"`
 			X            *float64 `json:"x"`
 			Y            *float64 `json:"y"`
 			MaxCapacity  *int     `json:"max_capacity"`
@@ -176,6 +183,7 @@ func touristSpotUpdateHandler(db *gorm.DB) gin.HandlerFunc {
 			Website      *string  `json:"website"`
 			PhoneNumber  *string  `json:"phone_number"`
 			ImageURL     *string  `json:"image_url"`
+			RewardURL    *string  `json:"reward_url"`
 		}
 
 		if err := c.ShouldBindJSON(&req); err != nil {
@@ -195,6 +203,9 @@ func touristSpotUpdateHandler(db *gorm.DB) gin.HandlerFunc {
 		}
 		if req.CategoryID != nil {
 			spot.CategoryID = *req.CategoryID
+		}
+		if req.NodeID != nil {
+			spot.NodeID = *req.NodeID
 		}
 		if req.X != nil {
 			spot.X = *req.X
@@ -228,6 +239,9 @@ func touristSpotUpdateHandler(db *gorm.DB) gin.HandlerFunc {
 		}
 		if req.ImageURL != nil {
 			spot.ImageURL = *req.ImageURL
+		}
+		if req.RewardURL != nil {
+			spot.RewardURL = *req.RewardURL
 		}
 
 		// 座標が更新された場合、最寄りのノードを再検索
