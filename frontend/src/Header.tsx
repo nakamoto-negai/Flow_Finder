@@ -62,7 +62,7 @@ const Header: React.FC<HeaderProps> = ({
           </button>
 
           <button
-            onClick={() => window.location.href = ''}
+            onClick={() => window.location.href = '/'}
             style={{
               background: 'transparent',
               color: 'white',

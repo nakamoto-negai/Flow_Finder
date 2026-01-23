@@ -7,6 +7,13 @@ interface TouristSpot {
   name: string;
   description: string;
   category: string;
+  category_id?: number;
+  tourist_category?: {
+    id: number;
+    name: string;
+    icon: string;
+    color: string;
+  };
   nearest_node_id?: number;
   distance_to_nearest_node: number;
   x: number;
@@ -20,6 +27,7 @@ interface TouristSpot {
   website: string;
   phone_number: string;
   image_url: string;
+  reward_url: string;
   rating: number;
   review_count: number;
   last_updated: string;
@@ -37,9 +45,20 @@ interface Node {
   field_id?: number;
 }
 
+interface TouristSpotCategory {
+  id: number;
+  name: string;
+  description: string;
+  icon: string;
+  color: string;
+  display_order: number;
+  is_active: boolean;
+}
+
 const TouristSpotManager: React.FC = () => {
   const [touristSpots, setTouristSpots] = useState<TouristSpot[]>([]);
   const [nodes, setNodes] = useState<Node[]>([]);
+  const [categories, setCategories] = useState<TouristSpotCategory[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [showCreateForm, setShowCreateForm] = useState(false);
@@ -56,6 +75,7 @@ const TouristSpotManager: React.FC = () => {
     name: '',
     description: '',
     category: '',
+    category_id: '',
     nearest_node_id: '',
     x: 0,
     y: 0,
@@ -68,26 +88,30 @@ const TouristSpotManager: React.FC = () => {
     website: '',
     phone_number: '',
     image_url: '',
+    reward_url: '',
     rating: 0
   });
 
-  const categories = [
-    '神社・寺院',
-    '公園',
-    '博物館',
-    '美術館',
-    '展望台',
-    'ショッピング',
-    'レストラン',
-    'カフェ',
-    'アクティビティ',
-    'その他'
-  ];
+  // カテゴリー一覧を取得
+  const fetchCategories = async () => {
+    try {
+      const response = await fetch(getApiUrl('/tourist-spot-categories'), {
+        headers: getAuthHeaders(),
+      });
+      if (!response.ok) throw new Error('カテゴリーの取得に失敗しました');
+      const data = await response.json();
+      setCategories(Array.isArray(data) ? data : []);
+    } catch (err) {
+      console.error('カテゴリー取得エラー:', err);
+      setCategories([]);
+    }
+  };
 
   // データ取得
   useEffect(() => {
     fetchTouristSpots();
     fetchNodes();
+    fetchCategories();
   }, []);
 
   const fetchTouristSpots = async () => {
@@ -185,6 +209,7 @@ const TouristSpotManager: React.FC = () => {
       name: '',
       description: '',
       category: '',
+      category_id: '',
       nearest_node_id: '',
       x: 0,
       y: 0,
@@ -197,6 +222,7 @@ const TouristSpotManager: React.FC = () => {
       website: '',
       phone_number: '',
       image_url: '',
+      reward_url: '',
       rating: 0
     });
     setEditingSpot(null);
@@ -283,7 +309,8 @@ const TouristSpotManager: React.FC = () => {
       const submitData = {
         ...formData,
         image_url: imageUrl,
-        nearest_node_id: formData.nearest_node_id ? Number(formData.nearest_node_id) : null
+        nearest_node_id: formData.nearest_node_id ? Number(formData.nearest_node_id) : null,
+        category_id: formData.category_id ? Number(formData.category_id) : null
       };
 
       const response = await fetch(getApiUrl('/tourist-spots'), {
@@ -312,6 +339,7 @@ const TouristSpotManager: React.FC = () => {
       name: spot.name,
       description: spot.description,
       category: spot.category,
+      category_id: spot.category_id?.toString() || '',
       nearest_node_id: spot.nearest_node_id?.toString() || '',
       x: spot.x,
       y: spot.y,
@@ -324,6 +352,7 @@ const TouristSpotManager: React.FC = () => {
       website: spot.website,
       phone_number: spot.phone_number,
       image_url: spot.image_url,
+      reward_url: spot.reward_url,
       rating: spot.rating
     });
     setEditingSpot(spot);
@@ -351,7 +380,8 @@ const TouristSpotManager: React.FC = () => {
       const submitData = {
         ...formData,
         image_url: imageUrl,
-        nearest_node_id: formData.nearest_node_id ? Number(formData.nearest_node_id) : null
+        nearest_node_id: formData.nearest_node_id ? Number(formData.nearest_node_id) : null,
+        category_id: formData.category_id ? Number(formData.category_id) : null
       };
 
       const response = await fetch(getApiUrl(`/tourist-spots/${editingSpot.id}`), {
@@ -503,8 +533,16 @@ const TouristSpotManager: React.FC = () => {
                 カテゴリ
               </label>
               <select
-                value={formData.category}
-                onChange={(e) => setFormData({ ...formData, category: e.target.value })}
+                value={formData.category_id}
+                onChange={(e) => {
+                  const categoryId = e.target.value;
+                  const selectedCategory = categories.find(cat => cat.id.toString() === categoryId);
+                  setFormData({ 
+                    ...formData, 
+                    category_id: categoryId,
+                    category: selectedCategory ? selectedCategory.name : ''
+                  });
+                }}
                 style={{
                   width: '100%',
                   padding: '8px 12px',
@@ -513,8 +551,10 @@ const TouristSpotManager: React.FC = () => {
                 }}
               >
                 <option value="">カテゴリを選択</option>
-                {categories.map(cat => (
-                  <option key={cat} value={cat}>{cat}</option>
+                {categories.filter(cat => cat.is_active).map(cat => (
+                  <option key={cat.id} value={cat.id}>
+                    {cat.icon} {cat.name}
+                  </option>
                 ))}
               </select>
             </div>
@@ -747,6 +787,24 @@ const TouristSpotManager: React.FC = () => {
 
           <div style={{ marginTop: '15px' }}>
             <label style={{ display: 'block', marginBottom: '5px', fontWeight: '500' }}>
+              特典ページURL
+            </label>
+            <input
+              type="url"
+              value={formData.reward_url}
+              onChange={(e) => setFormData({ ...formData, reward_url: e.target.value })}
+              style={{
+                width: '100%',
+                padding: '8px 12px',
+                border: '1px solid #d1d5db',
+                borderRadius: '4px'
+              }}
+              placeholder="https://example.com/reward"
+            />
+          </div>
+
+          <div style={{ marginTop: '15px' }}>
+            <label style={{ display: 'block', marginBottom: '5px', fontWeight: '500' }}>
               画像
             </label>
             
@@ -947,7 +1005,19 @@ const TouristSpotManager: React.FC = () => {
                   <div style={{ flex: 1 }}>
                     <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '8px' }}>
                       <h4 style={{ margin: 0, color: '#1f2937' }}>{spot.name}</h4>
-                      {spot.category && (
+                      {spot.tourist_category && (
+                        <span style={{ 
+                          padding: '2px 8px', 
+                          background: spot.tourist_category.color + '20',
+                          color: spot.tourist_category.color, 
+                          borderRadius: '12px',
+                          fontSize: '12px',
+                          border: `1px solid ${spot.tourist_category.color}40`
+                        }}>
+                          {spot.tourist_category.icon} {spot.tourist_category.name}
+                        </span>
+                      )}
+                      {!spot.tourist_category && spot.category && (
                         <span style={{ 
                           padding: '2px 8px', 
                           background: '#e0e7ff', 
@@ -984,7 +1054,13 @@ const TouristSpotManager: React.FC = () => {
                       {spot.description && <div style={{ marginBottom: '4px' }}>{spot.description}</div>}
                       <div>
                         <strong>収容:</strong> {spot.current_count}/{spot.max_capacity}人 
-                        {nearestNode && <span style={{ marginLeft: '15px' }}><strong>最寄り:</strong> {nearestNode.name}</span>}
+                        {nearestNode ? (
+                          <span style={{ marginLeft: '15px' }}><strong>最寄り:</strong> {nearestNode.name}</span>
+                        ) : (
+                          <span style={{ marginLeft: '15px', color: '#dc2626', fontWeight: 'bold' }}>
+                            ⚠️ 最寄りノード未設定
+                          </span>
+                        )}
                         <span style={{ marginLeft: '15px' }}><strong>座標:</strong> ({spot.x}, {spot.y})</span>
                       </div>
                       <div>

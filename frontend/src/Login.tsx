@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import { getApiUrl } from './config';
 
 interface LoginProps {
-  onLogin: (token: string, userId: number) => void;
+  onLogin: (token: string, userId: number, isNewUser?: boolean) => void;
 }
 
 const Login: React.FC<LoginProps> = ({ onLogin }) => {
@@ -39,7 +39,7 @@ const Login: React.FC<LoginProps> = ({ onLogin }) => {
       localStorage.setItem('authToken', data.token);
       localStorage.setItem('userId', data.user_id);
       localStorage.setItem('isAdmin', data.is_admin ? 'true' : 'false');
-      onLogin(data.token, data.user_id);
+      onLogin(data.token, data.user_id, false);
     } catch (err: any) {
       setError(err.message);
     } finally {
@@ -92,7 +92,8 @@ const Login: React.FC<LoginProps> = ({ onLogin }) => {
       localStorage.setItem('authToken', data.token);
       localStorage.setItem('userId', data.user_id);
       localStorage.setItem('isAdmin', data.is_admin ? 'true' : 'false');
-      onLogin(data.token, data.user_id);
+      // サインアップ直後は新規ユーザーなのでフラグを渡す
+      onLogin(data.token, data.user_id, true);
     } catch (err: any) {
       setError(err.message);
     } finally {
