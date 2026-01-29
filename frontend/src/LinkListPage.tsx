@@ -200,11 +200,8 @@ const LinkListPage: React.FC = () => {
           <>
             <div style={{ marginBottom: '20px', textAlign: 'center' }}>
               <h1 style={{ fontSize: "1.5rem", marginBottom: 10, color: '#1f2937' }}>
-                🗺️ お気に入り観光地への経路
+                お気に入り観光地への経路
               </h1>
-              <div style={{ fontSize: '1rem', color: '#6b7280' }}>
-                📍 現在地: <strong>{currentNode.name}</strong> (座標: {currentNode.x}, {currentNode.y})
-              </div>
             </div>
 
             {/* 進行可能なリンク一覧 */}
@@ -223,7 +220,7 @@ const LinkListPage: React.FC = () => {
                 alignItems: 'center',
                 gap: '8px'
               }}>
-                🚀 進行可能なリンク
+                進行可能なリンク
               </h3>
               
               {isLoadingLinks ? (
@@ -284,7 +281,7 @@ const LinkListPage: React.FC = () => {
                         onMouseEnter={(e) => e.currentTarget.style.background = '#2563eb'}
                         onMouseLeave={(e) => e.currentTarget.style.background = '#3b82f6'}
                       >
-                        リンク表示
+                        ここに進む
                       </button>
                     </div>
                   ))}
@@ -348,7 +345,7 @@ const LinkListPage: React.FC = () => {
                         marginBottom: '15px'
                       }}>
                         <h3 style={{ margin: '0', color: '#92400e', fontSize: '1.2rem' }}>
-                          🗺️ {currentNode.name} → {favorite.tourist_spot.name}
+                          {currentNode.name} → {favorite.tourist_spot.name}
                         </h3>
                         
                         {/* 混雑度マーク */}
@@ -410,7 +407,7 @@ const LinkListPage: React.FC = () => {
                             e.currentTarget.style.boxShadow = '0 2px 4px rgba(59, 130, 246, 0.3)';
                           }}
                         >
-                          📋 詳細を見る
+                          詳細を見る
                         </button>
                       </div>
                       
@@ -506,7 +503,7 @@ const LinkListPage: React.FC = () => {
                                       e.currentTarget.style.boxShadow = '0 4px 15px rgba(245, 158, 11, 0.3)';
                                     }}
                                   >
-                                    🎁 特典を受け取る
+                                    特典を受け取る
                                   </button>
                                 )}
                               </div>
@@ -574,7 +571,7 @@ const LinkListPage: React.FC = () => {
 
                                 {/* 経路詳細 */}
                                 <div style={{ marginBottom: '15px' }}>
-                                  <h4 style={{ margin: '0 0 12px 0', fontSize: '16px', color: '#92400e' }}>🚶‍♂️ 進行ルート（リンク単位）</h4>
+                                  <h4 style={{ margin: '0 0 12px 0', fontSize: '16px', color: '#92400e' }}>進行ルート（リンク単位）</h4>
                                   
                                   {/* リンクベースのルート表示 */}
                                   <div style={{ 

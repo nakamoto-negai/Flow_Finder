@@ -188,6 +188,23 @@ const FavoriteTouristSpots: React.FC = () => {
         >
           ➕ 新しい観光地をお気に入りに追加
         </button>
+
+        <div style={{ marginTop: 8 }}>
+          <button
+            onClick={() => window.location.href = '/category-selector'}
+            style={{
+              padding: '8px 18px',
+              backgroundColor: '#10b981',
+              color: 'white',
+              border: 'none',
+              borderRadius: '6px',
+              cursor: 'pointer',
+              fontWeight: '500'
+            }}
+          >
+            ＋ カテゴリーから観光地を追加
+          </button>
+        </div>
       </div>
 
       {/* フィルター */}

@@ -96,6 +96,24 @@ const Header: React.FC<HeaderProps> = ({
           >
             お気に入り
           </button>
+
+          <button
+            onClick={() => window.location.href = '/tutorials'}
+            style={{
+              background: 'rgba(59, 246, 84, 0.8)',
+              color: 'white',
+              border: '1px solid rgba(255, 255, 255, 0.3)',
+              borderRadius: '6px',
+              padding: '6px 12px',
+              fontSize: '0.9rem',
+              cursor: 'pointer',
+              transition: 'all 0.2s ease'
+            }}
+            onMouseOver={(e) => e.currentTarget.style.background = 'rgb(0, 255, 34)'}
+            onMouseOut={(e) => e.currentTarget.style.background = 'rgba(59, 246, 84, 0.8)'}
+          >
+            利用方法
+          </button>
           
           {isAdmin && (
           <button

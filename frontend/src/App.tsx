@@ -8,6 +8,7 @@ import MyPage from './MyPage';
 import Header from './Header';
 import Login from './Login';
 import CategorySelector from './CategorySelector';
+import TutorialViewer from './TutorialViewer';
 // import TouristSpotDetail from './TouristSpotDetail'; // 管理者用
 import TouristSpotDetailUser from './TouristSpotDetailUser';
 import { logger } from './logger';
@@ -58,9 +59,16 @@ function App() {
   };
 
   // カテゴリー選択完了処理
-  const handleCategorySelectorComplete = () => {
+  const handleCategorySelectorComplete = (selectedCategories?: string[]) => {
     setShowCategorySelector(false);
     sessionStorage.setItem('hasShownCategorySelector', 'true');
+
+    // カテゴリーが渡されたらチュートリアル画面へ遷移
+    if (selectedCategories && selectedCategories.length > 0) {
+      const csv = selectedCategories.map(c => encodeURIComponent(c)).join(',');
+      window.location.href = `/tutorials?categories=${csv}`;
+      return;
+    }
   };
 
   // ログアウト処理
@@ -87,6 +95,10 @@ function App() {
   if (window.location.pathname === "/dijkstra") {
     return <DijkstraTestPage />;
   }
+
+  if (window.location.pathname.startsWith('/tutorials')) {
+    return <TutorialViewer />;
+  }
   
   if (window.location.pathname === "/favorites") {
     if (!token) {
@@ -105,6 +117,18 @@ function App() {
       return <Login onLogin={handleLogin} />;
     }
     return <MyPage />;
+  }
+
+  if (window.location.pathname === "/category-selector") {
+    if (!token) {
+      return <Login onLogin={handleLogin} />;
+    }
+    return (
+      <>
+        <Header onLogout={handleLogout} />
+        <CategorySelector onComplete={handleCategorySelectorComplete} />
+      </>
+    );
   }
 
   if (window.location.pathname.startsWith("/tourist-spot/")) {
