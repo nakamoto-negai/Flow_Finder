@@ -233,58 +233,67 @@ const LinkListPage: React.FC = () => {
                   gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))', 
                   gap: '12px' 
                 }}>
-                  {availableLinks.map((linkInfo: any, index: number) => (
-                    <div key={index} style={{
-                      background: 'white',
-                      padding: '15px',
-                      borderRadius: '8px',
-                      border: '1px solid #e0f2fe',
-                      display: 'flex',
-                      justifyContent: 'space-between',
-                      alignItems: 'center'
-                    }}>
-                      <div>
-                        <div style={{ 
-                          fontWeight: 'bold', 
-                          fontSize: '16px', 
-                          color: '#1e40af',
-                          marginBottom: '4px'
-                        }}>
-                          → {linkInfo.to_node.name || `ノード${linkInfo.to_node.id}`}
-                        </div>
-                        <div style={{ 
-                          fontSize: '12px', 
-                          color: '#6b7280',
-                          marginBottom: '2px'
-                        }}>
-                          リンクID: {linkInfo.link.id}
-                        </div>
-                        <div style={{ 
-                          fontSize: '12px', 
-                          color: '#6b7280'
-                        }}>
-                          距離: {Math.round(linkInfo.distance)}m
-                        </div>
+                  {availableLinks.map((linkInfo: any, index: number) => {
+                
+                // 1. ここで「次の一歩」が一致する観光地を探す
+                const targetSpots = favorites.filter(favorite => {
+                  const route = favoriteRoutes[favorite.id];
+                  return route && route.path && route.path.length > 1 && route.path[1].id === linkInfo.to_node.id;
+                });
+
+                return (
+                  <div key={index} style={{
+                    background: 'white',
+                    padding: '15px',
+                    borderRadius: '8px',
+                    border: targetSpots.length > 0 ? '2px solid #3b82f6' : '1px solid #e0f2fe',
+                    display: 'flex',
+                    justifyContent: 'space-between',
+                    alignItems: 'center'
+                  }}>
+                    <div>
+                      <div style={{ fontWeight: 'bold', fontSize: '16px', color: '#1e40af', marginBottom: '4px' }}>
+                        → {linkInfo.to_node.name || `ノード${linkInfo.to_node.id}`}
                       </div>
-                      <button
-                        onClick={() => moveToLink(linkInfo.link.id)}
-                        style={{
-                          background: '#3b82f6',
-                          color: 'white',
-                          border: 'none',
-                          padding: '8px 16px',
-                          borderRadius: '6px',
-                          cursor: 'pointer',
-                          fontSize: '14px',
-                          fontWeight: 'bold'
-                        }}
-                        onMouseEnter={(e) => e.currentTarget.style.background = '#2563eb'}
-                        onMouseLeave={(e) => e.currentTarget.style.background = '#3b82f6'}
-                      >
-                        ここに進む
-                      </button>
+                      
+                      {/* 2. 観光地名を表示する部分を追加 */}
+                      {targetSpots.length > 0 && (
+                        <div style={{ 
+                          fontSize: '12px', 
+                          color: '#3b82f6', 
+                          fontWeight: 'bold',
+                          background: '#eff6ff',
+                          padding: '2px 6px',
+                          borderRadius: '4px',
+                          marginBottom: '4px',
+                          display: 'inline-block'
+                        }}>
+                          {targetSpots.map(s => s.tourist_spot.name).join(', ')} 方面
+                        </div>
+                      )}
+
+                      <div style={{ fontSize: '12px', color: '#6b7280' }}>
+                        距離: {Math.round(linkInfo.distance)}m
+                      </div>
                     </div>
-                  ))}
+                    <button
+                      onClick={() => moveToLink(linkInfo.link.id)}
+                      style={{
+                        background: targetSpots.length > 0 ? '#e923e9' : '#3b82f6',
+                        color: 'white',
+                        border: 'none',
+                        padding: '8px 16px',
+                        borderRadius: '6px',
+                        cursor: 'pointer',
+                        fontSize: '14px',
+                        fontWeight: 'bold'
+                      }}
+                    >
+                      ここに進む
+                    </button>
+                  </div>
+                );
+              })}
                 </div>
               ) : (
                 <div style={{ 
