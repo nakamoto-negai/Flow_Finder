@@ -81,8 +81,8 @@ curl -X POST http://localhost:8080/users \
 docker-compose exec db psql -U postgres -d postgres -c "UPDATE users SET is_admin = true WHERE name = 'admin';"
 ```
 
-または、PostgreSQLに直接接続して設定することもできます：
-まずはユーザー登録画面でadminというユーザーを追加します
+または、PostgreSQLに直接接続して設定することもできます。
+まずはユーザー登録画面でadminというユーザーを追加します：
 
 ```bash
 # PostgreSQLコンテナに接続
