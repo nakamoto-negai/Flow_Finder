@@ -82,6 +82,7 @@ docker-compose exec db psql -U postgres -d postgres -c "UPDATE users SET is_admi
 ```
 
 または、PostgreSQLに直接接続して設定することもできます：
+まずはユーザー登録画面でadminというユーザーを追加します
 
 ```bash
 # PostgreSQLコンテナに接続
