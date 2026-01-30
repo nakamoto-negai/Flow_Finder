@@ -33,6 +33,29 @@ const LinkListPage: React.FC = () => {
     return { level: '空いている', color: '#16a34a' };
   };
 
+    // お気に入り削除のハンドラー
+  const handleRemoveFavorite = async (favoriteId: number, touristSpotId: number) => {
+    if (!window.confirm("この観光地をお気に入りから削除しますか？")) return;
+
+    try {
+      const response = await apiRequest(getApiUrl(`/favorites/tourist-spots/${touristSpotId}`), {
+        method: 'DELETE',
+      });
+
+      if (response.ok) {
+        // 成功したらローカルの状態を更新して画面から消す
+        setFavorites(prev => prev.filter(f => f.id !== favoriteId));
+        alert("お気に入りから削除しました。");
+      } else {
+        const errorData = await response.json();
+        alert(`削除に失敗しました: ${errorData.error || '不明なエラー'}`);
+      }
+    } catch (err) {
+      console.error("削除リクエストエラー:", err);
+      alert("通信エラーが発生しました。");
+    }
+  };
+
   // URLからノードIDを取得
   const getNodeIdFromUrl = (): number | null => {
     const urlParams = new URLSearchParams(window.location.search);
@@ -438,10 +461,9 @@ const LinkListPage: React.FC = () => {
                             const arrivedByNodeId = currentNode && favorite.tourist_spot.nearest_node_id && currentNode.id === favorite.tourist_spot.nearest_node_id;
                             
                             // 座標による判定（nearest_node_idがない場合のフォールバック）
-                            const arrivedByDistance = currentNode && !favorite.tourist_spot.nearest_node_id && 
-                              Math.sqrt(Math.pow(currentNode.x - favorite.tourist_spot.x, 2) + Math.pow(currentNode.y - favorite.tourist_spot.y, 2)) <= 50; // 50ピクセル以内
                             
-                            const isArrived = arrivedByNodeId || arrivedByDistance;
+                            
+                            const isArrived = arrivedByNodeId 
                             
                             console.log('到着判定デバッグ:', {
                               currentNodeId: currentNode?.id,
@@ -449,7 +471,6 @@ const LinkListPage: React.FC = () => {
                               touristSpotCoords: { x: favorite.tourist_spot.x, y: favorite.tourist_spot.y },
                               currentNodeCoords: currentNode ? { x: currentNode.x, y: currentNode.y } : null,
                               arrivedByNodeId,
-                              arrivedByDistance,
                               isArrived
                             });
                             
@@ -515,6 +536,28 @@ const LinkListPage: React.FC = () => {
                                     特典を受け取る
                                   </button>
                                 )}
+                                <button
+                                  onClick={() => handleRemoveFavorite(favorite.id, favorite.tourist_spot.id)}
+                                  style={{
+                                    background: 'white',
+                                    color: '#dc2626',
+                                    border: '2px solid #dc2626',
+                                    padding: '12px 24px',
+                                    borderRadius: '25px',
+                                    fontSize: '1rem',
+                                    fontWeight: 'bold',
+                                    cursor: 'pointer',
+                                    transition: 'all 0.2s ease'
+                                  }}
+                                  onMouseEnter={(e) => {
+                                    e.currentTarget.style.background = '#fef2f2';
+                                  }}
+                                  onMouseLeave={(e) => {
+                                    e.currentTarget.style.background = 'white';
+                                  }}
+                                >
+                                  ⭐ お気に入りを解除
+                                </button>
                               </div>
                             ) : (
                               <>
@@ -686,6 +729,28 @@ const LinkListPage: React.FC = () => {
                               🎁 特典を受け取る
                             </button>
                           )}
+                          <button
+                            onClick={() => handleRemoveFavorite(favorite.id, favorite.tourist_spot.id)}
+                            style={{
+                              background: 'white',
+                              color: '#dc2626',
+                              border: '2px solid #dc2626',
+                              padding: '12px 24px',
+                              borderRadius: '25px',
+                              fontSize: '1rem',
+                              fontWeight: 'bold',
+                              cursor: 'pointer',
+                              transition: 'all 0.2s ease'
+                            }}
+                            onMouseEnter={(e) => {
+                              e.currentTarget.style.background = '#fef2f2';
+                            }}
+                            onMouseLeave={(e) => {
+                              e.currentTarget.style.background = 'white';
+                            }}
+                          >
+                            ⭐ お気に入りを解除
+                          </button>
                         </div>
                       )}
                     </div>
