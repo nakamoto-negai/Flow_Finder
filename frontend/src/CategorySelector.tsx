@@ -13,7 +13,7 @@ interface TouristSpotCategory {
 }
 
 interface CategorySelectorProps {
-  onComplete: () => void;
+  onComplete: (selectedCategories?: string[]) => void;
 }
 
 const CategorySelector: React.FC<CategorySelectorProps> = ({ onComplete }) => {
@@ -144,6 +144,7 @@ const CategorySelector: React.FC<CategorySelectorProps> = ({ onComplete }) => {
   }, [categories]);
 
   return (
+    
     <div style={{
       minHeight: '100vh',
       background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
@@ -178,7 +179,7 @@ const CategorySelector: React.FC<CategorySelectorProps> = ({ onComplete }) => {
             そのカテゴリーの観光地をまとめてお気に入りに追加できます
           </p>
           <button
-            onClick={onComplete}
+            onClick={() => onComplete([])}
             style={{
               padding: '10px 24px',
               background: '#6b7280',
@@ -192,7 +193,18 @@ const CategorySelector: React.FC<CategorySelectorProps> = ({ onComplete }) => {
             後でスキップ →
           </button>
         </div>
-
+        <div style={{ textAlign: 'center', marginTop: 12 }}>
+            <button
+              onClick={() => {
+                
+                window.location.href = '/tutorials';
+                
+              }}
+              style={{ marginTop: 8, padding: '10px 20px', background: '#10b981', color: 'white', border: 'none', borderRadius: 8,marginBottom: '20px' }}
+            >
+              チュートリアルを見る
+            </button>
+          </div>
         {error && (
           <div style={{
             padding: '12px',
@@ -336,7 +348,9 @@ const CategorySelector: React.FC<CategorySelectorProps> = ({ onComplete }) => {
           marginTop: '40px'
         }}>
           <button
-            onClick={onComplete}
+            onClick={() => {
+              window.location.href = '/';
+            }}
             style={{
               padding: '14px 32px',
               background: '#3b82f6',
@@ -350,6 +364,8 @@ const CategorySelector: React.FC<CategorySelectorProps> = ({ onComplete }) => {
           >
             マップを見る
           </button>
+
+          
         </div>
       </div>
     </div>
