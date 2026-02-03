@@ -20,6 +20,20 @@ const LinkListPage: React.FC = () => {
   const [isLoadingLinks, setIsLoadingLinks] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
+  // ログ送信関数
+  const sendLog = async (action: string, detail: any = {}) => {
+    const userId = localStorage.getItem('user_id');
+    await apiRequest(getApiUrl('/logs'), {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        user_id: userId,
+        action,
+        ...detail
+      })
+    });
+  };
+
   // 混雑レベルの計算
   const getCongestionLevel = (current: number, max: number) => {
     if (max === 0) return { level: '不明', color: '#9ca3af' };
@@ -116,7 +130,9 @@ const LinkListPage: React.FC = () => {
   };
 
   // 指定したリンクのLinkImagePageに移動
-  const moveToLink = (linkId: number) => {
+  const moveToLink = async (linkId: number) => {
+    const userId = localStorage.getItem('user_id');
+    await sendLog('link_click', { user_id: userId, link_id: linkId });
     window.location.href = `/link-image?id=${linkId}`;
   };
 
@@ -134,9 +150,15 @@ const LinkListPage: React.FC = () => {
         const data = await response.json();
         const favoritesData = Array.isArray(data) ? data : [];
         setFavorites(favoritesData);
-        
-        // 全ての経路を自動計算
+
+        // ログ: ユーザーのお気に入り観光地一覧
         if (favoritesData.length > 0) {
+          const userId = localStorage.getItem('user_id');
+          const favoriteSpotNames = favoritesData.map(f => f.tourist_spot.name).join(', ');
+          await sendLog('favorite_list', {
+            user_id: userId,
+            favorite_spots: favoriteSpotNames
+          });
           calculateAllFavoriteRoutes(favoritesData, node);
         }
       } else if (response.status === 401) {
@@ -152,6 +174,15 @@ const LinkListPage: React.FC = () => {
     console.log(`${favoritesData.length}件のお気に入り観光地の経路を計算中...`);
     for (const favorite of favoritesData) {
       await calculateRouteToFavorite(favorite, node);
+      // ノード到着判定
+      if (node.id === favorite.tourist_spot.nearest_node_id) {
+        const userId = localStorage.getItem('user_id');
+        await sendLog('arrived', {
+          user_id: userId,
+          tourist_spot_id: favorite.tourist_spot.id,
+          node_id: node.id
+        });
+      }
     }
   };
 

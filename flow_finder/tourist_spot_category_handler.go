@@ -13,16 +13,16 @@ func RegisterTouristSpotCategoryRoutes(r *gin.Engine, db *gorm.DB) {
 	{
 		// カテゴリ一覧取得
 		categories.GET("", getTouristSpotCategoriesHandler(db))
-		
+
 		// 特定カテゴリ取得
 		categories.GET("/:id", getTouristSpotCategoryHandler(db))
-		
+
 		// カテゴリ作成（管理者のみ）
 		categories.POST("", touristSpotCategoryCreateHandler(db))
-		
+
 		// カテゴリ更新（管理者のみ）
 		categories.PUT("/:id", touristSpotCategoryUpdateHandler(db))
-		
+
 		// カテゴリ削除（管理者のみ）
 		categories.DELETE("/:id", touristSpotCategoryDeleteHandler(db))
 	}
@@ -32,7 +32,7 @@ func RegisterTouristSpotCategoryRoutes(r *gin.Engine, db *gorm.DB) {
 func getTouristSpotCategoriesHandler(db *gorm.DB) gin.HandlerFunc {
 	return func(c *gin.Context) {
 		var categories []TouristSpotCategory
-		
+
 		// アクティブなカテゴリのみを表示順序でソート
 		if err := db.Where("is_active = ?", true).
 			Order("display_order ASC, created_at ASC").
@@ -40,7 +40,7 @@ func getTouristSpotCategoriesHandler(db *gorm.DB) gin.HandlerFunc {
 			c.JSON(500, gin.H{"error": "カテゴリの取得に失敗しました"})
 			return
 		}
-		
+
 		c.JSON(200, categories)
 	}
 }
@@ -50,7 +50,7 @@ func getTouristSpotCategoryHandler(db *gorm.DB) gin.HandlerFunc {
 	return func(c *gin.Context) {
 		id := c.Param("id")
 		var category TouristSpotCategory
-		
+
 		if err := db.First(&category, id).Error; err != nil {
 			if err == gorm.ErrRecordNotFound {
 				c.JSON(404, gin.H{"error": "カテゴリが見つかりません"})
@@ -59,7 +59,7 @@ func getTouristSpotCategoryHandler(db *gorm.DB) gin.HandlerFunc {
 			}
 			return
 		}
-		
+
 		c.JSON(200, category)
 	}
 }
@@ -75,12 +75,12 @@ func touristSpotCategoryCreateHandler(db *gorm.DB) gin.HandlerFunc {
 			DisplayOrder int    `json:"display_order"`
 			IsActive     *bool  `json:"is_active"`
 		}
-		
+
 		if err := c.ShouldBindJSON(&req); err != nil {
 			c.JSON(400, gin.H{"error": "リクエストが無効です", "details": err.Error()})
 			return
 		}
-		
+
 		category := TouristSpotCategory{
 			Name:         req.Name,
 			Description:  req.Description,
@@ -89,16 +89,20 @@ func touristSpotCategoryCreateHandler(db *gorm.DB) gin.HandlerFunc {
 			DisplayOrder: req.DisplayOrder,
 			IsActive:     true, // デフォルトはアクティブ
 		}
-		
+
 		if req.IsActive != nil {
 			category.IsActive = *req.IsActive
 		}
-		
+
 		if err := db.Create(&category).Error; err != nil {
 			c.JSON(500, gin.H{"error": "カテゴリの作成に失敗しました", "details": err.Error()})
 			return
 		}
-		
+
+		// 変更履歴を記録
+		var userID *uint = nil
+		RecordChangeHistory(db, "tourist_spot_categories", strconv.Itoa(int(category.ID)), userID, "create", nil, category)
+
 		c.JSON(201, gin.H{"result": "ok", "category": category})
 	}
 }
@@ -108,12 +112,15 @@ func touristSpotCategoryUpdateHandler(db *gorm.DB) gin.HandlerFunc {
 	return func(c *gin.Context) {
 		id := c.Param("id")
 		var category TouristSpotCategory
-		
+
 		if err := db.First(&category, id).Error; err != nil {
 			c.JSON(404, gin.H{"error": "カテゴリが見つかりません"})
 			return
 		}
-		
+
+		// 変更前のデータを保存
+		beforeCategory := category
+
 		var req struct {
 			Name         *string `json:"name"`
 			Description  *string `json:"description"`
@@ -122,12 +129,12 @@ func touristSpotCategoryUpdateHandler(db *gorm.DB) gin.HandlerFunc {
 			DisplayOrder *int    `json:"display_order"`
 			IsActive     *bool   `json:"is_active"`
 		}
-		
+
 		if err := c.ShouldBindJSON(&req); err != nil {
 			c.JSON(400, gin.H{"error": "リクエストが無効です", "details": err.Error()})
 			return
 		}
-		
+
 		// 更新フィールド
 		if req.Name != nil {
 			category.Name = *req.Name
@@ -147,12 +154,16 @@ func touristSpotCategoryUpdateHandler(db *gorm.DB) gin.HandlerFunc {
 		if req.IsActive != nil {
 			category.IsActive = *req.IsActive
 		}
-		
+
 		if err := db.Save(&category).Error; err != nil {
 			c.JSON(500, gin.H{"error": "カテゴリの更新に失敗しました", "details": err.Error()})
 			return
 		}
-		
+
+		// 変更履歴を記録
+		var userID *uint = nil
+		RecordChangeHistory(db, "tourist_spot_categories", id, userID, "update", beforeCategory, category)
+
 		c.JSON(200, gin.H{"result": "ok", "category": category})
 	}
 }
@@ -166,11 +177,11 @@ func touristSpotCategoryDeleteHandler(db *gorm.DB) gin.HandlerFunc {
 			c.JSON(400, gin.H{"error": "無効なIDです"})
 			return
 		}
-		
+
 		// そのカテゴリを使用している観光地があるかチェック
 		var touristSpotCount int64
 		db.Model(&TouristSpot{}).Where("category_id = ?", categoryID).Count(&touristSpotCount)
-		
+
 		if touristSpotCount > 0 {
 			c.JSON(400, gin.H{
 				"error": "このカテゴリを使用している観光地が存在するため削除できません",
@@ -178,13 +189,21 @@ func touristSpotCategoryDeleteHandler(db *gorm.DB) gin.HandlerFunc {
 			})
 			return
 		}
-		
+
+		// 削除前のデータを取得
+		var category TouristSpotCategory
+		db.First(&category, categoryID)
+
 		// カテゴリを削除
 		if err := db.Delete(&TouristSpotCategory{}, categoryID).Error; err != nil {
 			c.JSON(500, gin.H{"error": "カテゴリの削除に失敗しました", "details": err.Error()})
 			return
 		}
-		
+
+		// 変更履歴を記録
+		var userID *uint = nil
+		RecordChangeHistory(db, "tourist_spot_categories", id, userID, "delete", category, nil)
+
 		c.JSON(200, gin.H{"result": "ok", "message": "カテゴリを削除しました"})
 	}
 }

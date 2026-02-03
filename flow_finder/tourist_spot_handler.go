@@ -152,6 +152,9 @@ func touristSpotCreateHandler(db *gorm.DB) gin.HandlerFunc {
 		}
 		LogDatabaseOperation(db, userID, sessionID, "create", "tourist_spots", strconv.Itoa(int(spot.ID)), c)
 
+		// 変更履歴を記録
+		RecordChangeHistory(db, "tourist_spots", strconv.Itoa(int(spot.ID)), userID, "create", nil, spot)
+
 		c.JSON(201, gin.H{"result": "ok", "id": spot.ID, "spot": spot})
 	}
 }
@@ -165,6 +168,9 @@ func touristSpotUpdateHandler(db *gorm.DB) gin.HandlerFunc {
 			c.JSON(404, gin.H{"error": "観光地が見つかりません"})
 			return
 		}
+
+		// 変更前のデータを保存
+		beforeSpot := spot
 
 		var req struct {
 			Name         *string  `json:"name"`
@@ -265,6 +271,9 @@ func touristSpotUpdateHandler(db *gorm.DB) gin.HandlerFunc {
 		}
 		LogDatabaseOperation(db, userID, sessionID, "update", "tourist_spots", id, c)
 
+		// 変更履歴を記録
+		RecordChangeHistory(db, "tourist_spots", id, userID, "update", beforeSpot, spot)
+
 		c.JSON(200, gin.H{"result": "ok", "spot": spot})
 	}
 }
@@ -273,6 +282,10 @@ func touristSpotUpdateHandler(db *gorm.DB) gin.HandlerFunc {
 func touristSpotDeleteHandler(db *gorm.DB) gin.HandlerFunc {
 	return func(c *gin.Context) {
 		id := c.Param("id")
+
+		// 削除前のデータを取得
+		var spot TouristSpot
+		db.First(&spot, id)
 
 		if err := db.Delete(&TouristSpot{}, id).Error; err != nil {
 			c.JSON(500, gin.H{"error": "観光地削除に失敗しました"})
@@ -286,6 +299,9 @@ func touristSpotDeleteHandler(db *gorm.DB) gin.HandlerFunc {
 			sessionID = generateHandlerSessionID()
 		}
 		LogDatabaseOperation(db, userID, sessionID, "delete", "tourist_spots", id, c)
+
+		// 変更履歴を記録
+		RecordChangeHistory(db, "tourist_spots", id, userID, "delete", spot, nil)
 
 		c.JSON(200, gin.H{"result": "ok", "message": "観光地が削除されました"})
 	}
@@ -301,9 +317,13 @@ func touristSpotVisitorHandler(db *gorm.DB) gin.HandlerFunc {
 			return
 		}
 
+		// 変更前の状態を保存
+		beforeSpot := spot
+
 		var req struct {
-			Action string `json:"action" binding:"required"` // "increment" or "decrement"
-			Count  int    `json:"count"`                     // デフォルト1
+			Action       string `json:"action"`        // "increment" or "decrement" (optional)
+			Count        int    `json:"count"`         // for increment/decrement
+			CurrentCount *int   `json:"current_count"` // for direct set
 		}
 
 		if err := c.ShouldBindJSON(&req); err != nil {
@@ -311,30 +331,47 @@ func touristSpotVisitorHandler(db *gorm.DB) gin.HandlerFunc {
 			return
 		}
 
-		if req.Count == 0 {
-			req.Count = 1
-		}
+		// 直接来場者数を設定する場合
+		if req.CurrentCount != nil {
+			if *req.CurrentCount < 0 {
+				c.JSON(400, gin.H{"error": "来場者数は0以上である必要があります"})
+				return
+			}
+			spot.CurrentCount = *req.CurrentCount
+		} else {
+			// incrementまたはdecrementの場合
+			if req.Count == 0 {
+				req.Count = 1
+			}
 
-		switch req.Action {
-		case "increment":
-			if err := spot.IncrementVisitors(req.Count); err != nil {
-				c.JSON(400, gin.H{"error": err.Error()})
+			switch req.Action {
+			case "increment":
+				if err := spot.IncrementVisitors(req.Count); err != nil {
+					c.JSON(400, gin.H{"error": err.Error()})
+					return
+				}
+			case "decrement":
+				if err := spot.DecrementVisitors(req.Count); err != nil {
+					c.JSON(400, gin.H{"error": err.Error()})
+					return
+				}
+			default:
+				c.JSON(400, gin.H{"error": "無効なアクションです。'increment' または 'decrement' を指定するか、'current_count' を指定してください"})
 				return
 			}
-		case "decrement":
-			if err := spot.DecrementVisitors(req.Count); err != nil {
-				c.JSON(400, gin.H{"error": err.Error()})
-				return
-			}
-		default:
-			c.JSON(400, gin.H{"error": "無効なアクションです。'increment' または 'decrement' を指定してください"})
-			return
 		}
 
 		if err := db.Save(&spot).Error; err != nil {
 			c.JSON(500, gin.H{"error": "来場者数の更新に失敗しました"})
 			return
 		}
+
+		// 変更履歴を記録
+		var userID *uint = nil
+		if uid, exists := GetUserIDFromContext(c); exists {
+			userID = &uid
+		}
+		RecordChangeHistory(db, "tourist_spots", strconv.Itoa(int(spot.ID)), userID, "update", beforeSpot, spot)
 
 		c.JSON(200, gin.H{
 			"result":        "ok",

@@ -8,11 +8,13 @@ import TouristSpotManager from "./TouristSpotManager";
 import TouristSpotDetail from "./TouristSpotDetail";
 import TouristSpotCategoryManager from "./TouristSpotCategoryManager";
 import CongestionManager from "./CongestionManager";
+import LogViewer from "./LogViewer";
+import ChangeHistoryViewer from "./ChangeHistoryViewer";
 import Header from "./Header";
 import "./App.css";
 
 const Admin: React.FC = () => {
-  const [currentView, setCurrentView] = useState<'fields' | 'nodes' | 'links' | 'images' | 'tourist-spots' | 'tourist-categories' | 'congestion' | 'logs' | 'tutorials'>('fields');
+  const [currentView, setCurrentView] = useState<'fields' | 'nodes' | 'links' | 'images' | 'tourist-spots' | 'tourist-categories' | 'congestion' | 'logs' | 'tutorials' | 'change-history'>('fields');
   const [selectedSpotId, setSelectedSpotId] = useState<number | null>(null);
   const [isAdmin, setIsAdmin] = useState<boolean>(false);
   const [isLoading, setIsLoading] = useState<boolean>(true);
@@ -92,7 +94,8 @@ const Admin: React.FC = () => {
             { key: 'congestion', label: '混雑度管理' },
             { key: 'images', label: '画像管理' },
             { key: 'tutorials', label: 'チュートリアル管理' },
-            { key: 'logs', label: 'ログ表示' }
+            { key: 'logs', label: 'ログ表示' },
+            { key: 'change-history', label: '変更履歴' }
           ].map(tab => (
             <button
               key={tab.key}
@@ -137,17 +140,15 @@ const Admin: React.FC = () => {
             onBack={() => setSelectedSpotId(null)}
           />
         ) : currentView === 'congestion' ? (
-          <CongestionManager onViewDetail={(spotId) => setSelectedSpotId(spotId)} />
+          <CongestionManager />
         ) : null}
         
         {currentView === 'images' && <ImageManager />}
         {currentView === 'tutorials' && <TutorialManager />}
         
-        {currentView === 'logs' && (
-          <div style={{ maxWidth: 800, margin: "0 auto" }}>
-            <p>ログ表示機能は今後実装予定です</p>
-          </div>
-        )}
+        {currentView === 'logs' && <LogViewer />}
+        
+        {currentView === 'change-history' && <ChangeHistoryViewer />}
       </div>
     </div>
   );

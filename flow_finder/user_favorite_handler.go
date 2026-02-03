@@ -134,6 +134,9 @@ func addFavoriteTouristSpotHandler(c *gin.Context, db *gorm.DB) {
 		return
 	}
 
+	// 変更履歴を記録
+	RecordChangeHistory(db, "user_favorite_tourist_spots", strconv.Itoa(int(favorite.ID)), &userID, "create", nil, favorite)
+
 	// メモや優先度を更新
 	if req.Notes != "" || req.Priority > 0 {
 		updates := make(map[string]interface{})
@@ -167,11 +170,18 @@ func removeFavoriteTouristSpotHandler(c *gin.Context, db *gorm.DB) {
 		return
 	}
 
+	// 削除前のデータを取得
+	var favorite UserFavoriteTouristSpot
+	db.Where("user_id = ? AND tourist_spot_id = ?", userID, uint(touristSpotID)).First(&favorite)
+
 	// お気に入りから削除
 	if err := RemoveFromFavorites(db, userID, uint(touristSpotID)); err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "お気に入りの削除に失敗しました"})
 		return
 	}
+
+	// 変更履歴を記録
+	RecordChangeHistory(db, "user_favorite_tourist_spots", strconv.Itoa(int(favorite.ID)), &userID, "delete", favorite, nil)
 
 	c.Status(http.StatusNoContent)
 }
@@ -417,6 +427,11 @@ func addCategoryFavoritesHandler(c *gin.Context, db *gorm.DB) {
 		if err := db.Create(&newFavorites).Error; err != nil {
 			c.JSON(http.StatusInternalServerError, gin.H{"error": "お気に入りの追加に失敗しました"})
 			return
+		}
+
+		// 各お気に入りの変更履歴を記録
+		for _, favorite := range newFavorites {
+			RecordChangeHistory(db, "user_favorite_tourist_spots", strconv.Itoa(int(favorite.ID)), &userID, "create", nil, favorite)
 		}
 	}
 

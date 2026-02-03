@@ -25,13 +25,33 @@ const LinkImagePage: React.FC = () => {
 
   useEffect(() => {
     const urlLinkId = getLinkIdFromUrl();
-    
     if (!urlLinkId) {
       setError("リンクIDが指定されていません。URLに ?id=1 のようにリンクIDを指定してください。");
       return;
     }
-    
     setLinkId(urlLinkId);
+
+    // ページビューのログ送信
+    fetch(`${API_BASE_URL}/api/logs`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        log_type: 'page_view',
+        category: 'navigation',
+        action: 'view',
+        path: window.location.pathname + window.location.search,
+        duration: 0,
+        data: JSON.stringify({ link_id: urlLinkId }),
+        referrer: document.referrer || '',
+        session_id: localStorage.getItem('session_id') || '',
+        user_id: Number(localStorage.getItem('userId')) || undefined,
+      })
+    }).then(async res => {
+      if (res.ok) {
+        const data = await res.json();
+        if (data.session_id) localStorage.setItem('session_id', data.session_id);
+      }
+    }).catch(() => {});
 
     fetch(getApiUrl("/images"))
       .then(res => res.json())
@@ -49,7 +69,7 @@ const LinkImagePage: React.FC = () => {
         console.error("Images fetch error:", err);
         setImages([]);
       });
-    
+
     // リンクの到着ノードID取得
     fetch(getApiUrl("/links"))
       .then(res => res.json())
@@ -109,8 +129,24 @@ const LinkImagePage: React.FC = () => {
                 borderRadius: 6, 
                 cursor: toNodeId ? 'pointer' : 'not-allowed' 
               }}
-              onClick={() => {
+              onClick={async () => {
                 if (toNodeId) {
+                  // アクションログ送信
+                  await fetch(`${API_BASE_URL}/api/logs`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                      log_type: 'action',
+                      category: 'navigation',
+                      action: 'arrive',
+                      path: window.location.pathname + window.location.search,
+                      duration: 0,
+                      data: JSON.stringify({ link_id: linkId, to_node_id: toNodeId }),
+                      referrer: document.referrer || '',
+                      session_id: localStorage.getItem('session_id') || '',
+                      user_id: Number(localStorage.getItem('userId')) || undefined,
+                    })
+                  });
                   window.location.href = `/links?node=${toNodeId}`;
                 }
               }}
