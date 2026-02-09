@@ -21,6 +21,7 @@ const LinkListPage: React.FC = () => {
   const [error, setError] = useState<string | null>(null);
   const [allTouristSpots, setAllTouristSpots] = useState<any[]>([]);
   const [allRoutes, setAllRoutes] = useState<{[key: number]: RouteInfo}>({});
+  const [arrivedSpots, setArrivedSpots] = useState<any[]>([]);
 
   // ログ送信関数
   const sendLog = async (action: string, detail: any = {}) => {
@@ -249,6 +250,13 @@ const LinkListPage: React.FC = () => {
           tourist_spot_id: favorite.tourist_spot.id,
           node_id: node.id
         });
+        // 到着した観光地を記録
+        setArrivedSpots(prev => {
+          if (!prev.some(s => s.id === favorite.tourist_spot.id)) {
+            return [...prev, favorite.tourist_spot];
+          }
+          return prev;
+        });
       }
     }
   };
@@ -319,6 +327,39 @@ const LinkListPage: React.FC = () => {
       <div style={{ maxWidth: 800, margin: "32px auto", background: "#fff", borderRadius: 8, boxShadow: "0 2px 8px #0001", padding: 24 }}>
         {currentNode && (
           <>
+            {/* 到着通知 */}
+            {arrivedSpots.length > 0 && (
+              <div style={{
+                marginBottom: '24px',
+                padding: '20px',
+                background: 'linear-gradient(135deg, #10b981 0%, #059669 100%)',
+                borderRadius: '12px',
+                boxShadow: '0 4px 12px rgba(16, 185, 129, 0.3)',
+                animation: 'slideIn 0.5s ease-out'
+              }}>
+               
+                <div style={{
+                  color: 'white',
+                  fontSize: '1.3rem',
+                  fontWeight: 'bold',
+                  textAlign: 'center',
+                  marginBottom: '8px'
+                }}>
+                  おめでとうございます！
+                </div>
+                {arrivedSpots.map((spot, index) => (
+                  <div key={spot.id} style={{
+                    color: 'white',
+                    fontSize: '1.1rem',
+                    textAlign: 'center',
+                    marginTop: index > 0 ? '8px' : '0'
+                  }}>
+                    「{spot.name}」に到着しました
+                  </div>
+                ))}
+              </div>
+            )}
+
             <div style={{ marginBottom: '20px', textAlign: 'center' }}>
               <h1 style={{ fontSize: "1.5rem", marginBottom: 10, color: '#1f2937' }}>
                 {currentNode.name || `ノード ${currentNode.id}`} からの経路
@@ -454,7 +495,7 @@ const LinkListPage: React.FC = () => {
             ) : (
               <div>
                 <div style={{ marginBottom: '30px', textAlign: 'center', color: '#374151' }}>
-                  🚶‍♂️ {favorites.length}件のお気に入り観光地への経路を自動計算しています...
+                  {favorites.length}件のお気に入り観光地への経路を自動計算しています...
                 </div>
 
                 {/* 全てのお気に入り観光地の経路を表示 */}

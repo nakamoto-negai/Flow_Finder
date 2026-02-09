@@ -785,7 +785,7 @@ const MapView: React.FC<{ linkMode?: boolean, onLinkCreated?: () => void, fieldI
                     e.currentTarget.style.boxShadow = '0 4px 15px rgba(78, 205, 196, 0.3)';
                   }}
                 >
-                  📍 ここを現在地に設定
+                  ここを現在地に設定
                 </button>
               </div>
             </div>
