@@ -10,12 +10,13 @@ function calcDistance(x1: number, y1: number, x2: number, y2: number) {
   return Math.round(Math.sqrt(dx * dx + dy * dy));
 }
 
-const MapView: React.FC<{ linkMode?: boolean, onLinkCreated?: () => void }> = ({ linkMode = false, onLinkCreated }) => {
+const MapView: React.FC<{ linkMode?: boolean, onLinkCreated?: () => void, fieldId?: number }> = ({ linkMode = false, onLinkCreated, fieldId }) => {
   const [nodes, setNodes] = useState<Node[]>([]);
   const [selected, setSelected] = useState<Node[]>([]); // 選択ノード
   const [linkMsg, setLinkMsg] = useState<string | null>(null);
   const [activeField, setActiveField] = useState<Field | null>(null);
   const [fields, setFields] = useState<Field[]>([]);
+  const [imageLoaded, setImageLoaded] = useState(false); // 画像の読み込み状態
   const imageRef = useRef<HTMLImageElement>(null);
 
   useEffect(() => {
@@ -25,9 +26,22 @@ const MapView: React.FC<{ linkMode?: boolean, onLinkCreated?: () => void }> = ({
       .then((data) => {
         const fieldsData = Array.isArray(data) ? data : [];
         setFields(fieldsData);
-        // アクティブなフィールドまたは最初のフィールドを設定
-        const activeFieldFromList = fieldsData.find((field: Field) => field.is_active) || fieldsData[0];
-        setActiveField(activeFieldFromList);
+        
+        // URLパラメータにfieldIdがある場合はそれを使用
+        if (fieldId) {
+          const selectedField = fieldsData.find((field: Field) => field.id === fieldId);
+          if (selectedField) {
+            setActiveField(selectedField);
+          } else {
+            // 指定されたフィールドが見つからない場合はデフォルト
+            const activeFieldFromList = fieldsData.find((field: Field) => field.is_active) || fieldsData[0];
+            setActiveField(activeFieldFromList);
+          }
+        } else {
+          // fieldIdがない場合はアクティブなフィールドまたは最初のフィールドを設定
+          const activeFieldFromList = fieldsData.find((field: Field) => field.is_active) || fieldsData[0];
+          setActiveField(activeFieldFromList);
+        }
       })
       .catch(() => {
         setFields([]);
@@ -39,17 +53,21 @@ const MapView: React.FC<{ linkMode?: boolean, onLinkCreated?: () => void }> = ({
       .then((res) => res.json())
       .then((data) => setNodes(Array.isArray(data) ? data : []))
       .catch(() => setNodes([]));
-  }, []);
+  }, [fieldId]);
 
-  // フィールド変更時の処理
+  // activeFieldが変更されたら画像の読み込み状態をリセット
+  useEffect(() => {
+    setImageLoaded(false);
+  }, [activeField]);
+
+  // フィールド変更時の処理（別ページに遷移）
   const handleFieldChange = (fieldId: number) => {
-    const selectedField = fields.find(field => field.id === fieldId);
-    if (selectedField) {
-      setActiveField(selectedField);
-      // フィールド変更時に選択状態をリセット
-      setSelected([]);
-      setLinkMsg(null);
-    }
+    window.location.href = `/map/${fieldId}`;
+  };
+
+  // 画像読み込み完了ハンドラ
+  const handleImageLoad = () => {
+    setImageLoaded(true);
   };
 
   // 写真上のクリック処理
@@ -117,45 +135,56 @@ const MapView: React.FC<{ linkMode?: boolean, onLinkCreated?: () => void }> = ({
         marginBottom: 16, 
         padding: 16, 
         background: "#f8f9fa", 
-        borderRadius: 8,
-        display: "flex",
-        gap: 16,
-        alignItems: "center",
-        flexWrap: "wrap"
+        borderRadius: 8
       }}>
         {/* フィールド選択 */}
-        <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-          <label style={{ fontWeight: 'bold', fontSize: '0.9rem' }}>フィールド:</label>
-          <select
-            value={activeField?.id || ''}
-            onChange={(e) => handleFieldChange(Number(e.target.value))}
-            style={{
-              padding: '6px 12px',
-              border: '1px solid #ddd',
-              borderRadius: '4px',
-              fontSize: '0.9rem',
-              minWidth: '150px',
-              background: 'white'
-            }}
-          >
+        <div style={{ marginBottom: 12 }}>
+          <label style={{ fontWeight: 'bold', fontSize: '1.2rem', display: 'block', marginBottom: 8 }}>フィールドを選択
+          </label>
+          <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
             {fields.map(field => (
-              <option key={field.id} value={field.id}>
-                {field.name} {field.is_active ? '(アクティブ)' : ''}
-              </option>
+              <button
+                key={field.id}
+                onClick={() => handleFieldChange(field.id)}
+                style={{
+                  padding: '8px 16px',
+                  border: activeField?.id === field.id ? '2px solid #4ecdc4' : '1px solid #ddd',
+                  borderRadius: '6px',
+                  fontSize: '0.9rem',
+                  background: activeField?.id === field.id ? '#e8f5f4' : 'white',
+                  cursor: 'pointer',
+                  fontWeight: activeField?.id === field.id ? 'bold' : 'normal',
+                  color: activeField?.id === field.id ? '#2c7a7b' : '#333',
+                  transition: 'all 0.2s ease',
+                  boxShadow: activeField?.id === field.id ? '0 2px 4px rgba(78, 205, 196, 0.3)' : 'none'
+                }}
+                onMouseEnter={(e) => {
+                  if (activeField?.id !== field.id) {
+                    e.currentTarget.style.background = '#f0f0f0';
+                  }
+                }}
+                onMouseLeave={(e) => {
+                  if (activeField?.id !== field.id) {
+                    e.currentTarget.style.background = 'white';
+                  }
+                }}
+              >
+                {field.name} {field.is_active ? '' : ''}
+              </button>
             ))}
-          </select>
+          </div>
         </div>
 
         {/* 操作説明 */}
         {!linkMode && (
           <div style={{ 
-            color: "#6c757d", 
-            fontSize: "0.9rem",
+            color: "#414242", 
+            fontSize: "0.85rem",
             display: "flex",
             alignItems: "center",
-            gap: "4px"
+            gap: "15px"
           }}>
-            ノードをクリックするとリンク一覧ページに移動します
+            現在地を選ぶと、周辺画像が表示されます
           </div>
         )}
       </div>
@@ -174,10 +203,11 @@ const MapView: React.FC<{ linkMode?: boolean, onLinkCreated?: () => void }> = ({
             cursor: "default"
           }}
           onClick={handleImageClick}
+          onLoad={handleImageLoad}
         />
         
-        {/* ノードを表示 */}
-        {nodes
+        {/* ノードを表示（画像が読み込まれてから） */}
+        {imageLoaded && nodes
           .filter(node => activeField ? node.field_id === activeField.id : true)
           .map((node) => {
             // ノードの座標を表示座標に変換
