@@ -382,7 +382,7 @@ const LinkListPage: React.FC = () => {
                 alignItems: 'center',
                 gap: '8px'
               }}>
-                進行可能なリンク
+                進行可能な経路
               </h3>
               
               {isLoadingLinks ? (
@@ -426,9 +426,8 @@ const LinkListPage: React.FC = () => {
                       
                       {/* 2. 観光地名を表示する部分（全観光地対象） */}
                       {targetSpots.length > 0 && (
-                        <div style={{ 
-                          fontSize: '12px', 
-                          color: '#3b82f6', 
+                        <div style={{
+                          fontSize: '12px',
                           fontWeight: 'bold',
                           background: '#eff6ff',
                           padding: '2px 6px',
@@ -436,7 +435,14 @@ const LinkListPage: React.FC = () => {
                           marginBottom: '4px',
                           display: 'inline-block'
                         }}>
-                          {targetSpots.map(s => s.name).join(', ')} 方面
+                          {targetSpots.map((s, i) => {
+                            const isFav = favorites.some(f => f.tourist_spot.id === s.id);
+                            return (
+                              <span key={s.id} style={{ color: isFav ? '#f59e0b' : '#3b82f6' }}>
+                                {s.name}{i < targetSpots.length - 1 && ', '}
+                              </span>
+                            );
+                          })} 方面
                         </div>
                       )}
 
