@@ -15,6 +15,7 @@ const TutorialViewer: React.FC = () => {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [currentIndex, setCurrentIndex] = useState(0);
+  const [imgSize, setImgSize] = useState<{ w: number; h: number } | null>(null);
 
   const getCategoriesFromQuery = (): string[] => {
     const params = new URLSearchParams(window.location.search);
@@ -49,8 +50,8 @@ const TutorialViewer: React.FC = () => {
     fetchAndFilter();
   }, []);
 
-  const goToPrevious = () => setCurrentIndex(i => Math.max(0, i - 1));
-  const goToNext = () => setCurrentIndex(i => Math.min(tutorials.length - 1, i + 1));
+  const goToPrevious = () => { setImgSize(null); setCurrentIndex(i => Math.max(0, i - 1)); };
+  const goToNext = () => { setImgSize(null); setCurrentIndex(i => Math.min(tutorials.length - 1, i + 1)); };
 
   if (loading) return <div style={{ minHeight: '60vh', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>読み込み中...</div>;
   if (error) return <div style={{ minHeight: '60vh', color: '#c00', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>エラー: {error}</div>;
@@ -60,13 +61,17 @@ const TutorialViewer: React.FC = () => {
 
   return (
     <div style={{ padding: 20, display: 'flex', justifyContent: 'center' }}>
-      <div style={{ width: '100%', maxWidth: 880 }}>
+      <div style={{ width: '100%', maxWidth: imgSize ? imgSize.w : 880 }}>
         <div style={{ border: '1px solid #e6e6e6', borderRadius: 8, overflow: 'hidden', background: '#fff', boxShadow: '0 6px 18px rgba(0,0,0,0.08)' }}>
-          <div style={{ width: '100%', background: '#000', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 12 }}>
+          <div style={{ width: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
             <img
               src={t.url}
               alt={t.title}
-              style={{ maxWidth: '100%', maxHeight: 480, objectFit: 'contain', background: '#ffffff' }}
+              onLoad={(e) => {
+                const img = e.currentTarget;
+                setImgSize({ w: img.naturalWidth, h: img.naturalHeight });
+              }}
+              style={{ width: '100%', height: 'auto', display: 'block' }}
             />
           </div>
 
