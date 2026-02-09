@@ -15,6 +15,8 @@ const LinkImagePage: React.FC = () => {
   const [linkId, setLinkId] = useState<number | null>(null);
   const [toNodeId, setToNodeId] = useState<number | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [fromNode, setFromNode] = useState<any | null>(null);
+  const [toNode, setToNode] = useState<any | null>(null);
 
   // URLからリンクIDを取得
   const getLinkIdFromUrl = (): number | null => {
@@ -81,7 +83,25 @@ const LinkImagePage: React.FC = () => {
           linkArray = data;
         }
         const link = linkArray.find((l: any) => l.id === urlLinkId);
-        if (link) setToNodeId(link.to_node_id);
+        if (link) {
+          setToNodeId(link.to_node_id);
+          // ノード情報を取得
+          fetch(getApiUrl("/nodes"))
+            .then(res => res.json())
+            .then((nodeData) => {
+              let nodeArray = [];
+              if (nodeData && typeof nodeData === 'object' && Array.isArray(nodeData.value)) {
+                nodeArray = nodeData.value;
+              } else if (Array.isArray(nodeData)) {
+                nodeArray = nodeData;
+              }
+              const from = nodeArray.find((n: any) => n.id === link.from_node_id);
+              const to = nodeArray.find((n: any) => n.id === link.to_node_id);
+              setFromNode(from);
+              setToNode(to);
+            })
+            .catch(err => console.error("Nodes fetch error:", err));
+        }
       })
       .catch(err => {
         console.error("Links fetch error:", err);
@@ -100,7 +120,12 @@ const LinkImagePage: React.FC = () => {
           </div>
         ) : linkId ? (
           <>
-            <h2 style={{ marginBottom: 16 }}>リンクID: {linkId} の画像</h2>
+            <h2 style={{ marginBottom: 16 }}>
+              {fromNode && toNode 
+                ? `${fromNode.name || `ノード${fromNode.id}`} → ${toNode.name || `ノード${toNode.id}`}`
+                : `リンクID: ${linkId} の画像`
+              }
+            </h2>
             
             {images.length === 0 ? (
               <div style={{ margin: "40px 0", color: "#666", fontSize: "1.1rem" }}>

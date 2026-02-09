@@ -68,8 +68,8 @@ func main() {
 		panic(fmt.Sprintf("GORM DB接続失敗: %v", err))
 	}
 
-	// GORMでテーブル自動作成（外部キー制約の依存関係順序: Field → Node → TouristSpotCategory → TouristSpot → Link → Image → Tutorial → 独立テーブル）
-	if err := db.AutoMigrate(&Field{}, &User{}, &Node{}, &TouristSpotCategory{}, &TouristSpot{}, &Link{}, &Image{}, &Tutorial{}, &UserLog{}, &UserFavoriteTouristSpot{}, &CongestionRecord{}, &ChangeHistory{}); err != nil {
+	// GORMでテーブル自動作成（外部キー制約の依存関係順序: Field → Node → TouristSpotCategory → TouristSpot → Link → Image → NodeImage → Tutorial → 独立テーブル）
+	if err := db.AutoMigrate(&Field{}, &User{}, &Node{}, &TouristSpotCategory{}, &TouristSpot{}, &Link{}, &Image{}, &NodeImage{}, &Tutorial{}, &UserLog{}, &UserFavoriteTouristSpot{}, &CongestionRecord{}, &ChangeHistory{}); err != nil {
 		panic(fmt.Sprintf("AutoMigrate失敗: %v", err))
 	}
 

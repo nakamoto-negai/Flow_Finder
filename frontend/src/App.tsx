@@ -96,6 +96,19 @@ function App() {
     return <DijkstraTestPage />;
   }
 
+  if (window.location.pathname.startsWith('/map/')) {
+    if (!token) {
+      return <Login onLogin={handleLogin} />;
+    }
+    const fieldId = parseInt(window.location.pathname.split('/map/')[1]);
+    return (
+      <>
+        <Header onLogout={handleLogout} />
+        <MapView fieldId={fieldId} />
+      </>
+    );
+  }
+
   if (window.location.pathname.startsWith('/tutorials')) {
     return <TutorialViewer />;
   }

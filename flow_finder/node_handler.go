@@ -163,4 +163,13 @@ func RegisterNodeRoutes(r *gin.Engine, db *gorm.DB, redisClient *redis.Client) {
 
 		c.JSON(200, gin.H{"result": "ok", "message": "ノードが削除されました"})
 	})
+
+	// ノードに紐づく画像一覧を取得
+	r.GET("/nodes/:id/images", getNodeImagesHandler(db))
+
+	// ノード画像をアップロード（管理者専用）
+	r.POST("/nodes/:id/images", AdminRequired(db, redisClient), uploadNodeImageHandler(db))
+
+	// ノード画像を削除（管理者専用）
+	r.DELETE("/node-images/:id", AdminRequired(db, redisClient), deleteNodeImageHandler(db))
 }

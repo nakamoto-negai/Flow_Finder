@@ -19,6 +19,9 @@ const LinkListPage: React.FC = () => {
   const [availableLinks, setAvailableLinks] = useState<any[]>([]);
   const [isLoadingLinks, setIsLoadingLinks] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [allTouristSpots, setAllTouristSpots] = useState<any[]>([]);
+  const [allRoutes, setAllRoutes] = useState<{[key: number]: RouteInfo}>({});
+  const [arrivedSpots, setArrivedSpots] = useState<any[]>([]);
 
   // ログ送信関数
   const sendLog = async (action: string, detail: any = {}) => {
@@ -101,6 +104,12 @@ const LinkListPage: React.FC = () => {
           setCurrentNode(foundNode);
           fetchFavorites(foundNode);
           fetchAvailableLinks(foundNode.id);
+          // 全観光地を取得して経路計算
+          fetchAllTouristSpots().then(spots => {
+            if (spots.length > 0) {
+              calculateAllRoutes(spots, foundNode);
+            }
+          });
         } else {
           setError(`ノードID ${nodeId} が見つかりません`);
         }
@@ -134,6 +143,65 @@ const LinkListPage: React.FC = () => {
     const userId = localStorage.getItem('user_id');
     await sendLog('link_click', { user_id: userId, link_id: linkId });
     window.location.href = `/link-image?id=${linkId}`;
+  };
+
+  // 全観光地データを取得
+  const fetchAllTouristSpots = async () => {
+    try {
+      const response = await fetch(getApiUrl('/tourist-spots'));
+      if (response.ok) {
+        const data = await response.json();
+        const spotsArray = Array.isArray(data) ? data : [];
+        setAllTouristSpots(spotsArray);
+        return spotsArray;
+      }
+    } catch (err) {
+      console.error('全観光地の取得に失敗:', err);
+    }
+    return [];
+  };
+
+  // 全観光地への経路を計算
+  const calculateAllRoutes = async (spots: any[], node: any) => {
+    console.log(`${spots.length}件の観光地への経路を計算中...`);
+    for (const spot of spots) {
+      if (spot.nearest_node_id) {
+        await calculateRouteToSpot(spot, node);
+      }
+    }
+  };
+
+  // 観光地への経路を計算（汎用）
+  const calculateRouteToSpot = async (spot: any, node: any) => {
+    if (!spot.nearest_node_id) return;
+
+    try {
+      const response = await fetch(getApiUrl('/dijkstra'), {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          start_node_id: node.id,
+          end_node_id: spot.nearest_node_id
+        })
+      });
+
+      if (response.ok) {
+        const data = await response.json();
+        if (data.path && Array.isArray(data.path)) {
+          setAllRoutes(prev => ({
+            ...prev,
+            [spot.id]: {
+              path: data.path,
+              total_distance: data.total_distance,
+              node_count: data.node_count,
+              estimated_time: data.total_distance / 80
+            }
+          }));
+        }
+      }
+    } catch (err: any) {
+      console.error(`経路計算エラー (${spot.name}):`, err.message);
+    }
   };
 
   // お気に入り観光地データを取得
@@ -181,6 +249,13 @@ const LinkListPage: React.FC = () => {
           user_id: userId,
           tourist_spot_id: favorite.tourist_spot.id,
           node_id: node.id
+        });
+        // 到着した観光地を記録
+        setArrivedSpots(prev => {
+          if (!prev.some(s => s.id === favorite.tourist_spot.id)) {
+            return [...prev, favorite.tourist_spot];
+          }
+          return prev;
         });
       }
     }
@@ -252,9 +327,42 @@ const LinkListPage: React.FC = () => {
       <div style={{ maxWidth: 800, margin: "32px auto", background: "#fff", borderRadius: 8, boxShadow: "0 2px 8px #0001", padding: 24 }}>
         {currentNode && (
           <>
+            {/* 到着通知 */}
+            {arrivedSpots.length > 0 && (
+              <div style={{
+                marginBottom: '24px',
+                padding: '20px',
+                background: 'linear-gradient(135deg, #10b981 0%, #059669 100%)',
+                borderRadius: '12px',
+                boxShadow: '0 4px 12px rgba(16, 185, 129, 0.3)',
+                animation: 'slideIn 0.5s ease-out'
+              }}>
+               
+                <div style={{
+                  color: 'white',
+                  fontSize: '1.3rem',
+                  fontWeight: 'bold',
+                  textAlign: 'center',
+                  marginBottom: '8px'
+                }}>
+                  おめでとうございます！
+                </div>
+                {arrivedSpots.map((spot, index) => (
+                  <div key={spot.id} style={{
+                    color: 'white',
+                    fontSize: '1.1rem',
+                    textAlign: 'center',
+                    marginTop: index > 0 ? '8px' : '0'
+                  }}>
+                    「{spot.name}」に到着しました
+                  </div>
+                ))}
+              </div>
+            )}
+
             <div style={{ marginBottom: '20px', textAlign: 'center' }}>
               <h1 style={{ fontSize: "1.5rem", marginBottom: 10, color: '#1f2937' }}>
-                お気に入り観光地への経路
+                {currentNode.name || `ノード ${currentNode.id}`} からの経路
               </h1>
             </div>
 
@@ -289,8 +397,14 @@ const LinkListPage: React.FC = () => {
                 }}>
                   {availableLinks.map((linkInfo: any, index: number) => {
                 
-                // 1. ここで「次の一歩」が一致する観光地を探す
-                const targetSpots = favorites.filter(favorite => {
+                // 1. ここで「次の一歩」が一致する観光地を探す（全観光地対象）
+                const targetSpots = allTouristSpots.filter(spot => {
+                  const route = allRoutes[spot.id];
+                  return route && route.path && route.path.length > 1 && route.path[1].id === linkInfo.to_node.id;
+                });
+
+                // お気に入りの観光地のうち、このリンク方向に進むもの
+                const favoriteSpotsInDirection = favorites.filter(favorite => {
                   const route = favoriteRoutes[favorite.id];
                   return route && route.path && route.path.length > 1 && route.path[1].id === linkInfo.to_node.id;
                 });
@@ -300,7 +414,7 @@ const LinkListPage: React.FC = () => {
                     background: 'white',
                     padding: '15px',
                     borderRadius: '8px',
-                    border: targetSpots.length > 0 ? '2px solid #3b82f6' : '1px solid #e0f2fe',
+                    border: favoriteSpotsInDirection.length > 0 ? '2px solid #3b82f6' : '1px solid #e0f2fe',
                     display: 'flex',
                     justifyContent: 'space-between',
                     alignItems: 'center'
@@ -310,7 +424,7 @@ const LinkListPage: React.FC = () => {
                         → {linkInfo.to_node.name || `ノード${linkInfo.to_node.id}`}
                       </div>
                       
-                      {/* 2. 観光地名を表示する部分を追加 */}
+                      {/* 2. 観光地名を表示する部分（全観光地対象） */}
                       {targetSpots.length > 0 && (
                         <div style={{ 
                           fontSize: '12px', 
@@ -322,7 +436,7 @@ const LinkListPage: React.FC = () => {
                           marginBottom: '4px',
                           display: 'inline-block'
                         }}>
-                          {targetSpots.map(s => s.tourist_spot.name).join(', ')} 方面
+                          {targetSpots.map(s => s.name).join(', ')} 方面
                         </div>
                       )}
 
@@ -333,7 +447,7 @@ const LinkListPage: React.FC = () => {
                     <button
                       onClick={() => moveToLink(linkInfo.link.id)}
                       style={{
-                        background: targetSpots.length > 0 ? '#e923e9' : '#3b82f6',
+                        background: favoriteSpotsInDirection.length > 0 ? '#e923e9' : '#3b82f6',
                         color: 'white',
                         border: 'none',
                         padding: '8px 16px',
@@ -381,7 +495,7 @@ const LinkListPage: React.FC = () => {
             ) : (
               <div>
                 <div style={{ marginBottom: '30px', textAlign: 'center', color: '#374151' }}>
-                  🚶‍♂️ {favorites.length}件のお気に入り観光地への経路を自動計算しています...
+                  {favorites.length}件のお気に入り観光地への経路を自動計算しています...
                 </div>
 
                 {/* 全てのお気に入り観光地の経路を表示 */}
