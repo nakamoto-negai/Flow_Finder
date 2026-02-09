@@ -494,7 +494,7 @@ const MapView: React.FC<{ linkMode?: boolean, onLinkCreated?: () => void, fieldI
             {/* カード内容 */}
             <div style={{ padding: '32px' }}>
               <h2 style={{ 
-                margin: '0 0 24px 0', 
+                margin: '0 0 12px 0', 
                 fontSize: '1.8rem', 
                 color: '#1f2937',
                 textAlign: 'center',
@@ -502,6 +502,14 @@ const MapView: React.FC<{ linkMode?: boolean, onLinkCreated?: () => void, fieldI
               }}>
                 {selectedNodeForCard.name || `ノード ${selectedNodeForCard.id}`}
               </h2>
+              <p style={{
+                margin: '0 0 12px 0',
+                textAlign: 'center',
+                color: '#6b7280',
+                fontSize: '0.9rem'
+              }}>
+                横にスワイプすることで周囲を確認できます
+              </p>
 
               {/* 画像表示エリア */}
               {loadingImages ? (
@@ -729,11 +737,11 @@ const MapView: React.FC<{ linkMode?: boolean, onLinkCreated?: () => void, fieldI
                     {/* 画像情報 */}
                     <div style={{
                       position: 'absolute',
-                      top: '16px',
-                      left: '16px',
+                      top: '12px',
+                      left: '12px',
                       background: 'rgba(0, 0, 0, 0.6)',
                       color: 'white',
-                      padding: '8px 16px',
+                      padding: '8px 12px',
                       borderRadius: '8px',
                       fontSize: '14px'
                     }}>
