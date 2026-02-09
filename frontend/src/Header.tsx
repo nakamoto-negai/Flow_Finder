@@ -12,7 +12,7 @@ const Header: React.FC<HeaderProps> = ({
 
   return (
     <header style={{
-      background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
+      background: 'linear-gradient(135deg, #EA6D8D 0%, #EA6D8D 100%)',
       color: 'white',
       padding: '12px 24px',
       boxShadow: '0 2px 8px rgba(0,0,0,0.1)',

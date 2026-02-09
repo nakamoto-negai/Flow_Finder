@@ -3,6 +3,7 @@ import FieldManager from "./FieldManager";
 import NodeManager from "./NodeManager";
 import LinkManager from "./LinkManager";
 import ImageManager from "./ImageManager";
+import NodeImageManager from "./NodeImageManager";
 import TutorialManager from './TutorialManager';
 import TouristSpotManager from "./TouristSpotManager";
 import TouristSpotDetail from "./TouristSpotDetail";
@@ -14,7 +15,7 @@ import Header from "./Header";
 import "./App.css";
 
 const Admin: React.FC = () => {
-  const [currentView, setCurrentView] = useState<'fields' | 'nodes' | 'links' | 'images' | 'tourist-spots' | 'tourist-categories' | 'congestion' | 'logs' | 'tutorials' | 'change-history'>('fields');
+  const [currentView, setCurrentView] = useState<'fields' | 'nodes' | 'links' | 'images' | 'node-images' | 'tourist-spots' | 'tourist-categories' | 'congestion' | 'logs' | 'tutorials' | 'change-history'>('fields');
   const [selectedSpotId, setSelectedSpotId] = useState<number | null>(null);
   const [isAdmin, setIsAdmin] = useState<boolean>(false);
   const [isLoading, setIsLoading] = useState<boolean>(true);
@@ -93,6 +94,7 @@ const Admin: React.FC = () => {
             { key: 'tourist-categories', label: 'カテゴリー管理' },
             { key: 'congestion', label: '混雑度管理' },
             { key: 'images', label: '画像管理' },
+            { key: 'node-images', label: 'ノード画像管理' },
             { key: 'tutorials', label: 'チュートリアル管理' },
             { key: 'logs', label: 'ログ表示' },
             { key: 'change-history', label: '変更履歴' }
@@ -144,6 +146,7 @@ const Admin: React.FC = () => {
         ) : null}
         
         {currentView === 'images' && <ImageManager />}
+        {currentView === 'node-images' && <NodeImageManager />}
         {currentView === 'tutorials' && <TutorialManager />}
         
         {currentView === 'logs' && <LogViewer />}
