@@ -36,6 +36,7 @@ const MapView: React.FC<{ linkMode?: boolean, onLinkCreated?: () => void, fieldI
   const [isDragging, setIsDragging] = useState(false);
   const [dragStart, setDragStart] = useState({ x: 0, y: 0 });
   const imageViewerRef = useRef<HTMLDivElement>(null);
+  const [touristSpots, setTouristSpots] = useState<any[]>([]);
 
   useEffect(() => {
     // 全フィールドを取得
@@ -71,6 +72,12 @@ const MapView: React.FC<{ linkMode?: boolean, onLinkCreated?: () => void, fieldI
       .then((res) => res.json())
       .then((data) => setNodes(Array.isArray(data) ? data : []))
       .catch(() => setNodes([]));
+
+    // 観光地データを取得
+    fetch(getApiUrl("/tourist-spots"))
+      .then((res) => res.json())
+      .then((data) => setTouristSpots(Array.isArray(data) ? data : []))
+      .catch(() => setTouristSpots([]));
   }, [fieldId]);
 
   // activeFieldが変更されたら画像の読み込み状態をリセット
@@ -103,7 +110,7 @@ const MapView: React.FC<{ linkMode?: boolean, onLinkCreated?: () => void, fieldI
       const nodeDisplayX = activeField ? (node.x * img.offsetWidth) / activeField.width : node.x;
       const nodeDisplayY = activeField ? (node.y * img.offsetHeight) / activeField.height : node.y;
       const distance = Math.sqrt((nodeDisplayX - displayX) ** 2 + (nodeDisplayY - displayY) ** 2);
-      return distance < 15; // 15ピクセル以内
+      return distance < 18; // 18ピクセル以内
     });
 
     if (clickedNode) {
@@ -356,16 +363,19 @@ const MapView: React.FC<{ linkMode?: boolean, onLinkCreated?: () => void, fieldI
               ? (node.y * imageRef.current.offsetHeight) / activeField.height
               : node.y;
 
+            // このノードに観光地が配置されているかチェック
+            const hasTouristSpot = touristSpots.some(spot => spot.nearest_node_id === node.id);
+
             return (
               <div
                 key={node.id}
                 style={{
                   position: "absolute",
-                  left: displayX - 10,
-                  top: displayY - 10,
-                  width: 20,
-                  height: 20,
-                  backgroundColor: selected.some(s => s.id === node.id) ? "#ff6b6b" : "#4ecdc4",
+                  left: displayX - 12,
+                  top: displayY - 12,
+                  width: 24,
+                  height: 24,
+                  backgroundColor: selected.some(s => s.id === node.id) ? "#ff6b6b" : (hasTouristSpot ? "#f59e0b" : "#4ecdc4"),
                   border: "2px solid white",
                   borderRadius: "50%",
                   cursor: "pointer",
