@@ -23,6 +23,7 @@ type TouristSpot struct {
 	Y               float64              `json:"y"`                                                                           // Y座標
 	MaxCapacity     int                  `gorm:"not null;default:0" json:"max_capacity"`                                      // 許容人数
 	CurrentCount    int                  `gorm:"default:0" json:"current_count"`                                              // 現在の人数
+	WaitTime        int                  `gorm:"default:0" json:"wait_time"`                                                  // 待ち時間（分）
 	IsOpen          bool                 `gorm:"default:true" json:"is_open"`                                                 // 営業中かどうか
 	OpeningTime     string               `json:"opening_time"`                                                                // 開場時間 (例: "09:00")
 	ClosingTime     string               `json:"closing_time"`                                                                // 閉場時間 (例: "18:00")

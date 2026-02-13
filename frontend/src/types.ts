@@ -42,6 +42,7 @@ export interface TouristSpot {
   y: number;
   max_capacity: number;
   current_count: number;
+  wait_time: number;
   is_open: boolean;
   opening_time: string;
   closing_time: string;
