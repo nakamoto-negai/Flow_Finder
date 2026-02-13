@@ -394,7 +394,7 @@ const LinkListPage: React.FC = () => {
                           background: spot.wait_time > 30 ? '#fee2e2' : (spot.wait_time > 10 ? '#fef3c7' : '#dcfce7'),
                           color: spot.wait_time > 30 ? '#dc2626' : (spot.wait_time > 10 ? '#b45309' : '#16a34a')
                         }}>
-                          待ち {spot.wait_time}分
+                          待ち時間: {spot.wait_time}分
                         </span>
                         {/* 混雑度 */}
                         <span style={{
@@ -406,7 +406,7 @@ const LinkListPage: React.FC = () => {
                           color: congestion.color,
                           border: `1px solid ${congestion.color}`
                         }}>
-                          {spot.max_capacity > 0 ? `${Math.round((spot.current_count / spot.max_capacity) * 100)}%` : '---'}
+                          混雑度: {spot.max_capacity > 0 ? `${Math.round((spot.current_count / spot.max_capacity) * 100)}%` : '---'}
                         </span>
                         {/* 距離 */}
                         <span style={{
@@ -417,7 +417,7 @@ const LinkListPage: React.FC = () => {
                           background: '#eff6ff',
                           color: '#1e40af'
                         }}>
-                          {route ? `${route.total_distance.toFixed(0)}m` : '計算中...'}
+                          移動距離: {route ? `${route.total_distance.toFixed(0)}m` : '計算中...'}
                         </span>
                         {/* 所要時間 */}
                         <span style={{
@@ -428,7 +428,7 @@ const LinkListPage: React.FC = () => {
                           background: '#f3e8ff',
                           color: '#7c3aed'
                         }}>
-                          {route ? `約${Math.ceil(route.estimated_time || 0)}分` : '---'}
+                          所要時間: {route ? `約${Math.ceil(route.estimated_time || 0)}分` : '---'}
                         </span>
                       </div>
                     </div>
