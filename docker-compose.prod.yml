@@ -1,8 +1,31 @@
 services:
+  apache:
+    image: httpd:2.4
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - ./apache/app.conf:/usr/local/apache2/conf/extra/app.conf
+      - ./ssl/server.crt:/etc/ssl/certs/server.crt
+      - ./ssl/server.key:/etc/ssl/private/server.key
+    depends_on:
+      - app
+      - frontend
+    restart: unless-stopped
+    command: >
+      sh -c "
+        sed -i 's/#Include conf\/extra\/httpd-ssl.conf/Include conf\/extra\/httpd-ssl.conf/' /usr/local/apache2/conf/httpd.conf &&
+        sed -i 's/#LoadModule ssl_module/LoadModule ssl_module/' /usr/local/apache2/conf/httpd.conf &&
+        sed -i 's/#LoadModule rewrite_module/LoadModule rewrite_module/' /usr/local/apache2/conf/httpd.conf &&
+        sed -i 's/#LoadModule proxy_module/LoadModule proxy_module/' /usr/local/apache2/conf/httpd.conf &&
+        sed -i 's/#LoadModule proxy_http_module/LoadModule proxy_http_module/' /usr/local/apache2/conf/httpd.conf &&
+        echo 'Include conf/extra/app.conf' >> /usr/local/apache2/conf/httpd.conf &&
+        httpd-foreground
+      "
   app:
     build: .
-    ports:
-      - "8080:8080"
+    expose:
+      - "8080"
     depends_on:
       db:
         condition: service_healthy
@@ -12,21 +35,21 @@ services:
       - DB_USER=postgres
       - DB_PASSWORD=postgres
       - DB_NAME=postgres
-      - GIN_MODE=release  # 本番用リリースモード
+      - GIN_MODE=release
       - REDIS_ADDR=redis:6379
     volumes:
       - ./flow_finder/uploads:/app/uploads
-    restart: unless-stopped  # 本番用: 自動再起動
+    restart: unless-stopped
   frontend:
     build:
       context: ./frontend
       args:
-        - VITE_API_BASE_URL=${VITE_API_BASE_URL:-http://localhost:8080}
-    ports:
-      - "5173:80"
+        - VITE_API_BASE_URL=${VITE_API_BASE_URL:-https://localhost}
+    expose:
+      - "80"
     depends_on:
       - app
-    restart: unless-stopped  # 本番用: 自動再起動
+    restart: unless-stopped
   db:
     image: postgres:16
     restart: always
