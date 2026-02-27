@@ -6,8 +6,8 @@ services:
       - "443:443"
     volumes:
       - ./apache/app.conf:/usr/local/apache2/conf/extra/app.conf
-      - /etc/letsencrypt/live/ocnavi.cc.it-hiroshima.ac.jp/fullchain.pem:/etc/ssl/certs/server.crt:ro
-      - /etc/letsencrypt/live/ocnavi.cc.it-hiroshima.ac.jp/privkey.pem:/etc/ssl/private/server.key:ro
+      - /etc/letsencrypt/live/oc-routenavi.cc.it-hiroshima.ac.jp/fullchain.pem:/etc/ssl/certs/server.crt:ro
+      - /etc/letsencrypt/live/oc-routenavi.cc.it-hiroshima.ac.jp/privkey.pem:/etc/ssl/private/server.key:ro
     depends_on:
       - app
       - frontend
@@ -44,7 +44,7 @@ services:
     build:
       context: ./frontend
       args:
-        - VITE_API_BASE_URL=${VITE_API_BASE_URL:-https://ocnavi.cc.it-hiroshima.ac.jp}
+        - VITE_API_BASE_URL=${VITE_API_BASE_URL:-https://oc-routenavi.cc.it-hiroshima.ac.jp}
     expose:
       - "80"
     depends_on:
