@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { getApiUrl, API_BASE_URL, STATIC_BASE_URL } from './config';
+import { getApiUrl, STATIC_BASE_URL } from './config';
 import { getAuthHeaders, getAuthHeadersForFormData } from './api';
 
 interface TouristSpot {
