@@ -11,7 +11,7 @@ import (
 // リンク関連のルートを登録
 func RegisterLinkRoutes(r *gin.Engine, db *gorm.DB, redisClient *redis.Client) {
 	// Link追加（管理者専用）
-	r.POST("/links", AdminRequired(db, redisClient), func(c *gin.Context) {
+	r.POST("/api/links", AdminRequired(db, redisClient), func(c *gin.Context) {
 		var req struct {
 			FromNodeID uint    `json:"from_node_id"`
 			ToNodeID   uint    `json:"to_node_id"`
@@ -48,7 +48,7 @@ func RegisterLinkRoutes(r *gin.Engine, db *gorm.DB, redisClient *redis.Client) {
 	})
 
 	// Link一覧取得
-	r.GET("/links", func(c *gin.Context) {
+	r.GET("/api/links", func(c *gin.Context) {
 		var links []Link
 		if err := db.Find(&links).Error; err != nil {
 			c.JSON(500, gin.H{"error": "DB select error"})
@@ -58,7 +58,7 @@ func RegisterLinkRoutes(r *gin.Engine, db *gorm.DB, redisClient *redis.Client) {
 	})
 
 	// Link詳細取得
-	r.GET("/links/:id", func(c *gin.Context) {
+	r.GET("/api/links/:id", func(c *gin.Context) {
 		id := c.Param("id")
 		var link Link
 		if err := db.First(&link, id).Error; err != nil {
@@ -82,7 +82,7 @@ func RegisterLinkRoutes(r *gin.Engine, db *gorm.DB, redisClient *redis.Client) {
 	})
 
 	// Link更新（管理者専用）
-	r.PUT("/links/:id", AdminRequired(db, redisClient), func(c *gin.Context) {
+	r.PUT("/api/links/:id", AdminRequired(db, redisClient), func(c *gin.Context) {
 		id := c.Param("id")
 		var link Link
 		if err := db.First(&link, id).Error; err != nil {
@@ -167,7 +167,7 @@ func RegisterLinkRoutes(r *gin.Engine, db *gorm.DB, redisClient *redis.Client) {
 	})
 
 	// Link削除（管理者専用）
-	r.DELETE("/links/:id", AdminRequired(db, redisClient), func(c *gin.Context) {
+	r.DELETE("/api/links/:id", AdminRequired(db, redisClient), func(c *gin.Context) {
 		id := c.Param("id")
 
 		// 削除前のデータを取得

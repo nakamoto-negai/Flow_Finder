@@ -12,7 +12,7 @@ import (
 // 観光地関連のルートを登録
 func RegisterTouristSpotRoutes(r *gin.Engine, db *gorm.DB, redisClient *redis.Client) {
 	// 観光地一覧取得
-	r.GET("/tourist-spots", func(c *gin.Context) {
+	r.GET("/api/tourist-spots", func(c *gin.Context) {
 		var spots []TouristSpot
 		query := db.Model(&TouristSpot{}).Preload("TouristCategory") // カテゴリ情報をプリロード
 
@@ -47,7 +47,7 @@ func RegisterTouristSpotRoutes(r *gin.Engine, db *gorm.DB, redisClient *redis.Cl
 	})
 
 	// 観光地詳細取得
-	r.GET("/tourist-spots/:id", func(c *gin.Context) {
+	r.GET("/api/tourist-spots/:id", func(c *gin.Context) {
 		id := c.Param("id")
 		var spot TouristSpot
 		if err := db.Preload("Node").Preload("TouristCategory").First(&spot, id).Error; err != nil {
@@ -58,21 +58,21 @@ func RegisterTouristSpotRoutes(r *gin.Engine, db *gorm.DB, redisClient *redis.Cl
 	})
 
 	// 観光地作成（管理者専用）
-	r.POST("/tourist-spots", AdminRequired(db, redisClient), touristSpotCreateHandler(db))
+	r.POST("/api/tourist-spots", AdminRequired(db, redisClient), touristSpotCreateHandler(db))
 
 	// 観光地更新（管理者専用）
-	r.PUT("/tourist-spots/:id", AdminRequired(db, redisClient), touristSpotUpdateHandler(db))
+	r.PUT("/api/tourist-spots/:id", AdminRequired(db, redisClient), touristSpotUpdateHandler(db))
 
 	// 観光地削除（管理者専用）
-	r.DELETE("/tourist-spots/:id", AdminRequired(db, redisClient), touristSpotDeleteHandler(db))
+	r.DELETE("/api/tourist-spots/:id", AdminRequired(db, redisClient), touristSpotDeleteHandler(db))
 
 	// 観光地の来場者数管理
-	r.POST("/tourist-spots/:id/visitors", touristSpotVisitorHandler(db))
+	r.POST("/api/tourist-spots/:id/visitors", touristSpotVisitorHandler(db))
 
 	// 観光地の混雑状況取得
-	r.GET("/tourist-spots/:id/congestion", touristSpotCongestionHandler(db))
+	r.GET("/api/tourist-spots/:id/congestion", touristSpotCongestionHandler(db))
 	// 管理者が混雑レベルを記録する（時刻付き保存）
-	r.POST("/tourist-spots/:id/congestion", AdminRequired(db, redisClient), touristSpotSetCongestionHandler(db))
+	r.POST("/api/tourist-spots/:id/congestion", AdminRequired(db, redisClient), touristSpotSetCongestionHandler(db))
 }
 
 // 観光地作成ハンドラ

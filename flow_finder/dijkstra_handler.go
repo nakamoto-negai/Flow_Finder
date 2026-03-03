@@ -10,19 +10,19 @@ import (
 // Dijkstra関連のルートを登録
 func RegisterDijkstraRoutes(r *gin.Engine, db *gorm.DB) {
 	// 最短経路計算
-	r.POST("/dijkstra", dijkstraCalculationHandler(db))
+	r.POST("/api/dijkstra", dijkstraCalculationHandler(db))
 
 	// 観光地間の最短経路
-	r.POST("/tourist-spots/route", touristSpotRouteHandler(db))
+	r.POST("/api/tourist-spots/route", touristSpotRouteHandler(db))
 
 	// 進行可能なリンク一覧取得
-	r.GET("/nodes/:id/available-links", availableLinksHandler(db))
+	r.GET("/api/nodes/:id/available-links", availableLinksHandler(db))
 
 	// デバッグ用：グラフ構造表示
-	r.GET("/debug/graph", debugGraphHandler(db))
+	r.GET("/api/debug/graph", debugGraphHandler(db))
 
 	// デバッグ用：ノード間の距離計算
-	r.POST("/debug/distance", debugDistanceHandler(db))
+	r.POST("/api/debug/distance", debugDistanceHandler(db))
 }
 
 // Dijkstra最短経路計算ハンドラ
