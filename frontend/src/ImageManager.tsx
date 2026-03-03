@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { getApiUrl, API_BASE_URL } from './config';
+import { getApiUrl, API_BASE_URL, STATIC_BASE_URL } from './config';
 import { getAuthHeaders } from './api';
 
 interface Image {
@@ -293,7 +293,7 @@ const ImageManager: React.FC = () => {
                 {/* 画像プレビュー */}
                 <div style={{ flexShrink: 0 }}>
                   <img
-                    src={`${API_BASE_URL}${image.file_path}`}
+                    src={`${STATIC_BASE_URL}${image.file_path}`}
                     alt={image.original_name}
                     style={{
                       width: '100px',

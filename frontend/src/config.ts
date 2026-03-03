@@ -1,5 +1,8 @@
 // API設定
-export const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:8080';
+export const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:8080/api';
+
+// 静的ファイル（画像など）のベースURL（/apiなし）
+export const STATIC_BASE_URL = API_BASE_URL.replace(/\/api$/, '');
 
 // APIエンドポイントのヘルパー関数
 export const getApiUrl = (endpoint: string): string => {

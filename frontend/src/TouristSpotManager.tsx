@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { getApiUrl, API_BASE_URL } from './config';
+import { getApiUrl, API_BASE_URL, STATIC_BASE_URL } from './config';
 import { getAuthHeaders, getAuthHeadersForFormData } from './api';
 
 interface TouristSpot {
@@ -276,7 +276,7 @@ const TouristSpotManager: React.FC = () => {
       const data = await response.json();
       const imageUrl = data.image_url || data.url;
       // 相対パスを絶対URLに変換
-      return imageUrl.startsWith('http') ? imageUrl : `${API_BASE_URL}${imageUrl}`;
+      return imageUrl.startsWith('http') ? imageUrl : `${STATIC_BASE_URL}${imageUrl}`;
     } catch (err: any) {
       setError(err.message);
       return null;
