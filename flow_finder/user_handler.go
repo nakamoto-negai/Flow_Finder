@@ -10,7 +10,7 @@ import (
 // ユーザー関連のルートを登録
 func RegisterUserRoutes(r *gin.Engine, db *gorm.DB) {
 	// ユーザー追加
-	r.POST("/users", func(c *gin.Context) {
+	r.POST("/api/users", func(c *gin.Context) {
 		var req struct {
 			Name string `json:"name"`
 		}
@@ -44,7 +44,7 @@ func RegisterUserRoutes(r *gin.Engine, db *gorm.DB) {
 	})
 
 	// ユーザー一覧取得
-	r.GET("/users", func(c *gin.Context) {
+	r.GET("/api/users", func(c *gin.Context) {
 		var users []User
 		if err := db.Find(&users).Error; err != nil {
 			c.JSON(500, gin.H{"error": "DB select error"})
