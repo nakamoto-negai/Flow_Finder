@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { getApiUrl, API_BASE_URL } from './config';
+import { getApiUrl, STATIC_BASE_URL } from './config';
 import { getAuthHeaders, getAuthHeadersForFormData } from './api';
 
 interface Field {
@@ -269,7 +269,7 @@ const FieldManager: React.FC = () => {
           >
             <div style={{ position: 'relative', marginBottom: '10px' }}>
               <img
-                src={`${API_BASE_URL}${field.image_url}`}
+                src={`${STATIC_BASE_URL}${field.image_url}`}
                 alt={field.name}
                 style={{ width: '100%', height: '150px', objectFit: 'cover', borderRadius: '4px' }}
               />

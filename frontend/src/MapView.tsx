@@ -1,6 +1,6 @@
 
 import React, { useState, useEffect, useRef } from 'react';
-import { getApiUrl, API_BASE_URL } from './config';
+import { getApiUrl, STATIC_BASE_URL } from './config';
 import type { Field, Node } from './types';
 
 interface NodeImage {
@@ -338,7 +338,7 @@ const MapView: React.FC<{ linkMode?: boolean, onLinkCreated?: () => void, fieldI
       <div style={{ position: "relative", border: "2px solid #dee2e6", borderRadius: 8, overflow: "hidden" }}>
         <img
           ref={imageRef}
-          src={activeField ? `${API_BASE_URL}${activeField.image_url}` : "/map-image.jpg"}
+          src={activeField ? `${STATIC_BASE_URL}${activeField.image_url}` : "/map-image.jpg"}
           alt={activeField ? activeField.name : "マップ画像"}
           style={{ 
             width: "100%", 
@@ -547,7 +547,7 @@ const MapView: React.FC<{ linkMode?: boolean, onLinkCreated?: () => void, fieldI
                     onTouchEnd={handleTouchEnd}
                   >
                     <img 
-                      src={`${API_BASE_URL}${nodeImages[currentImageIndex].url}`}
+                      src={`${STATIC_BASE_URL}${nodeImages[currentImageIndex].url}`}
                       alt={nodeImages[currentImageIndex].original_name}
                       style={{
                         width: 'auto',
