@@ -17,7 +17,7 @@ import (
 // フィールド関連のルートを登録
 func RegisterFieldRoutes(r *gin.Engine, db *gorm.DB, redisClient *redis.Client) {
 	// フィールド一覧取得
-	r.GET("/fields", func(c *gin.Context) {
+	r.GET("/api/fields", func(c *gin.Context) {
 		var fields []Field
 		if err := db.Find(&fields).Error; err != nil {
 			c.JSON(500, gin.H{"error": "フィールド取得に失敗しました"})
@@ -27,7 +27,7 @@ func RegisterFieldRoutes(r *gin.Engine, db *gorm.DB, redisClient *redis.Client) 
 	})
 
 	// アクティブなフィールド取得
-	r.GET("/fields/active", func(c *gin.Context) {
+	r.GET("/api/fields/active", func(c *gin.Context) {
 		field, err := GetActiveField(db)
 		if err != nil {
 			c.JSON(404, gin.H{"error": "アクティブなフィールドが見つかりません"})
@@ -37,7 +37,7 @@ func RegisterFieldRoutes(r *gin.Engine, db *gorm.DB, redisClient *redis.Client) 
 	})
 
 	// フィールド詳細取得
-	r.GET("/fields/:id", func(c *gin.Context) {
+	r.GET("/api/fields/:id", func(c *gin.Context) {
 		id := c.Param("id")
 		var field Field
 		if err := db.First(&field, id).Error; err != nil {
@@ -48,13 +48,13 @@ func RegisterFieldRoutes(r *gin.Engine, db *gorm.DB, redisClient *redis.Client) 
 	})
 
 	// フィールド作成（画像アップロード付き）（管理者専用）
-	r.POST("/fields", AdminRequired(db, redisClient), fieldCreateHandler(db))
+	r.POST("/api/fields", AdminRequired(db, redisClient), fieldCreateHandler(db))
 
 	// フィールド更新（管理者専用）
-	r.PUT("/fields/:id", AdminRequired(db, redisClient), fieldUpdateHandler(db))
+	r.PUT("/api/fields/:id", AdminRequired(db, redisClient), fieldUpdateHandler(db))
 
 	// フィールドをアクティブに設定（管理者専用）
-	r.POST("/fields/:id/activate", AdminRequired(db, redisClient), func(c *gin.Context) {
+	r.POST("/api/fields/:id/activate", AdminRequired(db, redisClient), func(c *gin.Context) {
 		id := c.Param("id")
 		var field Field
 		if err := db.First(&field, id).Error; err != nil {
@@ -71,7 +71,7 @@ func RegisterFieldRoutes(r *gin.Engine, db *gorm.DB, redisClient *redis.Client) 
 	})
 
 	// フィールド削除（管理者専用）
-	r.DELETE("/fields/:id", AdminRequired(db, redisClient), func(c *gin.Context) {
+	r.DELETE("/api/fields/:id", AdminRequired(db, redisClient), func(c *gin.Context) {
 		id := c.Param("id")
 		var field Field
 		if err := db.First(&field, id).Error; err != nil {

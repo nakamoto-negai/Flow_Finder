@@ -306,7 +306,7 @@ func getFavoriteStatsHandler(c *gin.Context, db *gorm.DB) {
 
 // お気に入り観光地関連のルートを登録
 func RegisterFavoriteRoutes(r *gin.Engine, db *gorm.DB, redisClient *redis.Client) {
-	favorites := r.Group("/favorites")
+	favorites := r.Group("/api/favorites")
 	favorites.Use(AuthRequired(redisClient)) // 認証必須
 	{
 		// お気に入り一覧取得
