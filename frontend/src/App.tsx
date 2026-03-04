@@ -11,6 +11,7 @@ import CategorySelector from './CategorySelector';
 import TutorialViewer from './TutorialViewer';
 // import TouristSpotDetail from './TouristSpotDetail'; // 管理者用
 import TouristSpotDetailUser from './TouristSpotDetailUser';
+import RouteSelector from './RouteSelector';
 import { logger } from './logger';
 import './App.css';
 
@@ -142,6 +143,13 @@ function App() {
         <CategorySelector onComplete={handleCategorySelectorComplete} />
       </>
     );
+  }
+
+  if (window.location.pathname === "/route-selector") {
+    if (!token) {
+      return <Login onLogin={handleLogin} />;
+    }
+    return <RouteSelector />;
   }
 
   if (window.location.pathname.startsWith("/tourist-spot/")) {
