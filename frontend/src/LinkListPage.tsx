@@ -37,17 +37,16 @@ const LinkListPage: React.FC = () => {
   };
 
   // 混雑レベルの計算
-  const getCongestionLevel = (current: number, max: number) => {
-    if (max === 0) return { level: '不明', color: '#9ca3af' };
-    
-    const ratio = current / max;
-    if (ratio >= 1.0) return { level: '満員', color: '#dc2626' };
-    if (ratio >= 0.8) return { level: '非常に混雑', color: '#ea580c' };
-    if (ratio >= 0.6) return { level: '混雑', color: '#d97706' };
-    if (ratio >= 0.4) return { level: '普通', color: '#ca8a04' };
-    if (ratio >= 0.2) return { level: '少し空いている', color: '#65a30d' };
-    return { level: '空いている', color: '#16a34a' };
-  };
+  // const getCongestionLevel = (current: number, max: number) => {
+  //   if (max === 0) return { level: '不明', color: '#9ca3af' };
+  //   const ratio = current / max;
+  //   if (ratio >= 1.0) return { level: '満員', color: '#dc2626' };
+  //   if (ratio >= 0.8) return { level: '非常に混雑', color: '#ea580c' };
+  //   if (ratio >= 0.6) return { level: '混雑', color: '#d97706' };
+  //   if (ratio >= 0.4) return { level: '普通', color: '#ca8a04' };
+  //   if (ratio >= 0.2) return { level: '少し空いている', color: '#65a30d' };
+  //   return { level: '空いている', color: '#16a34a' };
+  // };
 
 
   // URLからノードIDを取得
@@ -364,7 +363,7 @@ const LinkListPage: React.FC = () => {
                 {favorites.map(favorite => {
                   const route = favoriteRoutes[favorite.id];
                   const spot = favorite.tourist_spot;
-                  const congestion = getCongestionLevel(spot.current_count, spot.max_capacity);
+                  // const congestion = getCongestionLevel(spot.current_count, spot.max_capacity);
                   return (
                     <div key={favorite.id} style={{
                       display: 'flex',
@@ -386,7 +385,7 @@ const LinkListPage: React.FC = () => {
                         flex: 1
                       }}>
                         {/* 待ち時間 */}
-                        <span style={{
+                        {/* <span style={{
                           padding: '3px 10px',
                           borderRadius: '12px',
                           fontSize: '13px',
@@ -395,9 +394,9 @@ const LinkListPage: React.FC = () => {
                           color: spot.wait_time > 30 ? '#dc2626' : (spot.wait_time > 10 ? '#b45309' : '#16a34a')
                         }}>
                           待ち時間: {spot.wait_time}分
-                        </span>
+                        </span> */}
                         {/* 混雑度 */}
-                        <span style={{
+                        {/* <span style={{
                           padding: '3px 10px',
                           borderRadius: '12px',
                           fontSize: '13px',
@@ -407,7 +406,7 @@ const LinkListPage: React.FC = () => {
                           border: `1px solid ${congestion.color}`
                         }}>
                           混雑度: {spot.max_capacity > 0 ? `${Math.round((spot.current_count / spot.max_capacity) * 100)}%` : '---'}
-                        </span>
+                        </span> */}
                         {/* 距離 */}
                         <span style={{
                           padding: '3px 10px',
