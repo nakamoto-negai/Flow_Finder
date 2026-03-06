@@ -1,7 +1,8 @@
 
 import { useEffect, useState } from "react";
 import Header from "./Header";
-import { getApiUrl, API_BASE_URL } from './config';
+import { getApiUrl, STATIC_BASE_URL } from './config';
+
 
 interface Image {
   id: number;
@@ -34,7 +35,7 @@ const LinkImagePage: React.FC = () => {
     setLinkId(urlLinkId);
 
     // ページビューのログ送信
-    fetch(`${API_BASE_URL}/api/logs`, {
+    fetch(getApiUrl('/logs'), {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
@@ -108,8 +109,6 @@ const LinkImagePage: React.FC = () => {
       });
   }, []);
 
-  const apiHost = API_BASE_URL;
-
   return (
     <div style={{ minHeight: '100vh', background: '#f8fafc' }}>
       <Header />
@@ -133,7 +132,7 @@ const LinkImagePage: React.FC = () => {
               </div>
             ) : (
               images.map(img => {
-                const imgUrl = img.url.startsWith("/uploads/") ? `${apiHost}${img.url}` : img.url;
+                const imgUrl = img.url.startsWith("/uploads/") ? `${STATIC_BASE_URL}${img.url}` : img.url;
                 return (
                   <div key={img.id} style={{ marginBottom: 24 }}>
                     <img src={imgUrl} alt={img.url} style={{ maxWidth: "100%", maxHeight: 320, borderRadius: 8 }} />
@@ -157,7 +156,7 @@ const LinkImagePage: React.FC = () => {
               onClick={async () => {
                 if (toNodeId) {
                   // アクションログ送信
-                  await fetch(`${API_BASE_URL}/api/logs`, {
+                  await fetch(getApiUrl('/logs'), {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({

@@ -13,7 +13,7 @@ import (
 // 認証関連のルートを登録
 func RegisterAuthRoutes(r *gin.Engine, db *gorm.DB, redisClient *redis.Client) {
 	// ログインAPI（例: ユーザー名のみで認証）
-	r.POST("/login", func(c *gin.Context) {
+	r.POST("/api/login", func(c *gin.Context) {
 		var req struct {
 			Name string `json:"name"`
 		}

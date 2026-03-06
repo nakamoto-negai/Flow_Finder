@@ -392,6 +392,21 @@ const LinkListPage: React.FC = () => {
               <h1 style={{ fontSize: "1.5rem", marginBottom: 10, color: '#1f2937' }}>
                 {currentNode.name || `ノード ${currentNode.id}`} からの経路
               </h1>
+              <button
+                onClick={() => { window.location.href = `/route-selector?node_id=${currentNode.id}`; }}
+                style={{
+                  padding: '10px 24px',
+                  background: '#6f96eb',
+                  color: 'white',
+                  border: 'none',
+                  borderRadius: '8px',
+                  fontSize: '15px',
+                  fontWeight: 'bold',
+                  cursor: 'pointer'
+                }}
+              >
+                360°画像でルートを選択
+              </button>
             </div>
 
             {/* お気に入り観光地サマリー */}

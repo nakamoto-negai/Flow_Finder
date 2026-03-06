@@ -12,11 +12,12 @@ import CongestionManager from "./CongestionManager";
 import LogViewer from "./LogViewer";
 import ChangeHistoryViewer from "./ChangeHistoryViewer";
 import AppSettingManager from "./AppSettingManager";
+import ImagePinManager from "./ImagePinManager";
 import Header from "./Header";
 import "./App.css";
 
 const Admin: React.FC = () => {
-  const [currentView, setCurrentView] = useState<'fields' | 'nodes' | 'links' | 'images' | 'node-images' | 'tourist-spots' | 'tourist-categories' | 'congestion' | 'logs' | 'tutorials' | 'change-history' | 'settings'>('fields');
+  const [currentView, setCurrentView] = useState<'fields' | 'nodes' | 'links' | 'images' | 'node-images' | 'tourist-spots' | 'image-pins' | 'tourist-categories' | 'congestion' | 'logs' | 'tutorials' | 'change-history' | 'settings'>('fields');
   const [selectedSpotId, setSelectedSpotId] = useState<number | null>(null);
   const [isAdmin, setIsAdmin] = useState<boolean>(false);
   const [isLoading, setIsLoading] = useState<boolean>(true);
@@ -86,7 +87,7 @@ const Admin: React.FC = () => {
       <Header />
       
       <div style={{ borderBottom: '1px solid #e5e7eb', background: 'white' }}>
-        <div style={{ maxWidth: '1200px', margin: '0 auto', display: 'flex' }}>
+        <div style={{ maxWidth: '1200px', margin: '0 auto', display: 'flex', flexWrap: 'wrap' }}>
           {[
             { key: 'fields', label: 'フィールド管理' },
             { key: 'nodes', label: 'ノード管理' },
@@ -96,6 +97,7 @@ const Admin: React.FC = () => {
             { key: 'congestion', label: '混雑度管理' },
             { key: 'images', label: '画像管理' },
             { key: 'node-images', label: 'ノード画像管理' },
+            { key: 'image-pins', label: 'ピン管理' },
             { key: 'tutorials', label: 'チュートリアル管理' },
             { key: 'logs', label: 'ログ表示' },
             { key: 'change-history', label: '変更履歴' },
@@ -105,6 +107,7 @@ const Admin: React.FC = () => {
               key={tab.key}
               onClick={() => setCurrentView(tab.key as any)}
               style={{
+                flexShrink: 0,
                 padding: '15px 20px',
                 border: 'none',
                 background: currentView === tab.key ? '#3b82f6' : 'transparent',
@@ -149,6 +152,7 @@ const Admin: React.FC = () => {
         
         {currentView === 'images' && <ImageManager />}
         {currentView === 'node-images' && <NodeImageManager />}
+        {currentView === 'image-pins' && <ImagePinManager />}
         {currentView === 'tutorials' && <TutorialManager />}
         
         {currentView === 'logs' && <LogViewer />}

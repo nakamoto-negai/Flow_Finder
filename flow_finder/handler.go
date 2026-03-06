@@ -35,7 +35,7 @@ func SetupRoutes(r *gin.Engine, db *gorm.DB, redisClient *redis.Client) {
 	})
 
 	// ヘルスチェック
-	r.GET("/health", func(c *gin.Context) {
+	r.GET("/api/health", func(c *gin.Context) {
 		c.JSON(200, gin.H{"status": "ok", "message": "Flow Finder API is running"})
 	})
 
@@ -52,4 +52,5 @@ func SetupRoutes(r *gin.Engine, db *gorm.DB, redisClient *redis.Client) {
 	RegisterFieldRoutes(r, db, redisClient)
 	RegisterFavoriteRoutes(r, db, redisClient)
 	RegisterAppSettingRoutes(r, db, redisClient)
+	RegisterImagePinRoutes(r, db, redisClient)
 }

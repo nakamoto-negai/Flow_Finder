@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { getApiUrl, API_BASE_URL } from './config';
+import { getApiUrl, STATIC_BASE_URL } from './config';
 import { getAuthHeadersForFormData, getAuthHeaders } from './api';
 
 interface Node {
@@ -266,7 +266,7 @@ const NodeImageManager: React.FC = () => {
                         }}
                       >
                         <img
-                          src={`${API_BASE_URL}${image.url}`}
+                          src={`${STATIC_BASE_URL}${image.url}`}
                           alt={image.original_name}
                           style={{
                             width: '100%',

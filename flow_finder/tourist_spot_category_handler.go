@@ -9,7 +9,7 @@ import (
 
 // 観光地カテゴリー関連のルートを登録
 func RegisterTouristSpotCategoryRoutes(r *gin.Engine, db *gorm.DB) {
-	categories := r.Group("/tourist-spot-categories")
+	categories := r.Group("/api/tourist-spot-categories")
 	{
 		// カテゴリ一覧取得
 		categories.GET("", getTouristSpotCategoriesHandler(db))
