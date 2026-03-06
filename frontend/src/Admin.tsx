@@ -11,11 +11,12 @@ import TouristSpotCategoryManager from "./TouristSpotCategoryManager";
 import CongestionManager from "./CongestionManager";
 import LogViewer from "./LogViewer";
 import ChangeHistoryViewer from "./ChangeHistoryViewer";
+import AppSettingManager from "./AppSettingManager";
 import Header from "./Header";
 import "./App.css";
 
 const Admin: React.FC = () => {
-  const [currentView, setCurrentView] = useState<'fields' | 'nodes' | 'links' | 'images' | 'node-images' | 'tourist-spots' | 'tourist-categories' | 'congestion' | 'logs' | 'tutorials' | 'change-history'>('fields');
+  const [currentView, setCurrentView] = useState<'fields' | 'nodes' | 'links' | 'images' | 'node-images' | 'tourist-spots' | 'tourist-categories' | 'congestion' | 'logs' | 'tutorials' | 'change-history' | 'settings'>('fields');
   const [selectedSpotId, setSelectedSpotId] = useState<number | null>(null);
   const [isAdmin, setIsAdmin] = useState<boolean>(false);
   const [isLoading, setIsLoading] = useState<boolean>(true);
@@ -97,7 +98,8 @@ const Admin: React.FC = () => {
             { key: 'node-images', label: 'ノード画像管理' },
             { key: 'tutorials', label: 'チュートリアル管理' },
             { key: 'logs', label: 'ログ表示' },
-            { key: 'change-history', label: '変更履歴' }
+            { key: 'change-history', label: '変更履歴' },
+            { key: 'settings', label: '設定' }
           ].map(tab => (
             <button
               key={tab.key}
@@ -152,6 +154,7 @@ const Admin: React.FC = () => {
         {currentView === 'logs' && <LogViewer />}
         
         {currentView === 'change-history' && <ChangeHistoryViewer />}
+        {currentView === 'settings' && <AppSettingManager />}
       </div>
     </div>
   );
