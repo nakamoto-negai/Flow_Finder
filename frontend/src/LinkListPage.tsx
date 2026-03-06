@@ -21,6 +21,8 @@ const LinkListPage: React.FC = () => {
   const [allTouristSpots, setAllTouristSpots] = useState<any[]>([]);
   const [allRoutes, setAllRoutes] = useState<{[key: number]: RouteInfo}>({});
   const [arrivedSpots, setArrivedSpots] = useState<any[]>([]);
+  const [receivedRewards, setReceivedRewards] = useState<Set<number>>(new Set());
+  const [removingFavorite, setRemovingFavorite] = useState<number | null>(null);
 
   // ログ送信関数
   const sendLog = async (action: string, detail: any = {}) => {
@@ -37,17 +39,16 @@ const LinkListPage: React.FC = () => {
   };
 
   // 混雑レベルの計算
-  const getCongestionLevel = (current: number, max: number) => {
-    if (max === 0) return { level: '不明', color: '#9ca3af' };
-    
-    const ratio = current / max;
-    if (ratio >= 1.0) return { level: '満員', color: '#dc2626' };
-    if (ratio >= 0.8) return { level: '非常に混雑', color: '#ea580c' };
-    if (ratio >= 0.6) return { level: '混雑', color: '#d97706' };
-    if (ratio >= 0.4) return { level: '普通', color: '#ca8a04' };
-    if (ratio >= 0.2) return { level: '少し空いている', color: '#65a30d' };
-    return { level: '空いている', color: '#16a34a' };
-  };
+  // const getCongestionLevel = (current: number, max: number) => {
+  //   if (max === 0) return { level: '不明', color: '#9ca3af' };
+  //   const ratio = current / max;
+  //   if (ratio >= 1.0) return { level: '満員', color: '#dc2626' };
+  //   if (ratio >= 0.8) return { level: '非常に混雑', color: '#ea580c' };
+  //   if (ratio >= 0.6) return { level: '混雑', color: '#d97706' };
+  //   if (ratio >= 0.4) return { level: '普通', color: '#ca8a04' };
+  //   if (ratio >= 0.2) return { level: '少し空いている', color: '#65a30d' };
+  //   return { level: '空いている', color: '#16a34a' };
+  // };
 
 
   // URLからノードIDを取得
@@ -55,6 +56,30 @@ const LinkListPage: React.FC = () => {
     const urlParams = new URLSearchParams(window.location.search);
     const nodeParam = urlParams.get('node');
     return nodeParam ? parseInt(nodeParam, 10) : null;
+  };
+
+  // お気に入りから解除
+  const removeFavorite = async (spotId: number) => {
+    setRemovingFavorite(spotId);
+    try {
+      const res = await apiRequest(getApiUrl(`/favorites/tourist-spots/${spotId}`), { method: 'DELETE' });
+      if (res.ok || res.status === 204) {
+        setFavorites(prev => prev.filter(f => f.tourist_spot.id !== spotId));
+        setArrivedSpots(prev => prev.filter(s => s.id !== spotId));
+      }
+    } catch (err) {
+      console.error('お気に入り解除エラー:', err);
+    } finally {
+      setRemovingFavorite(null);
+    }
+  };
+
+  // 特典を受け取る
+  const receiveReward = (spot: any) => {
+    setReceivedRewards(prev => new Set(prev).add(spot.id));
+    if (spot.reward_url) {
+      window.open(spot.reward_url, '_blank');
+    }
   };
 
   useEffect(() => {
@@ -321,13 +346,43 @@ const LinkListPage: React.FC = () => {
                   おめでとうございます！
                 </div>
                 {arrivedSpots.map((spot, index) => (
-                  <div key={spot.id} style={{
-                    color: 'white',
-                    fontSize: '1.1rem',
-                    textAlign: 'center',
-                    marginTop: index > 0 ? '8px' : '0'
-                  }}>
-                    「{spot.name}」に到着しました
+                  <div key={spot.id} style={{ marginTop: index > 0 ? '12px' : '0' }}>
+                    <div style={{ color: 'white', fontSize: '1.1rem', textAlign: 'center', marginBottom: '10px' }}>
+                      「{spot.name}」に到着しました
+                    </div>
+                    <div style={{ display: 'flex', gap: '10px', justifyContent: 'center', flexWrap: 'wrap' }}>
+                      <button
+                        onClick={() => receiveReward(spot)}
+                        disabled={receivedRewards.has(spot.id) || !spot.reward_url}
+                        style={{
+                          padding: '8px 20px',
+                          background: (receivedRewards.has(spot.id) || !spot.reward_url) ? 'rgba(255,255,255,0.3)' : '#f59e0b',
+                          color: 'white',
+                          border: 'none',
+                          borderRadius: '8px',
+                          fontSize: '14px',
+                          fontWeight: 'bold',
+                          cursor: (receivedRewards.has(spot.id) || !spot.reward_url) ? 'default' : 'pointer',
+                        }}
+                      >
+                        {receivedRewards.has(spot.id) ? '特典受取済み' : '特典を受け取る'}
+                      </button>
+                      <button
+                        onClick={() => removeFavorite(spot.id)}
+                        disabled={removingFavorite === spot.id}
+                        style={{
+                          padding: '8px 20px',
+                          background: 'rgba(255,255,255,0.2)',
+                          color: 'white',
+                          border: '1px solid rgba(255,255,255,0.5)',
+                          borderRadius: '8px',
+                          fontSize: '14px',
+                          cursor: removingFavorite === spot.id ? 'default' : 'pointer',
+                        }}
+                      >
+                        {removingFavorite === spot.id ? '解除中...' : 'お気に入りから解除'}
+                      </button>
+                    </div>
                   </div>
                 ))}
               </div>
@@ -379,7 +434,7 @@ const LinkListPage: React.FC = () => {
                 {favorites.map(favorite => {
                   const route = favoriteRoutes[favorite.id];
                   const spot = favorite.tourist_spot;
-                  const congestion = getCongestionLevel(spot.current_count, spot.max_capacity);
+                  // const congestion = getCongestionLevel(spot.current_count, spot.max_capacity);
                   return (
                     <div key={favorite.id} style={{
                       display: 'flex',
@@ -401,7 +456,7 @@ const LinkListPage: React.FC = () => {
                         flex: 1
                       }}>
                         {/* 待ち時間 */}
-                        <span style={{
+                        {/* <span style={{
                           padding: '3px 10px',
                           borderRadius: '12px',
                           fontSize: '13px',
@@ -410,9 +465,9 @@ const LinkListPage: React.FC = () => {
                           color: spot.wait_time > 30 ? '#dc2626' : (spot.wait_time > 10 ? '#b45309' : '#16a34a')
                         }}>
                           待ち時間: {spot.wait_time}分
-                        </span>
+                        </span> */}
                         {/* 混雑度 */}
-                        <span style={{
+                        {/* <span style={{
                           padding: '3px 10px',
                           borderRadius: '12px',
                           fontSize: '13px',
@@ -422,7 +477,7 @@ const LinkListPage: React.FC = () => {
                           border: `1px solid ${congestion.color}`
                         }}>
                           混雑度: {spot.max_capacity > 0 ? `${Math.round((spot.current_count / spot.max_capacity) * 100)}%` : '---'}
-                        </span>
+                        </span> */}
                         {/* 距離 */}
                         <span style={{
                           padding: '3px 10px',

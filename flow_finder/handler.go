@@ -51,5 +51,6 @@ func SetupRoutes(r *gin.Engine, db *gorm.DB, redisClient *redis.Client) {
 	RegisterDijkstraRoutes(r, db)
 	RegisterFieldRoutes(r, db, redisClient)
 	RegisterFavoriteRoutes(r, db, redisClient)
+	RegisterAppSettingRoutes(r, db, redisClient)
 	RegisterImagePinRoutes(r, db, redisClient)
 }
