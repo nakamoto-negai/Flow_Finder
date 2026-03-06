@@ -21,7 +21,6 @@ const LinkListPage: React.FC = () => {
   const [allTouristSpots, setAllTouristSpots] = useState<any[]>([]);
   const [allRoutes, setAllRoutes] = useState<{[key: number]: RouteInfo}>({});
   const [arrivedSpots, setArrivedSpots] = useState<any[]>([]);
-  const [receivedRewards, setReceivedRewards] = useState<Set<number>>(new Set());
   const [removingFavorite, setRemovingFavorite] = useState<number | null>(null);
 
   // ログ送信関数
@@ -76,7 +75,6 @@ const LinkListPage: React.FC = () => {
 
   // 特典を受け取る
   const receiveReward = (spot: any) => {
-    setReceivedRewards(prev => new Set(prev).add(spot.id));
     if (spot.reward_url) {
       window.open(spot.reward_url, '_blank');
     }
@@ -353,19 +351,19 @@ const LinkListPage: React.FC = () => {
                     <div style={{ display: 'flex', gap: '10px', justifyContent: 'center', flexWrap: 'wrap' }}>
                       <button
                         onClick={() => receiveReward(spot)}
-                        disabled={receivedRewards.has(spot.id) || !spot.reward_url}
+                        disabled={!spot.reward_url}
                         style={{
                           padding: '8px 20px',
-                          background: (receivedRewards.has(spot.id) || !spot.reward_url) ? 'rgba(255,255,255,0.3)' : '#f59e0b',
+                          background: !spot.reward_url ? 'rgba(255,255,255,0.3)' : '#f59e0b',
                           color: 'white',
                           border: 'none',
                           borderRadius: '8px',
                           fontSize: '14px',
                           fontWeight: 'bold',
-                          cursor: (receivedRewards.has(spot.id) || !spot.reward_url) ? 'default' : 'pointer',
+                          cursor: !spot.reward_url ? 'default' : 'pointer',
                         }}
                       >
-                        {receivedRewards.has(spot.id) ? '特典受取済み' : '特典を受け取る'}
+                        特典を受け取る
                       </button>
                       <button
                         onClick={() => removeFavorite(spot.id)}
