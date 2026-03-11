@@ -108,27 +108,27 @@ func imageUploadHandler(db *gorm.DB) gin.HandlerFunc {
 		}
 		hashString := fmt.Sprintf("%x", hash.Sum(nil))
 
-		// 重複チェック
+		// 既存ファイルの確認（同じハッシュのファイルが存在する場合はディスク上のファイルを再利用）
 		var existingImage Image
-		if err := db.Where("file_hash = ?", hashString).First(&existingImage).Error; err == nil {
-			c.JSON(200, gin.H{
-				"result":  "exists",
-				"message": "同じファイルが既にアップロードされています",
-				"image":   existingImage,
-			})
-			return
-		}
+		fileAlreadyOnDisk := db.Where("file_hash = ?", hashString).First(&existingImage).Error == nil
 
-		// ユニークなファイル名を生成
-		timestamp := time.Now().Unix()
-		filename := fmt.Sprintf("%d_%s%s", timestamp, hashString[:8], ext)
-		filePath := filepath.Join(uploadDir, filename)
+		var filename, filePath string
+		if fileAlreadyOnDisk {
+			// 同じファイルが既にディスク上に存在する場合は再利用
+			filename = existingImage.FileName
+			filePath = existingImage.FilePath
+		} else {
+			// 新しいファイル名を生成してディスクに保存
+			timestamp := time.Now().Unix()
+			filename = fmt.Sprintf("%d_%s%s", timestamp, hashString[:8], ext)
+			filePath = filepath.Join(uploadDir, filename)
 
-		// ファイルを保存
-		if err := c.SaveUploadedFile(file, filePath); err != nil {
-			log.Printf("ファイル保存エラー: %v", err)
-			c.JSON(500, gin.H{"error": "ファイルの保存に失敗しました"})
-			return
+			// ファイルを保存
+			if err := c.SaveUploadedFile(file, filePath); err != nil {
+				log.Printf("ファイル保存エラー: %v", err)
+				c.JSON(500, gin.H{"error": "ファイルの保存に失敗しました"})
+				return
+			}
 		}
 
 		// データベースに画像情報を保存
@@ -160,8 +160,10 @@ func imageUploadHandler(db *gorm.DB) gin.HandlerFunc {
 		}
 
 		if err := db.Create(&image).Error; err != nil {
-			// データベース保存に失敗した場合、ファイルを削除
-			os.Remove(filePath)
+			// 新しくアップロードしたファイルのみ削除（既存ファイルの再利用時は削除しない）
+			if !fileAlreadyOnDisk {
+				os.Remove(filePath)
+			}
 			log.Printf("データベース保存エラー: %v", err)
 			c.JSON(500, gin.H{"error": "画像情報の保存に失敗しました"})
 			return
@@ -227,10 +229,6 @@ func imageListHandler(db *gorm.DB) gin.HandlerFunc {
 			}
 		}
 
-		// 総数を取得
-		var total int64
-		query.Count(&total)
-
 		// データを取得
 		if err := query.Order("uploaded_at DESC").Limit(limit).Offset(offset).Find(&images).Error; err != nil {
 			c.JSON(500, gin.H{"error": "画像一覧の取得に失敗しました"})
@@ -257,10 +255,13 @@ func imageDeleteHandler(db *gorm.DB) gin.HandlerFunc {
 			return
 		}
 
-		// ファイルを削除
-		if err := os.Remove(image.FilePath); err != nil {
-			log.Printf("ファイル削除エラー: %v", err)
-			// ファイル削除に失敗してもデータベースからは削除する
+		// 同じファイルを参照している他のレコードがない場合のみファイルを削除
+		var refCount int64
+		db.Model(&Image{}).Where("file_name = ? AND id != ?", image.FileName, image.ID).Count(&refCount)
+		if refCount == 0 {
+			if err := os.Remove(image.FilePath); err != nil {
+				log.Printf("ファイル削除エラー: %v", err)
+			}
 		}
 
 		// データベースから削除
