@@ -10,7 +10,7 @@ import (
 
 func RegisterAppSettingRoutes(r *gin.Engine, db *gorm.DB, redisClient *redis.Client) {
 	// 公開: 設定値を取得
-	r.GET("/settings/:key", func(c *gin.Context) {
+	r.GET("/api/settings/:key", func(c *gin.Context) {
 		key := c.Param("key")
 		var setting AppSetting
 		if err := db.Where("key = ?", key).First(&setting).Error; err != nil {
@@ -21,7 +21,7 @@ func RegisterAppSettingRoutes(r *gin.Engine, db *gorm.DB, redisClient *redis.Cli
 	})
 
 	// 管理者: 設定値を登録・更新（upsert）
-	r.PUT("/settings/:key", AdminRequired(db, redisClient), func(c *gin.Context) {
+	r.PUT("/api/settings/:key", AdminRequired(db, redisClient), func(c *gin.Context) {
 		key := c.Param("key")
 		var body struct {
 			Value string `json:"value" binding:"required"`
