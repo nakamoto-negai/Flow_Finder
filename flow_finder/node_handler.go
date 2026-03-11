@@ -44,6 +44,7 @@ func RegisterNodeRoutes(r *gin.Engine, db *gorm.DB, redisClient *redis.Client) {
 			sessionID = generateHandlerSessionID()
 		}
 		LogDatabaseOperation(db, userID, sessionID, "create", "nodes", fmt.Sprintf("%d", node.ID), c)
+		RecordChangeHistory(db, "nodes", fmt.Sprintf("%d", node.ID), userID, "create", nil, node)
 
 		c.JSON(200, gin.H{"result": "ok", "id": node.ID})
 	})
@@ -77,6 +78,7 @@ func RegisterNodeRoutes(r *gin.Engine, db *gorm.DB, redisClient *redis.Client) {
 			c.JSON(404, gin.H{"error": "ノードが見つかりません"})
 			return
 		}
+		beforeNode := node
 
 		var req struct {
 			Name       *string  `json:"name"`
@@ -124,6 +126,7 @@ func RegisterNodeRoutes(r *gin.Engine, db *gorm.DB, redisClient *redis.Client) {
 			sessionID = generateHandlerSessionID()
 		}
 		LogDatabaseOperation(db, userID, sessionID, "update", "nodes", id, c)
+		RecordChangeHistory(db, "nodes", id, userID, "update", beforeNode, node)
 
 		c.JSON(200, gin.H{"result": "ok", "node": node})
 	})
@@ -131,6 +134,10 @@ func RegisterNodeRoutes(r *gin.Engine, db *gorm.DB, redisClient *redis.Client) {
 	// Node削除（管理者専用）
 	r.DELETE("/api/nodes/:id", AdminRequired(db, redisClient), func(c *gin.Context) {
 		id := c.Param("id")
+
+		// 削除前にノードを取得（変更履歴用）
+		var nodeToDelete Node
+		db.First(&nodeToDelete, id)
 
 		// 削除前に関連するリンクをチェック
 		var linkCount int64
@@ -160,6 +167,7 @@ func RegisterNodeRoutes(r *gin.Engine, db *gorm.DB, redisClient *redis.Client) {
 			sessionID = generateHandlerSessionID()
 		}
 		LogDatabaseOperation(db, userID, sessionID, "delete", "nodes", id, c)
+		RecordChangeHistory(db, "nodes", id, userID, "delete", nodeToDelete, nil)
 
 		c.JSON(200, gin.H{"result": "ok", "message": "ノードが削除されました"})
 	})

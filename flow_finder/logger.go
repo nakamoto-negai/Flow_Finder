@@ -2,6 +2,7 @@ package main
 
 import (
 	"crypto/rand"
+	"encoding/csv"
 	"encoding/hex"
 	"encoding/json"
 	"fmt"
@@ -200,13 +201,16 @@ func RegisterLogRoutes(r *gin.Engine, db *gorm.DB) {
 		if category := c.Query("category"); category != "" {
 			query = query.Where("category = ?", category)
 		}
+		if action := c.Query("action"); action != "" {
+			query = query.Where("action = ?", action)
+		}
 		if dateFrom := c.Query("date_from"); dateFrom != "" {
 			query = query.Where("created_at >= ?", dateFrom)
 		}
 		if dateTo := c.Query("date_to"); dateTo != "" {
 			query = query.Where("created_at <= ?", dateTo)
 		}
-		
+
 		// ページネーション
 		page := 1
 		limit := 100
@@ -228,9 +232,9 @@ func RegisterLogRoutes(r *gin.Engine, db *gorm.DB) {
 			return
 		}
 		
-		// 総件数を取得
+		// 総件数を取得（フィルタ適用済みの件数）
 		var total int64
-		db.Model(&UserLog{}).Count(&total)
+		query.Session(&gorm.Session{}).Count(&total)
 		
 		c.JSON(200, gin.H{
 			"logs":  logs,
@@ -288,6 +292,72 @@ func RegisterLogRoutes(r *gin.Engine, db *gorm.DB) {
 		c.JSON(200, pages)
 	})
 	
+	// CSV エクスポート
+	r.GET("/api/logs/export", func(c *gin.Context) {
+		var logs []UserLog
+		query := db.Model(&UserLog{})
+
+		if userID := c.Query("user_id"); userID != "" {
+			query = query.Where("user_id = ?", userID)
+		}
+		if logType := c.Query("log_type"); logType != "" {
+			query = query.Where("log_type = ?", logType)
+		}
+		if category := c.Query("category"); category != "" {
+			query = query.Where("category = ?", category)
+		}
+		if action := c.Query("action"); action != "" {
+			query = query.Where("action = ?", action)
+		}
+		if dateFrom := c.Query("date_from"); dateFrom != "" {
+			query = query.Where("created_at >= ?", dateFrom)
+		}
+		if dateTo := c.Query("date_to"); dateTo != "" {
+			query = query.Where("created_at <= ?", dateTo)
+		}
+
+		if err := query.Order("created_at DESC").Find(&logs).Error; err != nil {
+			c.JSON(500, gin.H{"error": "failed to fetch logs"})
+			return
+		}
+
+		filename := fmt.Sprintf("logs_%s.csv", time.Now().Format("20060102_150405"))
+		c.Header("Content-Type", "text/csv; charset=utf-8")
+		c.Header("Content-Disposition", fmt.Sprintf("attachment; filename=\"%s\"", filename))
+
+		// UTF-8 BOM (Excel対応)
+		c.Writer.Write([]byte("\xef\xbb\xbf"))
+
+		w := csv.NewWriter(c.Writer)
+		w.Write([]string{"ID", "ユーザーID", "セッションID", "ログタイプ", "カテゴリ", "アクション", "パス", "メソッド", "IPアドレス", "処理時間(ms)", "エラー", "日時"})
+
+		for _, l := range logs {
+			userIDStr := ""
+			if l.UserID != nil {
+				userIDStr = fmt.Sprintf("%d", *l.UserID)
+			}
+			errStr := ""
+			if l.Error != "" {
+				errStr = l.Error
+			}
+			w.Write([]string{
+				fmt.Sprintf("%d", l.ID),
+				userIDStr,
+				l.SessionID,
+				l.LogType,
+				l.Category,
+				l.Action,
+				l.Path,
+				l.Method,
+				l.IPAddress,
+				fmt.Sprintf("%d", l.Duration),
+				errStr,
+				l.CreatedAt.Format("2006-01-02 15:04:05"),
+			})
+		}
+		w.Flush()
+	})
+
 	// ユーザーアクティビティのタイムライン
 	r.GET("/api/logs/timeline", func(c *gin.Context) {
 		userID := c.Query("user_id")

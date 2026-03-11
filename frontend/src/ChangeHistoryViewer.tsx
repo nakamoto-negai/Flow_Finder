@@ -52,7 +52,7 @@ const ChangeHistoryViewer: React.FC = () => {
       if (filters.operation) params.append("operation", filters.operation);
       if (filters.userId) params.append("user_id", filters.userId);
 
-      const response = await fetch(`${API_BASE_URL}/api/change-history?${params}`);
+      const response = await fetch(`${API_BASE_URL}/change-history?${params}`);
       const data = await response.json();
 
       setHistories(data.histories || []);
@@ -66,7 +66,7 @@ const ChangeHistoryViewer: React.FC = () => {
 
   const fetchStats = async () => {
     try {
-      const response = await fetch(`${API_BASE_URL}/api/change-history/stats`);
+      const response = await fetch(`${API_BASE_URL}/change-history/stats`);
       const data = await response.json();
       setStats(data);
     } catch (error) {
@@ -94,6 +94,14 @@ const ChangeHistoryViewer: React.FC = () => {
 
   const toggleRow = (id: number) => {
     setExpandedRow(expandedRow === id ? null : id);
+  };
+
+  const handleExport = () => {
+    const params = new URLSearchParams();
+    if (filters.tableName) params.append("table_name", filters.tableName);
+    if (filters.operation) params.append("operation", filters.operation);
+    if (filters.userId) params.append("user_id", filters.userId);
+    window.open(`${API_BASE_URL}/change-history/export?${params}`, "_blank");
   };
 
   const totalPages = Math.ceil(total / limit);
@@ -148,7 +156,24 @@ const ChangeHistoryViewer: React.FC = () => {
           boxShadow: "0 2px 4px rgba(0,0,0,0.1)",
         }}
       >
-        <h3 style={{ marginTop: 0, marginBottom: "15px" }}>フィルター</h3>
+        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "15px" }}>
+          <h3 style={{ margin: 0 }}>フィルター</h3>
+          <button
+            onClick={handleExport}
+            style={{
+              padding: "8px 16px",
+              background: "#10b981",
+              color: "white",
+              border: "none",
+              borderRadius: "6px",
+              cursor: "pointer",
+              fontSize: "14px",
+              fontWeight: "500",
+            }}
+          >
+            CSVエクスポート
+          </button>
+        </div>
         <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(200px, 1fr))", gap: "15px" }}>
           <div>
             <label style={{ display: "block", marginBottom: "5px", fontSize: "14px", fontWeight: "500" }}>
@@ -170,6 +195,11 @@ const ChangeHistoryViewer: React.FC = () => {
               <option value="nodes">ノード</option>
               <option value="links">リンク</option>
               <option value="users">ユーザー</option>
+              <option value="images">画像</option>
+              <option value="tutorials">チュートリアル</option>
+              <option value="fields">フィールド</option>
+              <option value="tourist_spot_categories">観光地カテゴリ</option>
+              <option value="user_favorite_tourist_spots">お気に入り観光地</option>
             </select>
           </div>
 

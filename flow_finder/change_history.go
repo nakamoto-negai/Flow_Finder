@@ -1,6 +1,7 @@
 package main
 
 import (
+	"encoding/csv"
 	"encoding/json"
 	"fmt"
 	"time"
@@ -97,7 +98,7 @@ func RegisterChangeHistoryRoutes(r *gin.Engine, db *gorm.DB) {
 		offset := (page - 1) * limit
 
 		var total int64
-		query.Count(&total)
+		query.Session(&gorm.Session{}).Count(&total)
 
 		if err := query.Order("created_at DESC").Limit(limit).Offset(offset).Find(&histories).Error; err != nil {
 			c.JSON(500, gin.H{"error": "failed to fetch change history"})
@@ -110,6 +111,58 @@ func RegisterChangeHistoryRoutes(r *gin.Engine, db *gorm.DB) {
 			"page":      page,
 			"limit":     limit,
 		})
+	})
+
+	// CSV エクスポート
+	r.GET("/api/change-history/export", func(c *gin.Context) {
+		var histories []ChangeHistory
+		query := db.Model(&ChangeHistory{})
+
+		if tableName := c.Query("table_name"); tableName != "" {
+			query = query.Where("table_name = ?", tableName)
+		}
+		if recordID := c.Query("record_id"); recordID != "" {
+			query = query.Where("record_id = ?", recordID)
+		}
+		if userID := c.Query("user_id"); userID != "" {
+			query = query.Where("user_id = ?", userID)
+		}
+		if operation := c.Query("operation"); operation != "" {
+			query = query.Where("operation = ?", operation)
+		}
+
+		if err := query.Order("created_at DESC").Find(&histories).Error; err != nil {
+			c.JSON(500, gin.H{"error": "failed to fetch change history"})
+			return
+		}
+
+		filename := fmt.Sprintf("change_history_%s.csv", time.Now().Format("20060102_150405"))
+		c.Header("Content-Type", "text/csv; charset=utf-8")
+		c.Header("Content-Disposition", fmt.Sprintf("attachment; filename=\"%s\"", filename))
+
+		// UTF-8 BOM (Excel対応)
+		c.Writer.Write([]byte("\xef\xbb\xbf"))
+
+		w := csv.NewWriter(c.Writer)
+		w.Write([]string{"ID", "テーブル名", "レコードID", "ユーザーID", "操作", "変更前", "変更後", "日時"})
+
+		for _, h := range histories {
+			userIDStr := ""
+			if h.UserID != nil {
+				userIDStr = fmt.Sprintf("%d", *h.UserID)
+			}
+			w.Write([]string{
+				fmt.Sprintf("%d", h.ID),
+				h.TableName,
+				h.RecordID,
+				userIDStr,
+				h.Operation,
+				h.Before,
+				h.After,
+				h.CreatedAt.Format("2006-01-02 15:04:05"),
+			})
+		}
+		w.Flush()
 	})
 
 	// 統計情報取得

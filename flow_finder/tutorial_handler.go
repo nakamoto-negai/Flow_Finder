@@ -198,6 +198,7 @@ func uploadTutorialHandler(db *gorm.DB) gin.HandlerFunc {
 		}
 
 		tutorial.URL = fmt.Sprintf("/uploads/tutorials/%s", tutorial.FileName)
+		RecordChangeHistory(db, "tutorials", strconv.Itoa(int(tutorial.ID)), nil, "create", nil, tutorial)
 
 		log.Printf("チュートリアルアップロード成功: ID=%d, Title=%s", tutorial.ID, tutorial.Title)
 		c.JSON(http.StatusOK, gin.H{
@@ -221,6 +222,7 @@ func updateTutorialHandler(db *gorm.DB) gin.HandlerFunc {
 			}
 			return
 		}
+		beforeTutorial := tutorial
 
 		// 更新する項目
 		if title := c.PostForm("title"); title != "" {
@@ -250,6 +252,7 @@ func updateTutorialHandler(db *gorm.DB) gin.HandlerFunc {
 		}
 
 		tutorial.URL = fmt.Sprintf("/uploads/tutorials/%s", tutorial.FileName)
+		RecordChangeHistory(db, "tutorials", id, nil, "update", beforeTutorial, tutorial)
 
 		log.Printf("チュートリアル更新成功: ID=%d", tutorial.ID)
 		c.JSON(http.StatusOK, gin.H{
@@ -287,6 +290,7 @@ func deleteTutorialHandler(db *gorm.DB) gin.HandlerFunc {
 			return
 		}
 
+		RecordChangeHistory(db, "tutorials", id, nil, "delete", tutorial, nil)
 		log.Printf("チュートリアル削除成功: ID=%d", tutorial.ID)
 		c.JSON(http.StatusOK, gin.H{
 			"message": "チュートリアルが削除されました",

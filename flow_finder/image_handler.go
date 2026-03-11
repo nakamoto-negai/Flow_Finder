@@ -176,6 +176,7 @@ func imageUploadHandler(db *gorm.DB) gin.HandlerFunc {
 			sessionID = generateHandlerSessionID()
 		}
 		LogDatabaseOperation(db, userID, sessionID, "create", "images", strconv.Itoa(int(image.ID)), c)
+		RecordChangeHistory(db, "images", strconv.Itoa(int(image.ID)), userID, "create", nil, image)
 
 		log.Printf("画像アップロード成功: %s", filename)
 		// アップロード成功
@@ -277,6 +278,7 @@ func imageDeleteHandler(db *gorm.DB) gin.HandlerFunc {
 			sessionID = generateHandlerSessionID()
 		}
 		LogDatabaseOperation(db, userID, sessionID, "delete", "images", id, c)
+		RecordChangeHistory(db, "images", id, userID, "delete", image, nil)
 
 		c.JSON(200, gin.H{
 			"result":  "ok",

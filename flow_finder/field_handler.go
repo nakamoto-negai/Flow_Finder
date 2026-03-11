@@ -89,6 +89,8 @@ func RegisterFieldRoutes(r *gin.Engine, db *gorm.DB, redisClient *redis.Client) 
 			return
 		}
 
+		RecordChangeHistory(db, "fields", id, nil, "delete", field, nil)
+
 		c.JSON(200, gin.H{"result": "ok", "message": "フィールドが削除されました"})
 	})
 
@@ -224,6 +226,8 @@ func fieldCreateHandler(db *gorm.DB) gin.HandlerFunc {
 		}
 		fmt.Printf("✅ データベース保存成功 (時間: %v) - ID: %d\n", time.Since(dbStart), field.ID)
 
+		RecordChangeHistory(db, "fields", fmt.Sprintf("%d", field.ID), nil, "create", nil, field)
+
 		c.JSON(201, gin.H{
 			"result":  "ok",
 			"id":      field.ID,
@@ -242,6 +246,7 @@ func fieldUpdateHandler(db *gorm.DB) gin.HandlerFunc {
 			c.JSON(404, gin.H{"error": "フィールドが見つかりません"})
 			return
 		}
+		beforeField := field
 
 		var req struct {
 			Name        *string `json:"name"`
@@ -273,6 +278,8 @@ func fieldUpdateHandler(db *gorm.DB) gin.HandlerFunc {
 			c.JSON(500, gin.H{"error": "フィールド更新に失敗しました"})
 			return
 		}
+
+		RecordChangeHistory(db, "fields", id, nil, "update", beforeField, field)
 
 		c.JSON(200, gin.H{"result": "ok", "field": field})
 	}
