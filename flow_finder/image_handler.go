@@ -207,6 +207,20 @@ func imageListHandler(db *gorm.DB) gin.HandlerFunc {
 		}
 		offset := (page - 1) * limit
 
+		// link_idフィルタ（指定時はペジネーションを無効化して全件取得）
+		if linkID := c.Query("link_id"); linkID != "" {
+			query = query.Where("link_id = ?", linkID)
+			if err := query.Order("\"order\" ASC").Find(&images).Error; err != nil {
+				c.JSON(500, gin.H{"error": "画像一覧の取得に失敗しました"})
+				return
+			}
+			for i := range images {
+				images[i].URL = fmt.Sprintf("/uploads/%s", images[i].FileName)
+			}
+			c.JSON(200, images)
+			return
+		}
+
 		// 検索フィルタ
 		if search := c.Query("search"); search != "" {
 			query = query.Where("original_name LIKE ?", "%"+search+"%")

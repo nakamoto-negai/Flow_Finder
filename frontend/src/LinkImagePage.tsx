@@ -56,17 +56,11 @@ const LinkImagePage: React.FC = () => {
       }
     }).catch(() => {});
 
-    fetch(getApiUrl("/images"))
+    fetch(getApiUrl(`/images?link_id=${urlLinkId}`))
       .then(res => res.json())
       .then((data) => {
-        let imageArray = [];
-        if (data && typeof data === 'object' && Array.isArray(data.value)) {
-          imageArray = data.value;
-        } else if (Array.isArray(data)) {
-          imageArray = data;
-        }
-        const filtered = imageArray.filter((img: any) => img.link_id === urlLinkId).sort((a: any, b: any) => a.order - b.order);
-        setImages(filtered);
+        const imageArray = Array.isArray(data) ? data : [];
+        setImages(imageArray);
       })
       .catch(err => {
         console.error("Images fetch error:", err);
