@@ -68,14 +68,20 @@ func main() {
 		panic(fmt.Sprintf("GORM DB接続失敗: %v", err))
 	}
 
-	// GORMでテーブル自動作成（外部キー制約の依存関係順序: Field → Node → TouristSpotCategory → TouristSpot → Link → Image → Tutorial → 独立テーブル）
-	if err := db.AutoMigrate(&Field{}, &User{}, &Node{}, &TouristSpotCategory{}, &TouristSpot{}, &Link{}, &Image{}, &Tutorial{}, &UserLog{}, &UserFavoriteTouristSpot{}, &CongestionRecord{}); err != nil {
-		panic(fmt.Sprintf("AutoMigrate失敗: %v", err))
+	// GORMでテーブル自動作成（外部キー制約の依存関係順序: Field → Node → TouristSpotCategory → TouristSpot → Link → Image → NodeImage → Tutorial → 独立テーブル）
+  
+	if err := db.AutoMigrate(&Field{}, &User{}, &Node{}, &TouristSpotCategory{}, &TouristSpot{}, &Link{}, &Image{}, &NodeImage{}, &Tutorial{}, &UserLog{}, &UserFavoriteTouristSpot{}, &CongestionRecord{}, &ChangeHistory{}, &AppSetting{}); err != nil {
+    panic(fmt.Sprintf("AutoMigrate失敗: %v", err))
 	}
 
 	// お気に入りテーブルの複合インデックスを作成
 	if err := MigrateUserFavoriteTouristSpot(db); err != nil {
 		panic(fmt.Sprintf("UserFavoriteTouristSpot migration failed: %v", err))
+	}
+
+	// 変更履歴テーブルのマイグレーション
+	if err := MigrateChangeHistory(db); err != nil {
+		panic(fmt.Sprintf("ChangeHistory migration failed: %v", err))
 	}
 
 	// Redis接続情報
@@ -100,6 +106,9 @@ func main() {
 
 	// ログ関連APIを登録
 	RegisterLogRoutes(r, db)
+
+	// 変更履歴関連APIを登録
+	RegisterChangeHistoryRoutes(r, db)
 
 	// HTTPサーバーの設定
 	s := &http.Server{

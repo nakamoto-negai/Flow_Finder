@@ -11,6 +11,7 @@ import CategorySelector from './CategorySelector';
 import TutorialViewer from './TutorialViewer';
 // import TouristSpotDetail from './TouristSpotDetail'; // 管理者用
 import TouristSpotDetailUser from './TouristSpotDetailUser';
+import RouteSelector from './RouteSelector';
 import { logger } from './logger';
 import './App.css';
 
@@ -96,6 +97,19 @@ function App() {
     return <DijkstraTestPage />;
   }
 
+  if (window.location.pathname.startsWith('/map/')) {
+    if (!token) {
+      return <Login onLogin={handleLogin} />;
+    }
+    const fieldId = parseInt(window.location.pathname.split('/map/')[1]);
+    return (
+      <>
+        <Header onLogout={handleLogout} />
+        <MapView fieldId={fieldId} />
+      </>
+    );
+  }
+
   if (window.location.pathname.startsWith('/tutorials')) {
     return <TutorialViewer />;
   }
@@ -129,6 +143,13 @@ function App() {
         <CategorySelector onComplete={handleCategorySelectorComplete} />
       </>
     );
+  }
+
+  if (window.location.pathname === "/route-selector") {
+    if (!token) {
+      return <Login onLogin={handleLogin} />;
+    }
+    return <RouteSelector />;
   }
 
   if (window.location.pathname.startsWith("/tourist-spot/")) {

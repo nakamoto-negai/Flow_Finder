@@ -588,12 +588,32 @@ const FavoriteTouristSpots: React.FC = () => {
                           )}
                         </div>
 
+                        {/* ルート選択ボタン */}
+                        {spot.nearest_node_id && (
+                          <button
+                            onClick={() => { window.location.href = `/route-selector?node_id=${spot.nearest_node_id}`; }}
+                            style={{
+                              width: '100%',
+                              marginTop: '10px',
+                              padding: '6px 12px',
+                              backgroundColor: '#2563eb',
+                              color: 'white',
+                              border: 'none',
+                              borderRadius: '4px',
+                              cursor: 'pointer',
+                              fontSize: '12px'
+                            }}
+                          >
+                            🗺️ ルートを選択
+                          </button>
+                        )}
+
                         {/* 削除ボタン */}
                         <button
                           onClick={() => removeFavorite(favorite.tourist_spot_id)}
                           style={{
                             width: '100%',
-                            marginTop: '10px',
+                            marginTop: '8px',
                             padding: '6px 12px',
                             backgroundColor: '#dc2626',
                             color: 'white',

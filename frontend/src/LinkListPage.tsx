@@ -15,29 +15,69 @@ const LinkListPage: React.FC = () => {
   const [currentNode, setCurrentNode] = useState<any | null>(null);
   const [favorites, setFavorites] = useState<UserFavoriteTouristSpot[]>([]);
   const [favoriteRoutes, setFavoriteRoutes] = useState<{[key: number]: RouteInfo}>({});
-  const [routeLoading, setRouteLoading] = useState<{[key: number]: boolean}>({});
   const [availableLinks, setAvailableLinks] = useState<any[]>([]);
   const [isLoadingLinks, setIsLoadingLinks] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [allTouristSpots, setAllTouristSpots] = useState<any[]>([]);
+  const [allRoutes, setAllRoutes] = useState<{[key: number]: RouteInfo}>({});
+  const [arrivedSpots, setArrivedSpots] = useState<any[]>([]);
+  const [removingFavorite, setRemovingFavorite] = useState<number | null>(null);
+
+  // ログ送信関数
+  const sendLog = async (action: string, detail: any = {}) => {
+    const userId = localStorage.getItem('user_id');
+    await apiRequest(getApiUrl('/logs'), {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        user_id: userId,
+        action,
+        ...detail
+      })
+    });
+  };
 
   // 混雑レベルの計算
-  const getCongestionLevel = (current: number, max: number) => {
-    if (max === 0) return { level: '不明', color: '#9ca3af' };
-    
-    const ratio = current / max;
-    if (ratio >= 1.0) return { level: '満員', color: '#dc2626' };
-    if (ratio >= 0.8) return { level: '非常に混雑', color: '#ea580c' };
-    if (ratio >= 0.6) return { level: '混雑', color: '#d97706' };
-    if (ratio >= 0.4) return { level: '普通', color: '#ca8a04' };
-    if (ratio >= 0.2) return { level: '少し空いている', color: '#65a30d' };
-    return { level: '空いている', color: '#16a34a' };
-  };
+  // const getCongestionLevel = (current: number, max: number) => {
+  //   if (max === 0) return { level: '不明', color: '#9ca3af' };
+  //   const ratio = current / max;
+  //   if (ratio >= 1.0) return { level: '満員', color: '#dc2626' };
+  //   if (ratio >= 0.8) return { level: '非常に混雑', color: '#ea580c' };
+  //   if (ratio >= 0.6) return { level: '混雑', color: '#d97706' };
+  //   if (ratio >= 0.4) return { level: '普通', color: '#ca8a04' };
+  //   if (ratio >= 0.2) return { level: '少し空いている', color: '#65a30d' };
+  //   return { level: '空いている', color: '#16a34a' };
+  // };
+
 
   // URLからノードIDを取得
   const getNodeIdFromUrl = (): number | null => {
     const urlParams = new URLSearchParams(window.location.search);
     const nodeParam = urlParams.get('node');
     return nodeParam ? parseInt(nodeParam, 10) : null;
+  };
+
+  // お気に入りから解除
+  const removeFavorite = async (spotId: number) => {
+    setRemovingFavorite(spotId);
+    try {
+      const res = await apiRequest(getApiUrl(`/favorites/tourist-spots/${spotId}`), { method: 'DELETE' });
+      if (res.ok || res.status === 204) {
+        setFavorites(prev => prev.filter(f => f.tourist_spot.id !== spotId));
+        setArrivedSpots(prev => prev.filter(s => s.id !== spotId));
+      }
+    } catch (err) {
+      console.error('お気に入り解除エラー:', err);
+    } finally {
+      setRemovingFavorite(null);
+    }
+  };
+
+  // 特典を受け取る
+  const receiveReward = (spot: any) => {
+    if (spot.reward_url) {
+      window.open(spot.reward_url, '_blank');
+    }
   };
 
   useEffect(() => {
@@ -64,6 +104,12 @@ const LinkListPage: React.FC = () => {
           setCurrentNode(foundNode);
           fetchFavorites(foundNode);
           fetchAvailableLinks(foundNode.id);
+          // 全観光地を取得して経路計算
+          fetchAllTouristSpots().then(spots => {
+            if (spots.length > 0) {
+              calculateAllRoutes(spots, foundNode);
+            }
+          });
         } else {
           setError(`ノードID ${nodeId} が見つかりません`);
         }
@@ -93,8 +139,69 @@ const LinkListPage: React.FC = () => {
   };
 
   // 指定したリンクのLinkImagePageに移動
-  const moveToLink = (linkId: number) => {
+  const moveToLink = async (linkId: number) => {
+    const userId = localStorage.getItem('user_id');
+    await sendLog('link_click', { user_id: userId, link_id: linkId });
     window.location.href = `/link-image?id=${linkId}`;
+  };
+
+  // 全観光地データを取得
+  const fetchAllTouristSpots = async () => {
+    try {
+      const response = await fetch(getApiUrl('/tourist-spots'));
+      if (response.ok) {
+        const data = await response.json();
+        const spotsArray = Array.isArray(data) ? data : [];
+        setAllTouristSpots(spotsArray);
+        return spotsArray;
+      }
+    } catch (err) {
+      console.error('全観光地の取得に失敗:', err);
+    }
+    return [];
+  };
+
+  // 全観光地への経路を計算
+  const calculateAllRoutes = async (spots: any[], node: any) => {
+    console.log(`${spots.length}件の観光地への経路を計算中...`);
+    for (const spot of spots) {
+      if (spot.nearest_node_id) {
+        await calculateRouteToSpot(spot, node);
+      }
+    }
+  };
+
+  // 観光地への経路を計算（汎用）
+  const calculateRouteToSpot = async (spot: any, node: any) => {
+    if (!spot.nearest_node_id) return;
+
+    try {
+      const response = await fetch(getApiUrl('/dijkstra'), {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          start_node_id: node.id,
+          end_node_id: spot.nearest_node_id
+        })
+      });
+
+      if (response.ok) {
+        const data = await response.json();
+        if (data.path && Array.isArray(data.path)) {
+          setAllRoutes(prev => ({
+            ...prev,
+            [spot.id]: {
+              path: data.path,
+              total_distance: data.total_distance,
+              node_count: data.node_count,
+              estimated_time: data.total_distance / 80
+            }
+          }));
+        }
+      }
+    } catch (err: any) {
+      console.error(`経路計算エラー (${spot.name}):`, err.message);
+    }
   };
 
   // お気に入り観光地データを取得
@@ -111,9 +218,15 @@ const LinkListPage: React.FC = () => {
         const data = await response.json();
         const favoritesData = Array.isArray(data) ? data : [];
         setFavorites(favoritesData);
-        
-        // 全ての経路を自動計算
+
+        // ログ: ユーザーのお気に入り観光地一覧
         if (favoritesData.length > 0) {
+          const userId = localStorage.getItem('user_id');
+          const favoriteSpotNames = favoritesData.map(f => f.tourist_spot.name).join(', ');
+          await sendLog('favorite_list', {
+            user_id: userId,
+            favorite_spots: favoriteSpotNames
+          });
           calculateAllFavoriteRoutes(favoritesData, node);
         }
       } else if (response.status === 401) {
@@ -129,6 +242,22 @@ const LinkListPage: React.FC = () => {
     console.log(`${favoritesData.length}件のお気に入り観光地の経路を計算中...`);
     for (const favorite of favoritesData) {
       await calculateRouteToFavorite(favorite, node);
+      // ノード到着判定
+      if (node.id === favorite.tourist_spot.nearest_node_id) {
+        const userId = localStorage.getItem('user_id');
+        await sendLog('arrived', {
+          user_id: userId,
+          tourist_spot_id: favorite.tourist_spot.id,
+          node_id: node.id
+        });
+        // 到着した観光地を記録
+        setArrivedSpots(prev => {
+          if (!prev.some(s => s.id === favorite.tourist_spot.id)) {
+            return [...prev, favorite.tourist_spot];
+          }
+          return prev;
+        });
+      }
     }
   };
 
@@ -141,8 +270,6 @@ const LinkListPage: React.FC = () => {
       console.error(`観光地「${touristSpot.name}」に最寄りノードが設定されていません`);
       return;
     }
-
-    setRouteLoading(prev => ({ ...prev, [favorite.id]: true }));
 
     try {
       const response = await fetch(getApiUrl('/dijkstra'), {
@@ -175,8 +302,6 @@ const LinkListPage: React.FC = () => {
       }
     } catch (err: any) {
       console.error(`経路計算エラー (${touristSpot.name}):`, err.message);
-    } finally {
-      setRouteLoading(prev => ({ ...prev, [favorite.id]: false }));
     }
   };
 
@@ -198,11 +323,188 @@ const LinkListPage: React.FC = () => {
       <div style={{ maxWidth: 800, margin: "32px auto", background: "#fff", borderRadius: 8, boxShadow: "0 2px 8px #0001", padding: 24 }}>
         {currentNode && (
           <>
+            {/* 到着通知 */}
+            {arrivedSpots.length > 0 && (
+              <div style={{
+                marginBottom: '24px',
+                padding: '20px',
+                background: 'linear-gradient(135deg, #10b981 0%, #059669 100%)',
+                borderRadius: '12px',
+                boxShadow: '0 4px 12px rgba(16, 185, 129, 0.3)',
+                animation: 'slideIn 0.5s ease-out'
+              }}>
+               
+                <div style={{
+                  color: 'white',
+                  fontSize: '1.3rem',
+                  fontWeight: 'bold',
+                  textAlign: 'center',
+                  marginBottom: '8px'
+                }}>
+                  おめでとうございます！
+                </div>
+                {arrivedSpots.map((spot, index) => (
+                  <div key={spot.id} style={{ marginTop: index > 0 ? '12px' : '0' }}>
+                    <div style={{ color: 'white', fontSize: '1.1rem', textAlign: 'center', marginBottom: '10px' }}>
+                      「{spot.name}」に到着しました
+                    </div>
+                    <div style={{ display: 'flex', gap: '10px', justifyContent: 'center', flexWrap: 'wrap' }}>
+                      <button
+                        onClick={() => receiveReward(spot)}
+                        disabled={!spot.reward_url}
+                        style={{
+                          padding: '8px 20px',
+                          background: !spot.reward_url ? 'rgba(255,255,255,0.3)' : '#f59e0b',
+                          color: 'white',
+                          border: 'none',
+                          borderRadius: '8px',
+                          fontSize: '14px',
+                          fontWeight: 'bold',
+                          cursor: !spot.reward_url ? 'default' : 'pointer',
+                        }}
+                      >
+                        特典を受け取る
+                      </button>
+                      <button
+                        onClick={() => removeFavorite(spot.id)}
+                        disabled={removingFavorite === spot.id}
+                        style={{
+                          padding: '8px 20px',
+                          background: 'rgba(255,255,255,0.2)',
+                          color: 'white',
+                          border: '1px solid rgba(255,255,255,0.5)',
+                          borderRadius: '8px',
+                          fontSize: '14px',
+                          cursor: removingFavorite === spot.id ? 'default' : 'pointer',
+                        }}
+                      >
+                        {removingFavorite === spot.id ? '解除中...' : 'お気に入りから解除'}
+                      </button>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+
             <div style={{ marginBottom: '20px', textAlign: 'center' }}>
               <h1 style={{ fontSize: "1.5rem", marginBottom: 10, color: '#1f2937' }}>
-                お気に入り観光地への経路
+                {currentNode.name || `ノード ${currentNode.id}`} からの経路
               </h1>
+              <button
+                onClick={() => { window.location.href = `/route-selector?node_id=${currentNode.id}`; }}
+                style={{
+                  padding: '10px 24px',
+                  background: '#6f96eb',
+                  color: 'white',
+                  border: 'none',
+                  borderRadius: '8px',
+                  fontSize: '15px',
+                  fontWeight: 'bold',
+                  cursor: 'pointer'
+                }}
+              >
+                360°画像でルートを選択
+              </button>
             </div>
+
+            {/* お気に入り観光地サマリー */}
+            {favorites.length > 0 && (
+              <div style={{
+                marginBottom: '24px',
+                padding: '20px',
+                background: '#fffbeb',
+                borderRadius: '12px',
+                border: '2px solid #f59e0b'
+              }}>
+                <h3 style={{
+                  margin: '0 0 12px 0',
+                  fontSize: '1.1rem',
+                  color: '#92400e',
+                  fontWeight: 'bold'
+                }}>
+                  お気に入り観光地
+                </h3>
+                <div style={{
+                  display: 'flex',
+                  flexDirection: 'column',
+                  gap: '10px'
+                }}>
+                {favorites.map(favorite => {
+                  const route = favoriteRoutes[favorite.id];
+                  const spot = favorite.tourist_spot;
+                  // const congestion = getCongestionLevel(spot.current_count, spot.max_capacity);
+                  return (
+                    <div key={favorite.id} style={{
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: '12px',
+                      padding: '12px 16px',
+                      background: 'white',
+                      borderRadius: '10px',
+                      border: '1px solid #e5e7eb',
+                      flexWrap: 'wrap'
+                    }}>
+                      <div style={{ fontWeight: 'bold', fontSize: '15px', color: '#92400e', minWidth: '80px' }}>
+                        {spot.name}
+                      </div>
+                      <div style={{
+                        display: 'flex',
+                        gap: '8px',
+                        flexWrap: 'wrap',
+                        flex: 1
+                      }}>
+                        {/* 待ち時間 */}
+                        {/* <span style={{
+                          padding: '3px 10px',
+                          borderRadius: '12px',
+                          fontSize: '13px',
+                          fontWeight: 'bold',
+                          background: spot.wait_time > 30 ? '#fee2e2' : (spot.wait_time > 10 ? '#fef3c7' : '#dcfce7'),
+                          color: spot.wait_time > 30 ? '#dc2626' : (spot.wait_time > 10 ? '#b45309' : '#16a34a')
+                        }}>
+                          待ち時間: {spot.wait_time}分
+                        </span> */}
+                        {/* 混雑度 */}
+                        {/* <span style={{
+                          padding: '3px 10px',
+                          borderRadius: '12px',
+                          fontSize: '13px',
+                          fontWeight: 'bold',
+                          background: 'white',
+                          color: congestion.color,
+                          border: `1px solid ${congestion.color}`
+                        }}>
+                          混雑度: {spot.max_capacity > 0 ? `${Math.round((spot.current_count / spot.max_capacity) * 100)}%` : '---'}
+                        </span> */}
+                        {/* 距離 */}
+                        <span style={{
+                          padding: '3px 10px',
+                          borderRadius: '12px',
+                          fontSize: '13px',
+                          fontWeight: 'bold',
+                          background: '#eff6ff',
+                          color: '#1e40af'
+                        }}>
+                          移動距離: {route ? `${route.total_distance.toFixed(0)}m` : '計算中...'}
+                        </span>
+                        {/* 所要時間 */}
+                        <span style={{
+                          padding: '3px 10px',
+                          borderRadius: '12px',
+                          fontSize: '13px',
+                          fontWeight: 'bold',
+                          background: '#f3e8ff',
+                          color: '#7c3aed'
+                        }}>
+                          所要時間: {route ? `約${Math.ceil(route.estimated_time || 0)}分` : '---'}
+                        </span>
+                      </div>
+                    </div>
+                  );
+                })}
+                </div>
+              </div>
+            )}
 
             {/* 進行可能なリンク一覧 */}
             <div style={{ 
@@ -220,7 +522,7 @@ const LinkListPage: React.FC = () => {
                 alignItems: 'center',
                 gap: '8px'
               }}>
-                進行可能なリンク
+                進行可能な経路
               </h3>
               
               {isLoadingLinks ? (
@@ -233,58 +535,79 @@ const LinkListPage: React.FC = () => {
                   gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))', 
                   gap: '12px' 
                 }}>
-                  {availableLinks.map((linkInfo: any, index: number) => (
-                    <div key={index} style={{
-                      background: 'white',
-                      padding: '15px',
-                      borderRadius: '8px',
-                      border: '1px solid #e0f2fe',
-                      display: 'flex',
-                      justifyContent: 'space-between',
-                      alignItems: 'center'
-                    }}>
-                      <div>
-                        <div style={{ 
-                          fontWeight: 'bold', 
-                          fontSize: '16px', 
-                          color: '#1e40af',
-                          marginBottom: '4px'
-                        }}>
-                          → {linkInfo.to_node.name || `ノード${linkInfo.to_node.id}`}
-                        </div>
-                        <div style={{ 
-                          fontSize: '12px', 
-                          color: '#6b7280',
-                          marginBottom: '2px'
-                        }}>
-                          リンクID: {linkInfo.link.id}
-                        </div>
-                        <div style={{ 
-                          fontSize: '12px', 
-                          color: '#6b7280'
-                        }}>
-                          距離: {Math.round(linkInfo.distance)}m
-                        </div>
+                  {availableLinks.map((linkInfo: any, index: number) => {
+                
+                // 1. ここで「次の一歩」が一致する観光地を探す（全観光地対象）
+                const targetSpots = allTouristSpots.filter(spot => {
+                  const route = allRoutes[spot.id];
+                  return route && route.path && route.path.length > 1 && route.path[1].id === linkInfo.to_node.id;
+                });
+
+                // お気に入りの観光地のうち、このリンク方向に進むもの
+                const favoriteSpotsInDirection = favorites.filter(favorite => {
+                  const route = favoriteRoutes[favorite.id];
+                  return route && route.path && route.path.length > 1 && route.path[1].id === linkInfo.to_node.id;
+                });
+
+                return (
+                  <div key={index} style={{
+                    background: 'white',
+                    padding: '15px',
+                    borderRadius: '8px',
+                    border: favoriteSpotsInDirection.length > 0 ? '2px solid #3b82f6' : '1px solid #e0f2fe',
+                    display: 'flex',
+                    justifyContent: 'space-between',
+                    alignItems: 'center'
+                  }}>
+                    <div>
+                      <div style={{ fontWeight: 'bold', fontSize: '16px', color: '#1e40af', marginBottom: '4px' }}>
+                        → {linkInfo.to_node.name || `ノード${linkInfo.to_node.id}`}
                       </div>
-                      <button
-                        onClick={() => moveToLink(linkInfo.link.id)}
-                        style={{
-                          background: '#3b82f6',
-                          color: 'white',
-                          border: 'none',
-                          padding: '8px 16px',
-                          borderRadius: '6px',
-                          cursor: 'pointer',
-                          fontSize: '14px',
-                          fontWeight: 'bold'
-                        }}
-                        onMouseEnter={(e) => e.currentTarget.style.background = '#2563eb'}
-                        onMouseLeave={(e) => e.currentTarget.style.background = '#3b82f6'}
-                      >
-                        ここに進む
-                      </button>
+                      
+                      {/* 2. 観光地名を表示する部分（全観光地対象） */}
+                      {targetSpots.length > 0 && (
+                        <div style={{
+                          fontSize: '12px',
+                          fontWeight: 'bold',
+                          background: '#eff6ff',
+                          padding: '2px 6px',
+                          borderRadius: '4px',
+                          marginBottom: '4px',
+                          display: 'inline-block'
+                        }}>
+                          {targetSpots.map((s, i) => {
+                            const isFav = favorites.some(f => f.tourist_spot.id === s.id);
+                            return (
+                              <span key={s.id} style={{ color: isFav ? '#f59e0b' : '#3b82f6' }}>
+                                {s.name}{i < targetSpots.length - 1 && ', '}
+                              </span>
+                            );
+                          })} 方面
+                        </div>
+                      )}
+
+                      <div style={{ fontSize: '12px', color: '#6b7280' }}>
+                        距離: {Math.round(linkInfo.distance)}m
+                      </div>
                     </div>
-                  ))}
+                    <button
+                      onClick={() => moveToLink(linkInfo.link.id)}
+                      style={{
+                        background: favoriteSpotsInDirection.length > 0 ? '#e923e9' : '#3b82f6',
+                        color: 'white',
+                        border: 'none',
+                        padding: '8px 16px',
+                        borderRadius: '6px',
+                        cursor: 'pointer',
+                        fontSize: '14px',
+                        fontWeight: 'bold'
+                      }}
+                    >
+                      ここに進む
+                    </button>
+                  </div>
+                );
+              })}
                 </div>
               ) : (
                 <div style={{ 
@@ -298,392 +621,6 @@ const LinkListPage: React.FC = () => {
               )}
             </div>
 
-            {favorites.length === 0 ? (
-              <div style={{ 
-                textAlign: 'center', 
-                padding: '40px', 
-                color: '#6b7280',
-                background: '#f9fafb',
-                borderRadius: '8px',
-                border: '2px dashed #d1d5db'
-              }}>
-                <div style={{ fontSize: '2rem', marginBottom: '10px' }}>🌟</div>
-                <div>お気に入り観光地が登録されていません</div>
-                <div style={{ marginTop: '10px' }}>
-                  <a href="/favorites" style={{ color: '#3b82f6', textDecoration: 'underline' }}>
-                    お気に入り管理画面
-                  </a>で観光地を追加してください
-                </div>
-              </div>
-            ) : (
-              <div>
-                <div style={{ marginBottom: '30px', textAlign: 'center', color: '#374151' }}>
-                  🚶‍♂️ {favorites.length}件のお気に入り観光地への経路を自動計算しています...
-                </div>
-
-                {/* 全てのお気に入り観光地の経路を表示 */}
-                {favorites.map(favorite => {
-                  const routeInfo = favoriteRoutes[favorite.id];
-                  const isLoading = routeLoading[favorite.id];
-                  
-                  return (
-                    <div 
-                      key={favorite.id}
-                      style={{
-                        background: '#fef3c7',
-                        padding: '20px',
-                        borderRadius: '12px',
-                        border: '2px solid #f59e0b',
-                        marginBottom: '25px',
-                        boxShadow: '0 4px 6px rgba(0,0,0,0.1)'
-                      }}
-                    >
-                      <div style={{ 
-                        display: 'flex', 
-                        alignItems: 'center', 
-                        justifyContent: 'space-between',
-                        marginBottom: '15px'
-                      }}>
-                        <h3 style={{ margin: '0', color: '#92400e', fontSize: '1.2rem' }}>
-                          {currentNode.name} → {favorite.tourist_spot.name}
-                        </h3>
-                        
-                        {/* 混雑度マーク */}
-                        <div style={{
-                          display: 'inline-flex',
-                          alignItems: 'center',
-                          padding: '4px 12px',
-                          borderRadius: '20px',
-                          fontSize: '12px',
-                          fontWeight: 'bold',
-                          color: 'white',
-                          backgroundColor: (() => {
-                            const congestion = getCongestionLevel(favorite.tourist_spot.current_count, favorite.tourist_spot.max_capacity);
-                            return congestion.color;
-                          })(),
-                          boxShadow: '0 2px 4px rgba(0,0,0,0.1)'
-                        }}>
-                          {(() => {
-                            const congestion = getCongestionLevel(favorite.tourist_spot.current_count, favorite.tourist_spot.max_capacity);
-                            // 混雑レベルに応じた表示テキスト
-                            const getCongestionText = (level: string) => {
-                              switch (level) {
-                                case '空いている': return '空き';
-                                case '少し空いている': return '空き';
-                                case '普通': return '普通';
-                                case '混雑': return '混雑';
-                                case '非常に混雑': return '大混雑';
-                                case '満員': return '満員';
-                                default: return '不明';
-                              }
-                            };
-                            return getCongestionText(congestion.level);
-                          })()}
-                        </div>
-                      </div>
-                      
-                      {/* 観光地詳細ボタン */}
-                      <div style={{ marginBottom: '15px', textAlign: 'right' }}>
-                        <button
-                          onClick={() => window.location.href = `/tourist-spot/${favorite.tourist_spot.id}`}
-                          style={{
-                            background: 'linear-gradient(135deg, #3b82f6 0%, #1d4ed8 100%)',
-                            color: 'white',
-                            border: 'none',
-                            padding: '8px 16px',
-                            borderRadius: '8px',
-                            fontSize: '14px',
-                            fontWeight: 'bold',
-                            cursor: 'pointer',
-                            boxShadow: '0 2px 4px rgba(59, 130, 246, 0.3)',
-                            transition: 'all 0.3s ease'
-                          }}
-                          onMouseEnter={(e) => {
-                            e.currentTarget.style.transform = 'translateY(-1px)';
-                            e.currentTarget.style.boxShadow = '0 4px 8px rgba(59, 130, 246, 0.4)';
-                          }}
-                          onMouseLeave={(e) => {
-                            e.currentTarget.style.transform = 'translateY(0)';
-                            e.currentTarget.style.boxShadow = '0 2px 4px rgba(59, 130, 246, 0.3)';
-                          }}
-                        >
-                          詳細を見る
-                        </button>
-                      </div>
-                      
-                      {isLoading ? (
-                        <div style={{ 
-                          textAlign: 'center', 
-                          padding: '30px', 
-                          color: '#92400e',
-                          fontSize: '16px'
-                        }}>
-                          <div style={{ fontSize: '2rem', marginBottom: '10px' }}>🔄</div>
-                          <div>経路を計算中...</div>
-                        </div>
-                      ) : routeInfo ? (
-                        <>
-                          {/* 到着判定 - デバッグ情報 */}
-                          {(() => {
-                            // nearest_node_idによる判定
-                            const arrivedByNodeId = currentNode && favorite.tourist_spot.nearest_node_id && currentNode.id === favorite.tourist_spot.nearest_node_id;
-                            
-                            // 座標による判定（nearest_node_idがない場合のフォールバック）
-                            const arrivedByDistance = currentNode && !favorite.tourist_spot.nearest_node_id && 
-                              Math.sqrt(Math.pow(currentNode.x - favorite.tourist_spot.x, 2) + Math.pow(currentNode.y - favorite.tourist_spot.y, 2)) <= 50; // 50ピクセル以内
-                            
-                            const isArrived = arrivedByNodeId || arrivedByDistance;
-                            
-                            console.log('到着判定デバッグ:', {
-                              currentNodeId: currentNode?.id,
-                              nearestNodeId: favorite.tourist_spot.nearest_node_id,
-                              touristSpotCoords: { x: favorite.tourist_spot.x, y: favorite.tourist_spot.y },
-                              currentNodeCoords: currentNode ? { x: currentNode.x, y: currentNode.y } : null,
-                              arrivedByNodeId,
-                              arrivedByDistance,
-                              isArrived
-                            });
-                            
-                            // nearest_node_idが未設定の場合の警告
-                            if (!favorite.tourist_spot.nearest_node_id) {
-                              console.warn(`観光地 "${favorite.tourist_spot.name}" の最寄りノードが設定されていません。管理画面でnearest_node_idを設定してください。`);
-                            }
-                            
-                            return isArrived ? (
-                              /* 到着時の祝福表示 */
-                              <div style={{ 
-                                textAlign: 'center', 
-                                padding: '40px 20px',
-                                background: 'linear-gradient(135deg, #fef3c7 0%, #fde68a 100%)',
-                                borderRadius: '12px',
-                                border: '2px solid #f59e0b',
-                                marginBottom: '20px'
-                              }}>
-                                <div style={{ fontSize: '3rem', marginBottom: '15px' }}>🎉</div>
-                                <h3 style={{ 
-                                  color: '#92400e', 
-                                  fontSize: '1.5rem', 
-                                  marginBottom: '10px',
-                                  fontWeight: 'bold'
-                                }}>
-                                  おめでとうございます！
-                                </h3>
-                                <p style={{ 
-                                  color: '#92400e', 
-                                  fontSize: '1.1rem',
-                                  marginBottom: '20px',
-                                  lineHeight: '1.6'
-                                }}>
-                                  {favorite.tourist_spot.name}に到着しました！<br />
-                                  素晴らしい旅をお楽しみください。
-                                </p>
-                                
-                                {/* 特典ボタン */}
-                                {favorite.tourist_spot.reward_url && (
-                                  <button
-                                    onClick={() => window.open(favorite.tourist_spot.reward_url, '_blank')}
-                                    style={{
-                                      background: 'linear-gradient(135deg, #f59e0b 0%, #d97706 100%)',
-                                      color: 'white',
-                                      border: 'none',
-                                      padding: '15px 30px',
-                                      borderRadius: '25px',
-                                      fontSize: '1.1rem',
-                                      fontWeight: 'bold',
-                                      cursor: 'pointer',
-                                      boxShadow: '0 4px 15px rgba(245, 158, 11, 0.3)',
-                                      transition: 'all 0.3s ease'
-                                    }}
-                                    onMouseEnter={(e) => {
-                                      e.currentTarget.style.transform = 'translateY(-2px)';
-                                      e.currentTarget.style.boxShadow = '0 6px 20px rgba(245, 158, 11, 0.4)';
-                                    }}
-                                    onMouseLeave={(e) => {
-                                      e.currentTarget.style.transform = 'translateY(0)';
-                                      e.currentTarget.style.boxShadow = '0 4px 15px rgba(245, 158, 11, 0.3)';
-                                    }}
-                                  >
-                                    特典を受け取る
-                                  </button>
-                                )}
-                              </div>
-                            ) : (
-                              <>
-                                {/* 経路統計 */}
-                                <div style={{ 
-                                  display: 'grid', 
-                                  gridTemplateColumns: 'repeat(auto-fit, minmax(140px, 1fr))', 
-                                  gap: '12px',
-                                  marginBottom: '20px'
-                                }}>
-                                  <div style={{ textAlign: 'center', padding: '12px', background: 'white', borderRadius: '8px', border: '1px solid #f59e0b' }}>
-                                    <div style={{ fontSize: '24px', fontWeight: 'bold', color: '#dc2626' }}>
-                                      {routeInfo.total_distance.toFixed(0)}m
-                                    </div>
-                                    <div style={{ fontSize: '14px', color: '#92400e' }}>距離</div>
-                                  </div>
-                                  <div style={{ textAlign: 'center', padding: '12px', background: 'white', borderRadius: '8px', border: '1px solid #f59e0b' }}>
-                                    <div style={{ fontSize: '24px', fontWeight: 'bold', color: '#059669' }}>
-                                      {Math.ceil(routeInfo.estimated_time || 0)}分
-                                    </div>
-                                    <div style={{ fontSize: '14px', color: '#92400e' }}>所要時間</div>
-                                  </div>
-                                  <div style={{ textAlign: 'center', padding: '12px', background: 'white', borderRadius: '8px', border: '1px solid #f59e0b' }}>
-                                    <div style={{ fontSize: '24px', fontWeight: 'bold', color: '#7c3aed' }}>
-                                      {routeInfo.node_count}
-                                    </div>
-                                    <div style={{ fontSize: '14px', color: '#92400e' }}>経由点</div>
-                                  </div>
-                                  <div style={{ textAlign: 'center', padding: '12px', background: 'white', borderRadius: '8px', border: '1px solid #f59e0b' }}>
-                                    <div style={{ fontSize: '24px', marginBottom: '4px' }}>
-                                      {(() => {
-                                        const congestion = getCongestionLevel(favorite.tourist_spot.current_count, favorite.tourist_spot.max_capacity);
-                                        // 混雑レベルに応じたアイコン
-                                        const getCongestionIcon = (level: string) => {
-                                          switch (level) {
-                                            case '空いている': return '😊';
-                                            case '少し空いている': return '🙂';
-                                            case '普通': return '😐';
-                                            case '混雑': return '😟';
-                                            case '非常に混雑': return '😰';
-                                            case '満員': return '😱';
-                                            default: return '❓';
-                                          }
-                                        };
-                                        return getCongestionIcon(congestion.level);
-                                      })()}
-                                    </div>
-                                    <div style={{ fontSize: '16px', fontWeight: 'bold', color: (() => {
-                                      const congestion = getCongestionLevel(favorite.tourist_spot.current_count, favorite.tourist_spot.max_capacity);
-                                      return congestion.color;
-                                    })() }}>
-                                      {(() => {
-                                        const congestion = getCongestionLevel(favorite.tourist_spot.current_count, favorite.tourist_spot.max_capacity);
-                                        return congestion.level;
-                                      })()}
-                                    </div>
-                                    <div style={{ fontSize: '12px', color: '#92400e', marginTop: '4px' }}>
-                                      {favorite.tourist_spot.current_count}/{favorite.tourist_spot.max_capacity}人
-                                    </div>
-                                    <div style={{ fontSize: '14px', color: '#92400e' }}>現在の混雑</div>
-                                  </div>
-                                </div>
-
-                                {/* 経路詳細 */}
-                                <div style={{ marginBottom: '15px' }}>
-                                  <h4 style={{ margin: '0 0 12px 0', fontSize: '16px', color: '#92400e' }}>進行ルート（リンク単位）</h4>
-                                  
-                                  {/* リンクベースのルート表示 */}
-                                  <div style={{ 
-                                    background: '#f3f4f6',
-                                    padding: '12px',
-                                    borderRadius: '8px',
-                                    border: '1px solid #d1d5db'
-                                  }}>
-                                    <div style={{ 
-                                      fontSize: '14px', 
-                                      color: '#374151',
-                                      lineHeight: '1.8'
-                                    }}>
-                                      {routeInfo.path.slice(0, -1).map((node: any, index: number) => {
-                                        const nextNode = routeInfo.path[index + 1];
-                                        const isFirst = index === 0;
-                                        return (
-                                          <div key={`${node.id}-${nextNode.id}`} style={{ 
-                                            marginBottom: '8px',
-                                            padding: '8px',
-                                            background: isFirst ? '#dbeafe' : 'white',
-                                            borderRadius: '6px',
-                                            border: '1px solid #e5e7eb'
-                                          }}>
-                                            <div style={{ 
-                                              fontWeight: 'bold',
-                                              color: isFirst ? '#1e40af' : '#374151',
-                                              marginBottom: '2px'
-                                            }}>
-                                              {isFirst ? '🏁 ' : `${index}. `}
-                                              {node.name || `ノード${node.id}`} → {nextNode.name || `ノード${nextNode.id}`}
-                                            </div>
-                                            <div style={{ 
-                                              fontSize: '12px', 
-                                              color: '#6b7280'
-                                            }}>
-                                              このリンクを通って次のノードへ進む
-                                            </div>
-                                          </div>
-                                        );
-                                      })}
-                                    </div>
-                                  </div>
-                                </div>
-                              </>
-                            );
-                          })()}
-                        </>
-                      ) : (
-                        /* 到着時の祝福表示（経路が見つからない場合も到着とみなす） */
-                        <div style={{ 
-                          textAlign: 'center', 
-                          padding: '40px 20px',
-                          background: 'linear-gradient(135deg, #fef3c7 0%, #fde68a 100%)',
-                          borderRadius: '12px',
-                          border: '2px solid #f59e0b',
-                          marginBottom: '20px'
-                        }}>
-                          <div style={{ fontSize: '3rem', marginBottom: '15px' }}>🎉</div>
-                          <h3 style={{ 
-                            color: '#92400e', 
-                            fontSize: '1.5rem', 
-                            marginBottom: '10px',
-                            fontWeight: 'bold'
-                          }}>
-                            おめでとうございます！
-                          </h3>
-                          <p style={{ 
-                            color: '#92400e', 
-                            fontSize: '1.1rem',
-                            marginBottom: '20px',
-                            lineHeight: '1.6'
-                          }}>
-                            {favorite.tourist_spot.name}に到着しました！<br />
-                            素晴らしい旅をお楽しみください。
-                          </p>
-                          
-                          {/* 特典ボタン */}
-                          {favorite.tourist_spot.reward_url && (
-                            <button
-                              onClick={() => window.open(favorite.tourist_spot.reward_url, '_blank')}
-                              style={{
-                                background: 'linear-gradient(135deg, #f59e0b 0%, #d97706 100%)',
-                                color: 'white',
-                                border: 'none',
-                                padding: '15px 30px',
-                                borderRadius: '25px',
-                                fontSize: '1.1rem',
-                                fontWeight: 'bold',
-                                cursor: 'pointer',
-                                boxShadow: '0 4px 15px rgba(245, 158, 11, 0.3)',
-                                transition: 'all 0.3s ease'
-                              }}
-                              onMouseEnter={(e) => {
-                                e.currentTarget.style.transform = 'translateY(-2px)';
-                                e.currentTarget.style.boxShadow = '0 6px 20px rgba(245, 158, 11, 0.4)';
-                              }}
-                              onMouseLeave={(e) => {
-                                e.currentTarget.style.transform = 'translateY(0)';
-                                e.currentTarget.style.boxShadow = '0 4px 15px rgba(245, 158, 11, 0.3)';
-                              }}
-                            >
-                              🎁 特典を受け取る
-                            </button>
-                          )}
-                        </div>
-                      )}
-                    </div>
-                  );
-                })}
-              </div>
-            )}
           </>
         )}
       </div>

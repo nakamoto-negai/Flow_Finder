@@ -11,7 +11,7 @@ import (
 // ノード関連のルートを登録
 func RegisterNodeRoutes(r *gin.Engine, db *gorm.DB, redisClient *redis.Client) {
 	// Node追加（管理者専用）
-	r.POST("/nodes", AdminRequired(db, redisClient), func(c *gin.Context) {
+	r.POST("/api/nodes", AdminRequired(db, redisClient), func(c *gin.Context) {
 		var req struct {
 			Name       string  `json:"name"`
 			X          float64 `json:"x"`
@@ -49,7 +49,7 @@ func RegisterNodeRoutes(r *gin.Engine, db *gorm.DB, redisClient *redis.Client) {
 	})
 
 	// Node一覧取得
-	r.GET("/nodes", func(c *gin.Context) {
+	r.GET("/api/nodes", func(c *gin.Context) {
 		var nodes []Node
 		if err := db.Find(&nodes).Error; err != nil {
 			c.JSON(500, gin.H{"error": "DB select error"})
@@ -59,7 +59,7 @@ func RegisterNodeRoutes(r *gin.Engine, db *gorm.DB, redisClient *redis.Client) {
 	})
 
 	// Node詳細取得
-	r.GET("/nodes/:id", func(c *gin.Context) {
+	r.GET("/api/nodes/:id", func(c *gin.Context) {
 		id := c.Param("id")
 		var node Node
 		if err := db.First(&node, id).Error; err != nil {
@@ -70,7 +70,7 @@ func RegisterNodeRoutes(r *gin.Engine, db *gorm.DB, redisClient *redis.Client) {
 	})
 
 	// Node更新（管理者専用）
-	r.PUT("/nodes/:id", AdminRequired(db, redisClient), func(c *gin.Context) {
+	r.PUT("/api/nodes/:id", AdminRequired(db, redisClient), func(c *gin.Context) {
 		id := c.Param("id")
 		var node Node
 		if err := db.First(&node, id).Error; err != nil {
@@ -129,7 +129,7 @@ func RegisterNodeRoutes(r *gin.Engine, db *gorm.DB, redisClient *redis.Client) {
 	})
 
 	// Node削除（管理者専用）
-	r.DELETE("/nodes/:id", AdminRequired(db, redisClient), func(c *gin.Context) {
+	r.DELETE("/api/nodes/:id", AdminRequired(db, redisClient), func(c *gin.Context) {
 		id := c.Param("id")
 
 		// 削除前に関連するリンクをチェック
@@ -163,4 +163,13 @@ func RegisterNodeRoutes(r *gin.Engine, db *gorm.DB, redisClient *redis.Client) {
 
 		c.JSON(200, gin.H{"result": "ok", "message": "ノードが削除されました"})
 	})
+
+	// ノードに紐づく画像一覧を取得
+	r.GET("/api/nodes/:id/images", getNodeImagesHandler(db))
+
+	// ノード画像をアップロード（管理者専用）
+	r.POST("/api/nodes/:id/images", AdminRequired(db, redisClient), uploadNodeImageHandler(db))
+
+	// ノード画像を削除（管理者専用）
+	r.DELETE("/api/node-images/:id", AdminRequired(db, redisClient), deleteNodeImageHandler(db))
 }

@@ -1,18 +1,27 @@
-import React from 'react';
+import React, { useEffect, useState } from 'react';
+import { getApiUrl } from './config';
 
 interface HeaderProps {
   onLogout?: () => void;
 }
 
-const Header: React.FC<HeaderProps> = ({ 
+const Header: React.FC<HeaderProps> = ({
   onLogout
 }) => {
   // localStorageから管理者フラグを取得
   const isAdmin = localStorage.getItem('isAdmin') === 'true';
+  const [stampUrl, setStampUrl] = useState<string | null>(null);
+
+  useEffect(() => {
+    fetch(getApiUrl('/settings/stamp_app_url'))
+      .then(r => r.ok ? r.json() : null)
+      .then(d => { if (d?.value) setStampUrl(d.value); })
+      .catch(() => {});
+  }, []);
 
   return (
     <header style={{
-      background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
+      background: 'linear-gradient(135deg, #EA6D8D 0%, #EA6D8D 100%)',
       color: 'white',
       padding: '12px 24px',
       boxShadow: '0 2px 8px rgba(0,0,0,0.1)',
@@ -44,7 +53,7 @@ const Header: React.FC<HeaderProps> = ({
         {/* ナビゲーションメニュー */}
         <nav style={{ display: 'flex', gap: '16px' }}>
           <button
-            onClick={() => window.location.href = '/mypage'}
+            onClick={() => { if (stampUrl) window.open(stampUrl, '_blank'); }}
             style={{
               background: 'transparent',
               color: 'white',
@@ -52,13 +61,14 @@ const Header: React.FC<HeaderProps> = ({
               borderRadius: '6px',
               padding: '6px 12px',
               fontSize: '0.9rem',
-              cursor: 'pointer',
-              transition: 'all 0.2s ease'
+              cursor: stampUrl ? 'pointer' : 'default',
+              transition: 'all 0.2s ease',
+              opacity: stampUrl ? 1 : 0.5,
             }}
-            onMouseOver={(e) => e.currentTarget.style.background = 'rgba(255,255,255,0.2)'}
+            onMouseOver={(e) => { if (stampUrl) e.currentTarget.style.background = 'rgba(255,255,255,0.2)'; }}
             onMouseOut={(e) => e.currentTarget.style.background = 'transparent'}
           >
-            マイページ
+            スタンプ
           </button>
 
           <button

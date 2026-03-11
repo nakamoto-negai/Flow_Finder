@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import type { Node, Field } from './types';
-import { getApiUrl, API_BASE_URL } from './config';
+import { getApiUrl, STATIC_BASE_URL } from './config';
 import { getAuthHeaders } from './api';
 
 interface VisualNodeSelectorProps {
@@ -217,7 +217,7 @@ const VisualNodeSelector: React.FC<VisualNodeSelectorProps> = ({
         }}>
           <img
             ref={imageRef}
-            src={`${API_BASE_URL}${activeField.image_url}`}
+            src={`${STATIC_BASE_URL}${activeField.image_url}`}
             alt={activeField.name}
             style={{
               width: '100%',

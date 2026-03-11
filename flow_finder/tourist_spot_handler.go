@@ -12,7 +12,7 @@ import (
 // 観光地関連のルートを登録
 func RegisterTouristSpotRoutes(r *gin.Engine, db *gorm.DB, redisClient *redis.Client) {
 	// 観光地一覧取得
-	r.GET("/tourist-spots", func(c *gin.Context) {
+	r.GET("/api/tourist-spots", func(c *gin.Context) {
 		var spots []TouristSpot
 		query := db.Model(&TouristSpot{}).Preload("TouristCategory") // カテゴリ情報をプリロード
 
@@ -47,7 +47,7 @@ func RegisterTouristSpotRoutes(r *gin.Engine, db *gorm.DB, redisClient *redis.Cl
 	})
 
 	// 観光地詳細取得
-	r.GET("/tourist-spots/:id", func(c *gin.Context) {
+	r.GET("/api/tourist-spots/:id", func(c *gin.Context) {
 		id := c.Param("id")
 		var spot TouristSpot
 		if err := db.Preload("Node").Preload("TouristCategory").First(&spot, id).Error; err != nil {
@@ -58,21 +58,21 @@ func RegisterTouristSpotRoutes(r *gin.Engine, db *gorm.DB, redisClient *redis.Cl
 	})
 
 	// 観光地作成（管理者専用）
-	r.POST("/tourist-spots", AdminRequired(db, redisClient), touristSpotCreateHandler(db))
+	r.POST("/api/tourist-spots", AdminRequired(db, redisClient), touristSpotCreateHandler(db))
 
 	// 観光地更新（管理者専用）
-	r.PUT("/tourist-spots/:id", AdminRequired(db, redisClient), touristSpotUpdateHandler(db))
+	r.PUT("/api/tourist-spots/:id", AdminRequired(db, redisClient), touristSpotUpdateHandler(db))
 
 	// 観光地削除（管理者専用）
-	r.DELETE("/tourist-spots/:id", AdminRequired(db, redisClient), touristSpotDeleteHandler(db))
+	r.DELETE("/api/tourist-spots/:id", AdminRequired(db, redisClient), touristSpotDeleteHandler(db))
 
 	// 観光地の来場者数管理
-	r.POST("/tourist-spots/:id/visitors", touristSpotVisitorHandler(db))
+	r.POST("/api/tourist-spots/:id/visitors", touristSpotVisitorHandler(db))
 
 	// 観光地の混雑状況取得
-	r.GET("/tourist-spots/:id/congestion", touristSpotCongestionHandler(db))
+	r.GET("/api/tourist-spots/:id/congestion", touristSpotCongestionHandler(db))
 	// 管理者が混雑レベルを記録する（時刻付き保存）
-	r.POST("/tourist-spots/:id/congestion", AdminRequired(db, redisClient), touristSpotSetCongestionHandler(db))
+	r.POST("/api/tourist-spots/:id/congestion", AdminRequired(db, redisClient), touristSpotSetCongestionHandler(db))
 }
 
 // 観光地作成ハンドラ
@@ -152,6 +152,9 @@ func touristSpotCreateHandler(db *gorm.DB) gin.HandlerFunc {
 		}
 		LogDatabaseOperation(db, userID, sessionID, "create", "tourist_spots", strconv.Itoa(int(spot.ID)), c)
 
+		// 変更履歴を記録
+		RecordChangeHistory(db, "tourist_spots", strconv.Itoa(int(spot.ID)), userID, "create", nil, spot)
+
 		c.JSON(201, gin.H{"result": "ok", "id": spot.ID, "spot": spot})
 	}
 }
@@ -165,6 +168,9 @@ func touristSpotUpdateHandler(db *gorm.DB) gin.HandlerFunc {
 			c.JSON(404, gin.H{"error": "観光地が見つかりません"})
 			return
 		}
+
+		// 変更前のデータを保存
+		beforeSpot := spot
 
 		var req struct {
 			Name         *string  `json:"name"`
@@ -265,6 +271,9 @@ func touristSpotUpdateHandler(db *gorm.DB) gin.HandlerFunc {
 		}
 		LogDatabaseOperation(db, userID, sessionID, "update", "tourist_spots", id, c)
 
+		// 変更履歴を記録
+		RecordChangeHistory(db, "tourist_spots", id, userID, "update", beforeSpot, spot)
+
 		c.JSON(200, gin.H{"result": "ok", "spot": spot})
 	}
 }
@@ -273,6 +282,10 @@ func touristSpotUpdateHandler(db *gorm.DB) gin.HandlerFunc {
 func touristSpotDeleteHandler(db *gorm.DB) gin.HandlerFunc {
 	return func(c *gin.Context) {
 		id := c.Param("id")
+
+		// 削除前のデータを取得
+		var spot TouristSpot
+		db.First(&spot, id)
 
 		if err := db.Delete(&TouristSpot{}, id).Error; err != nil {
 			c.JSON(500, gin.H{"error": "観光地削除に失敗しました"})
@@ -286,6 +299,9 @@ func touristSpotDeleteHandler(db *gorm.DB) gin.HandlerFunc {
 			sessionID = generateHandlerSessionID()
 		}
 		LogDatabaseOperation(db, userID, sessionID, "delete", "tourist_spots", id, c)
+
+		// 変更履歴を記録
+		RecordChangeHistory(db, "tourist_spots", id, userID, "delete", spot, nil)
 
 		c.JSON(200, gin.H{"result": "ok", "message": "観光地が削除されました"})
 	}
@@ -301,9 +317,13 @@ func touristSpotVisitorHandler(db *gorm.DB) gin.HandlerFunc {
 			return
 		}
 
+		// 変更前の状態を保存
+		beforeSpot := spot
+
 		var req struct {
-			Action string `json:"action" binding:"required"` // "increment" or "decrement"
-			Count  int    `json:"count"`                     // デフォルト1
+			Action       string `json:"action"`        // "increment" or "decrement" (optional)
+			Count        int    `json:"count"`         // for increment/decrement
+			CurrentCount *int   `json:"current_count"` // for direct set
 		}
 
 		if err := c.ShouldBindJSON(&req); err != nil {
@@ -311,30 +331,47 @@ func touristSpotVisitorHandler(db *gorm.DB) gin.HandlerFunc {
 			return
 		}
 
-		if req.Count == 0 {
-			req.Count = 1
-		}
+		// 直接来場者数を設定する場合
+		if req.CurrentCount != nil {
+			if *req.CurrentCount < 0 {
+				c.JSON(400, gin.H{"error": "来場者数は0以上である必要があります"})
+				return
+			}
+			spot.CurrentCount = *req.CurrentCount
+		} else {
+			// incrementまたはdecrementの場合
+			if req.Count == 0 {
+				req.Count = 1
+			}
 
-		switch req.Action {
-		case "increment":
-			if err := spot.IncrementVisitors(req.Count); err != nil {
-				c.JSON(400, gin.H{"error": err.Error()})
+			switch req.Action {
+			case "increment":
+				if err := spot.IncrementVisitors(req.Count); err != nil {
+					c.JSON(400, gin.H{"error": err.Error()})
+					return
+				}
+			case "decrement":
+				if err := spot.DecrementVisitors(req.Count); err != nil {
+					c.JSON(400, gin.H{"error": err.Error()})
+					return
+				}
+			default:
+				c.JSON(400, gin.H{"error": "無効なアクションです。'increment' または 'decrement' を指定するか、'current_count' を指定してください"})
 				return
 			}
-		case "decrement":
-			if err := spot.DecrementVisitors(req.Count); err != nil {
-				c.JSON(400, gin.H{"error": err.Error()})
-				return
-			}
-		default:
-			c.JSON(400, gin.H{"error": "無効なアクションです。'increment' または 'decrement' を指定してください"})
-			return
 		}
 
 		if err := db.Save(&spot).Error; err != nil {
 			c.JSON(500, gin.H{"error": "来場者数の更新に失敗しました"})
 			return
 		}
+
+		// 変更履歴を記録
+		var userID *uint = nil
+		if uid, exists := GetUserIDFromContext(c); exists {
+			userID = &uid
+		}
+		RecordChangeHistory(db, "tourist_spots", strconv.Itoa(int(spot.ID)), userID, "update", beforeSpot, spot)
 
 		c.JSON(200, gin.H{
 			"result":        "ok",

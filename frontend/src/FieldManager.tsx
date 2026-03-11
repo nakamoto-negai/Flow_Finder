@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { getApiUrl, API_BASE_URL } from './config';
+import { getApiUrl, STATIC_BASE_URL } from './config';
 import { getAuthHeaders, getAuthHeadersForFormData } from './api';
 
 interface Field {
@@ -57,13 +57,13 @@ const FieldManager: React.FC = () => {
     formData.append('image', uploadData.image);
 
     try {
-      console.log('🚀 フィールドアップロード開始');
-      console.log('📱 localStorage authToken:', localStorage.getItem('authToken'));
-      console.log('👤 localStorage userId:', localStorage.getItem('userId'));
+      console.log('フィールドアップロード開始');
+      console.log('localStorage authToken:', localStorage.getItem('authToken'));
+      console.log('localStorage userId:', localStorage.getItem('userId'));
       
       const authHeaders = getAuthHeadersForFormData();
-      console.log('🔐 送信するヘッダー:', authHeaders);
-      console.log('🌐 API URL:', getApiUrl('/fields'));
+      console.log('送信するヘッダー:', authHeaders);
+      console.log('API URL:', getApiUrl('/fields'));
 
       const response = await fetch(getApiUrl('/fields'), {
         method: 'POST',
@@ -71,7 +71,7 @@ const FieldManager: React.FC = () => {
         body: formData
       });
       
-      console.log('📡 レスポンス受信:', response.status);
+      console.log('レスポンス受信:', response.status);
 
       if (response.ok) {
         setShowUploadForm(false);
@@ -269,7 +269,7 @@ const FieldManager: React.FC = () => {
           >
             <div style={{ position: 'relative', marginBottom: '10px' }}>
               <img
-                src={`${API_BASE_URL}${field.image_url}`}
+                src={`${STATIC_BASE_URL}${field.image_url}`}
                 alt={field.name}
                 style={{ width: '100%', height: '150px', objectFit: 'cover', borderRadius: '4px' }}
               />

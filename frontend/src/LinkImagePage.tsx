@@ -1,7 +1,8 @@
 
 import { useEffect, useState } from "react";
 import Header from "./Header";
-import { getApiUrl, API_BASE_URL } from './config';
+import { getApiUrl, STATIC_BASE_URL } from './config';
+
 
 interface Image {
   id: number;
@@ -15,6 +16,8 @@ const LinkImagePage: React.FC = () => {
   const [linkId, setLinkId] = useState<number | null>(null);
   const [toNodeId, setToNodeId] = useState<number | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [fromNode, setFromNode] = useState<any | null>(null);
+  const [toNode, setToNode] = useState<any | null>(null);
 
   // URLからリンクIDを取得
   const getLinkIdFromUrl = (): number | null => {
@@ -25,13 +28,33 @@ const LinkImagePage: React.FC = () => {
 
   useEffect(() => {
     const urlLinkId = getLinkIdFromUrl();
-    
     if (!urlLinkId) {
       setError("リンクIDが指定されていません。URLに ?id=1 のようにリンクIDを指定してください。");
       return;
     }
-    
     setLinkId(urlLinkId);
+
+    // ページビューのログ送信
+    fetch(getApiUrl('/logs'), {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        log_type: 'page_view',
+        category: 'navigation',
+        action: 'view',
+        path: window.location.pathname + window.location.search,
+        duration: 0,
+        data: JSON.stringify({ link_id: urlLinkId }),
+        referrer: document.referrer || '',
+        session_id: localStorage.getItem('session_id') || '',
+        user_id: Number(localStorage.getItem('userId')) || undefined,
+      })
+    }).then(async res => {
+      if (res.ok) {
+        const data = await res.json();
+        if (data.session_id) localStorage.setItem('session_id', data.session_id);
+      }
+    }).catch(() => {});
 
     fetch(getApiUrl("/images"))
       .then(res => res.json())
@@ -49,7 +72,7 @@ const LinkImagePage: React.FC = () => {
         console.error("Images fetch error:", err);
         setImages([]);
       });
-    
+
     // リンクの到着ノードID取得
     fetch(getApiUrl("/links"))
       .then(res => res.json())
@@ -61,14 +84,30 @@ const LinkImagePage: React.FC = () => {
           linkArray = data;
         }
         const link = linkArray.find((l: any) => l.id === urlLinkId);
-        if (link) setToNodeId(link.to_node_id);
+        if (link) {
+          setToNodeId(link.to_node_id);
+          // ノード情報を取得
+          fetch(getApiUrl("/nodes"))
+            .then(res => res.json())
+            .then((nodeData) => {
+              let nodeArray = [];
+              if (nodeData && typeof nodeData === 'object' && Array.isArray(nodeData.value)) {
+                nodeArray = nodeData.value;
+              } else if (Array.isArray(nodeData)) {
+                nodeArray = nodeData;
+              }
+              const from = nodeArray.find((n: any) => n.id === link.from_node_id);
+              const to = nodeArray.find((n: any) => n.id === link.to_node_id);
+              setFromNode(from);
+              setToNode(to);
+            })
+            .catch(err => console.error("Nodes fetch error:", err));
+        }
       })
       .catch(err => {
         console.error("Links fetch error:", err);
       });
   }, []);
-
-  const apiHost = API_BASE_URL;
 
   return (
     <div style={{ minHeight: '100vh', background: '#f8fafc' }}>
@@ -80,7 +119,12 @@ const LinkImagePage: React.FC = () => {
           </div>
         ) : linkId ? (
           <>
-            <h2 style={{ marginBottom: 16 }}>リンクID: {linkId} の画像</h2>
+            <h2 style={{ marginBottom: 16 }}>
+              {fromNode && toNode 
+                ? `${fromNode.name || `ノード${fromNode.id}`} → ${toNode.name || `ノード${toNode.id}`}`
+                : `リンクID: ${linkId} の画像`
+              }
+            </h2>
             
             {images.length === 0 ? (
               <div style={{ margin: "40px 0", color: "#666", fontSize: "1.1rem" }}>
@@ -88,7 +132,7 @@ const LinkImagePage: React.FC = () => {
               </div>
             ) : (
               images.map(img => {
-                const imgUrl = img.url.startsWith("/uploads/") ? `${apiHost}${img.url}` : img.url;
+                const imgUrl = img.url.startsWith("/uploads/") ? `${STATIC_BASE_URL}${img.url}` : img.url;
                 return (
                   <div key={img.id} style={{ marginBottom: 24 }}>
                     <img src={imgUrl} alt={img.url} style={{ maxWidth: "100%", maxHeight: 320, borderRadius: 8 }} />
@@ -109,8 +153,24 @@ const LinkImagePage: React.FC = () => {
                 borderRadius: 6, 
                 cursor: toNodeId ? 'pointer' : 'not-allowed' 
               }}
-              onClick={() => {
+              onClick={async () => {
                 if (toNodeId) {
+                  // アクションログ送信
+                  await fetch(getApiUrl('/logs'), {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                      log_type: 'action',
+                      category: 'navigation',
+                      action: 'arrive',
+                      path: window.location.pathname + window.location.search,
+                      duration: 0,
+                      data: JSON.stringify({ link_id: linkId, to_node_id: toNodeId }),
+                      referrer: document.referrer || '',
+                      session_id: localStorage.getItem('session_id') || '',
+                      user_id: Number(localStorage.getItem('userId')) || undefined,
+                    })
+                  });
                   window.location.href = `/links?node=${toNodeId}`;
                 }
               }}

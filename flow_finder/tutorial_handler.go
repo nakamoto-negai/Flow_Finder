@@ -20,22 +20,22 @@ import (
 // チュートリアル関連のルートを登録
 func RegisterTutorialRoutes(r *gin.Engine, db *gorm.DB, redisClient *redis.Client) {
 	// チュートリアル一覧取得（公開）
-	r.GET("/tutorials", getTutorialsHandler(db))
+	r.GET("/api/tutorials", getTutorialsHandler(db))
 
 	// カテゴリ別チュートリアル取得（公開）
-	r.GET("/tutorials/category/:category", getTutorialsByCategoryHandler(db))
+	r.GET("/api/tutorials/category/:category", getTutorialsByCategoryHandler(db))
 
 	// チュートリアルアップロード（管理者専用）
-	r.POST("/tutorials/upload", AdminRequired(db, redisClient), uploadTutorialHandler(db))
+	r.POST("/api/tutorials/upload", AdminRequired(db, redisClient), uploadTutorialHandler(db))
 
 	// チュートリアル更新（管理者専用）
-	r.PUT("/tutorials/:id", AdminRequired(db, redisClient), updateTutorialHandler(db))
+	r.PUT("/api/tutorials/:id", AdminRequired(db, redisClient), updateTutorialHandler(db))
 
 	// チュートリアル削除（管理者専用）
-	r.DELETE("/tutorials/:id", AdminRequired(db, redisClient), deleteTutorialHandler(db))
+	r.DELETE("/api/tutorials/:id", AdminRequired(db, redisClient), deleteTutorialHandler(db))
 
 	// チュートリアルの表示順を更新（管理者専用）
-	r.PUT("/tutorials/:id/order", AdminRequired(db, redisClient), updateTutorialOrderHandler(db))
+	r.PUT("/api/tutorials/:id/order", AdminRequired(db, redisClient), updateTutorialOrderHandler(db))
 }
 
 // チュートリアル一覧取得ハンドラ
