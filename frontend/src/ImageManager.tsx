@@ -42,7 +42,7 @@ const ImageManager: React.FC = () => {
 
   const fetchImages = async () => {
     try {
-      const response = await fetch(getApiUrl('/images'));
+      const response = await fetch(getApiUrl('/images?limit=10000'));
       if (!response.ok) throw new Error('画像の取得に失敗しました');
       const data = await response.json();
       // データが配列でない場合は空配列を設定

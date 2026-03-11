@@ -198,12 +198,12 @@ func imageListHandler(db *gorm.DB) gin.HandlerFunc {
 
 		// ページネーション
 		page, _ := strconv.Atoi(c.DefaultQuery("page", "1"))
-		limit, _ := strconv.Atoi(c.DefaultQuery("limit", "20"))
+		limit, _ := strconv.Atoi(c.DefaultQuery("limit", "200"))
 		if page < 1 {
 			page = 1
 		}
-		if limit < 1 || limit > 100 {
-			limit = 20
+		if limit < 1 || limit > 10000 {
+			limit = 200
 		}
 		offset := (page - 1) * limit
 
