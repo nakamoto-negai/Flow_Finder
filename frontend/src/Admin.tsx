@@ -13,11 +13,12 @@ import LogViewer from "./LogViewer";
 import ChangeHistoryViewer from "./ChangeHistoryViewer";
 import AppSettingManager from "./AppSettingManager";
 import ImagePinManager from "./ImagePinManager";
+import CategoryGroupManager from "./CategoryGroupManager";
 import Header from "./Header";
 import "./App.css";
 
 const Admin: React.FC = () => {
-  const [currentView, setCurrentView] = useState<'fields' | 'nodes' | 'links' | 'images' | 'node-images' | 'tourist-spots' | 'image-pins' | 'tourist-categories' | 'congestion' | 'logs' | 'tutorials' | 'change-history' | 'settings'>('fields');
+  const [currentView, setCurrentView] = useState<'fields' | 'nodes' | 'links' | 'images' | 'node-images' | 'tourist-spots' | 'image-pins' | 'tourist-categories' | 'category-groups' | 'congestion' | 'logs' | 'tutorials' | 'change-history' | 'settings'>('fields');
   const [selectedSpotId, setSelectedSpotId] = useState<number | null>(null);
   const [isAdmin, setIsAdmin] = useState<boolean>(false);
   const [isLoading, setIsLoading] = useState<boolean>(true);
@@ -94,6 +95,7 @@ const Admin: React.FC = () => {
             { key: 'links', label: 'リンク管理' },
             { key: 'tourist-spots', label: '観光地管理' },
             { key: 'tourist-categories', label: 'カテゴリー管理' },
+            { key: 'category-groups', label: 'グループ管理' },
             { key: 'congestion', label: '混雑度管理' },
             { key: 'images', label: '画像管理' },
             { key: 'node-images', label: 'ノード画像管理' },
@@ -140,6 +142,7 @@ const Admin: React.FC = () => {
         ) : null}
         
         {currentView === 'tourist-categories' && <TouristSpotCategoryManager />}
+        {currentView === 'category-groups' && <CategoryGroupManager />}
         
         {currentView === 'congestion' && selectedSpotId ? (
           <TouristSpotDetail
