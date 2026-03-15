@@ -2,6 +2,11 @@ import React, { useState, useEffect } from 'react';
 import { getApiUrl } from './config';
 import { getAuthHeaders } from './api';
 
+interface CategoryGroup {
+  id: number;
+  name: string;
+}
+
 interface TouristSpotCategory {
   id: number;
   name: string;
@@ -10,12 +15,15 @@ interface TouristSpotCategory {
   color: string;
   display_order: number;
   is_active: boolean;
+  group_id: number | null;
+  group?: CategoryGroup;
   created_at: string;
   updated_at: string;
 }
 
 const TouristSpotCategoryManager: React.FC = () => {
   const [categories, setCategories] = useState<TouristSpotCategory[]>([]);
+  const [groups, setGroups] = useState<CategoryGroup[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [showCreateForm, setShowCreateForm] = useState(false);
@@ -28,27 +36,31 @@ const TouristSpotCategoryManager: React.FC = () => {
     icon: '',
     color: '#3b82f6',
     display_order: 0,
-    is_active: true
+    is_active: true,
+    group_id: null as number | null,
   });
 
   // カテゴリ一覧を取得
   const fetchCategories = async () => {
     setLoading(true);
     setError(null);
-    
+
     try {
-      const response = await fetch(getApiUrl('/tourist-spot-categories'), {
-        headers: {
-          ...getAuthHeaders(),
-        },
-      });
-      
-      if (!response.ok) {
+      const [catRes, groupRes] = await Promise.all([
+        fetch(getApiUrl('/tourist-spot-categories'), { headers: getAuthHeaders() }),
+        fetch(getApiUrl('/category-groups'), { headers: getAuthHeaders() }),
+      ]);
+
+      if (!catRes.ok) {
         throw new Error('カテゴリーの取得に失敗しました');
       }
-      
-      const data = await response.json();
+
+      const data = await catRes.json();
       setCategories(data);
+      if (groupRes.ok) {
+        const groupData = await groupRes.json();
+        setGroups(Array.isArray(groupData) ? groupData : []);
+      }
     } catch (err) {
       setError(err instanceof Error ? err.message : 'エラーが発生しました');
       console.error('Failed to fetch categories:', err);
@@ -178,7 +190,8 @@ const TouristSpotCategoryManager: React.FC = () => {
       icon: '',
       color: '#3b82f6',
       display_order: 0,
-      is_active: true
+      is_active: true,
+      group_id: null,
     });
   };
 
@@ -191,7 +204,8 @@ const TouristSpotCategoryManager: React.FC = () => {
       icon: category.icon,
       color: category.color,
       display_order: category.display_order,
-      is_active: category.is_active
+      is_active: category.is_active,
+      group_id: category.group_id ?? null,
     });
     setShowCreateForm(true);
   };
@@ -332,6 +346,22 @@ const TouristSpotCategoryManager: React.FC = () => {
 
           <div style={{ marginTop: '20px' }}>
             <label style={{ display: 'block', marginBottom: '5px', fontWeight: 'bold' }}>
+              グループ
+            </label>
+            <select
+              value={formData.group_id ?? ''}
+              onChange={e => setFormData({ ...formData, group_id: e.target.value === '' ? null : Number(e.target.value) })}
+              style={{ width: '100%', padding: '8px', border: '1px solid #d1d5db', borderRadius: '4px', fontSize: '14px' }}
+            >
+              <option value="">グループなし</option>
+              {groups.map(g => (
+                <option key={g.id} value={g.id}>{g.name}</option>
+              ))}
+            </select>
+          </div>
+
+          <div style={{ marginTop: '20px' }}>
+            <label style={{ display: 'block', marginBottom: '5px', fontWeight: 'bold' }}>
               説明
             </label>
             <textarea
@@ -416,6 +446,7 @@ const TouristSpotCategoryManager: React.FC = () => {
               <tr style={{ background: '#f9fafb', borderBottom: '1px solid #e5e7eb' }}>
                 <th style={{ padding: '12px', textAlign: 'left', fontWeight: '600' }}>順序</th>
                 <th style={{ padding: '12px', textAlign: 'left', fontWeight: '600' }}>カテゴリー名</th>
+                <th style={{ padding: '12px', textAlign: 'left', fontWeight: '600' }}>グループ</th>
                 <th style={{ padding: '12px', textAlign: 'left', fontWeight: '600' }}>アイコン</th>
                 <th style={{ padding: '12px', textAlign: 'left', fontWeight: '600' }}>色</th>
                 <th style={{ padding: '12px', textAlign: 'left', fontWeight: '600' }}>説明</th>
@@ -429,6 +460,9 @@ const TouristSpotCategoryManager: React.FC = () => {
                 <tr key={category.id} style={{ borderBottom: '1px solid #f3f4f6' }}>
                   <td style={{ padding: '12px' }}>{category.display_order}</td>
                   <td style={{ padding: '12px', fontWeight: '500' }}>{category.name}</td>
+                  <td style={{ padding: '12px', fontSize: '13px', color: '#6b7280' }}>
+                    {category.group?.name ?? '—'}
+                  </td>
                   <td style={{ padding: '12px', fontSize: '18px' }}>{category.icon}</td>
                   <td style={{ padding: '12px' }}>
                     <div style={{

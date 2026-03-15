@@ -68,7 +68,7 @@ const Login: React.FC<LoginProps> = ({ onLogin }) => {
       });
 
       if (signupRes.status === 409) {
-        throw new Error('このユーザー名は既に使用されています');
+        throw new Error('このニックネームは既に使用されています');
       }
       if (!signupRes.ok) {
         const errorData = await signupRes.json();
@@ -120,7 +120,7 @@ const Login: React.FC<LoginProps> = ({ onLogin }) => {
         maxWidth: '400px'
       }}>
         <h2 style={{ textAlign: 'center', marginBottom: '30px', color: '#333' }}>
-          Flow Finder {isSignupMode ? 'ユーザー登録' : 'ログイン'}
+          OC道案内アプリ {isSignupMode ? 'ニックネーム登録' : 'ログイン'}
         </h2>
         
         <form onSubmit={handleSubmit}>
@@ -131,7 +131,7 @@ const Login: React.FC<LoginProps> = ({ onLogin }) => {
               fontWeight: '500',
               color: '#555'
             }}>
-              ユーザー名
+              ニックネーム
             </label>
             <input
               type="text"
@@ -145,7 +145,7 @@ const Login: React.FC<LoginProps> = ({ onLogin }) => {
                 fontSize: '16px',
                 boxSizing: 'border-box'
               }}
-              placeholder="ユーザー名を入力"
+              placeholder="ニックネームを入力"
               disabled={loading}
             />
           </div>
@@ -203,24 +203,8 @@ const Login: React.FC<LoginProps> = ({ onLogin }) => {
               fontSize: '14px'
             }}
           >
-            {isSignupMode ? 'すでにアカウントをお持ちの方はこちら' : '新規ユーザー登録はこちら'}
+            {isSignupMode ? 'すでにアカウントをお持ちの方はこちら' : '新規ニックネーム登録はこちら'}
           </button>
-        </div>
-
-        <div style={{
-          marginTop: '30px',
-          padding: '16px',
-          backgroundColor: '#f8fafc',
-          borderRadius: '4px',
-          fontSize: '14px',
-          color: '#6b7280'
-        }}>
-          <p style={{ margin: 0, marginBottom: '8px' }}>
-            <strong>テスト用ユーザー:</strong>
-          </p>
-          <p style={{ margin: 0 }}>
-            ユーザー名: <code style={{ backgroundColor: '#e5e7eb', padding: '2px 4px', borderRadius: '2px' }}>テストユーザー</code>
-          </p>
         </div>
       </div>
     </div>

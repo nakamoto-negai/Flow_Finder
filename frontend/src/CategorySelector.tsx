@@ -2,6 +2,13 @@ import React, { useState, useEffect } from 'react';
 import { getApiUrl } from './config';
 import { getAuthHeaders } from './api';
 
+interface CategoryGroup {
+  id: number;
+  name: string;
+  display_order: number;
+  is_active: boolean;
+}
+
 interface TouristSpotCategory {
   id: number;
   name: string;
@@ -10,14 +17,108 @@ interface TouristSpotCategory {
   color: string;
   display_order: number;
   is_active: boolean;
+  group_id: number | null;
+  group?: CategoryGroup;
 }
 
 interface CategorySelectorProps {
   onComplete: (selectedCategories?: string[]) => void;
 }
 
+const CategoryGrid: React.FC<{
+  cats: TouristSpotCategory[];
+  processing: Record<number, boolean>;
+  completed: Record<number, boolean>;
+  onAdd: (id: number, name: string) => void;
+}> = ({ cats, processing, completed, onAdd }) => (
+  <div style={{
+    display: 'grid',
+    gridTemplateColumns: 'repeat(auto-fill, minmax(260px, 1fr))',
+    gap: '16px',
+    padding: '20px',
+    background: '#fafafa',
+  }}>
+    {cats.map(category => {
+      const isDone = completed[category.id];
+      const isProc = processing[category.id];
+      return (
+        <div
+          key={category.id}
+          style={{
+            background: 'white',
+            borderRadius: '16px',
+            overflow: 'hidden',
+            boxShadow: '0 2px 12px rgba(0,0,0,0.07)',
+            transition: 'transform 0.2s, box-shadow 0.2s',
+            border: isDone ? `2px solid ${category.color}` : '2px solid transparent',
+          }}
+          onMouseEnter={e => { e.currentTarget.style.transform = 'translateY(-4px)'; e.currentTarget.style.boxShadow = '0 8px 24px rgba(0,0,0,0.13)'; }}
+          onMouseLeave={e => { e.currentTarget.style.transform = 'translateY(0)'; e.currentTarget.style.boxShadow = '0 2px 12px rgba(0,0,0,0.07)'; }}
+        >
+          {/* カラーバー */}
+          <div style={{ height: '6px', background: `linear-gradient(90deg, ${category.color}, ${category.color}99)` }} />
+
+          <div style={{ padding: '18px' }}>
+            {/* アイコン + 名前 */}
+            <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '10px' }}>
+              <div style={{
+                width: '44px', height: '44px', borderRadius: '12px', flexShrink: 0,
+                background: `${category.color}18`,
+                display: 'flex', alignItems: 'center', justifyContent: 'center',
+                fontSize: '24px',
+              }}>
+                {category.icon}
+              </div>
+              <h3 style={{ margin: 0, fontSize: '16px', fontWeight: 'bold', color: '#1f2937', lineHeight: '1.3' }}>
+                {category.name}
+              </h3>
+            </div>
+
+            {/* 説明 */}
+            {category.description && (
+              <p style={{ margin: '0 0 14px 0', color: '#6b7280', fontSize: '13px', lineHeight: '1.6' }}>
+                {category.description}
+              </p>
+            )}
+
+            {/* ボタン */}
+            <button
+              onClick={() => onAdd(category.id, category.name)}
+              disabled={isProc}
+              style={{
+                width: '100%',
+                padding: '10px 0',
+                background: isDone
+                  ? `linear-gradient(135deg, #10b981, #059669)`
+                  : isProc
+                  ? '#d1d5db'
+                  : `linear-gradient(135deg, ${category.color}, ${category.color}cc)`,
+                color: isProc ? '#9ca3af' : 'white',
+                border: 'none',
+                borderRadius: '10px',
+                cursor: isProc ? 'not-allowed' : 'pointer',
+                fontSize: '14px',
+                fontWeight: 'bold',
+                letterSpacing: '0.03em',
+                boxShadow: isDone || isProc ? 'none' : `0 4px 12px ${category.color}55`,
+                transition: 'opacity 0.2s',
+              }}
+              onMouseEnter={e => { if (!isProc) e.currentTarget.style.opacity = '0.88'; }}
+              onMouseLeave={e => { e.currentTarget.style.opacity = '1'; }}
+            >
+              {isDone ? '✅ 追加完了' : isProc ? '⏳ 追加中...' : '✚ 興味ある！'}
+            </button>
+          </div>
+        </div>
+      );
+    })}
+  </div>
+);
+
 const CategorySelector: React.FC<CategorySelectorProps> = ({ onComplete }) => {
   const [categories, setCategories] = useState<TouristSpotCategory[]>([]);
+  const [groups, setGroups] = useState<CategoryGroup[]>([]);
+  const [expandedGroupIds, setExpandedGroupIds] = useState<Set<number | 'ungrouped'>>(new Set());
   const [loading, setLoading] = useState(false);
   const [processing, setProcessing] = useState<Record<number, boolean>>({});
   const [completed, setCompleted] = useState<Record<number, boolean>>({});
@@ -28,12 +129,20 @@ const CategorySelector: React.FC<CategorySelectorProps> = ({ onComplete }) => {
   const fetchCategories = async () => {
     setLoading(true);
     try {
-      const response = await fetch(getApiUrl('/tourist-spot-categories'), {
-        headers: getAuthHeaders(),
-      });
-      if (!response.ok) throw new Error('カテゴリーの取得に失敗しました');
-      const data = await response.json();
-      setCategories(Array.isArray(data) ? data.filter(cat => cat.is_active) : []);
+      const [catRes, groupRes] = await Promise.all([
+        fetch(getApiUrl('/tourist-spot-categories'), { headers: getAuthHeaders() }),
+        fetch(getApiUrl('/category-groups'), { headers: getAuthHeaders() }),
+      ]);
+      if (!catRes.ok) throw new Error('カテゴリーの取得に失敗しました');
+      const data = await catRes.json();
+      setCategories(Array.isArray(data) ? data.filter((cat: TouristSpotCategory) => cat.is_active) : []);
+      if (groupRes.ok) {
+        const groupData = await groupRes.json();
+        const gs: CategoryGroup[] = Array.isArray(groupData) ? groupData : [];
+        setGroups(gs);
+        // 初期状態ですべてのグループを展開
+        setExpandedGroupIds(new Set(gs.map(g => g.id as number | 'ungrouped')));
+      }
     } catch (err) {
       setError(err instanceof Error ? err.message : 'エラーが発生しました');
     } finally {
@@ -53,7 +162,7 @@ const CategorySelector: React.FC<CategorySelectorProps> = ({ onComplete }) => {
         const spotsRes = await fetch(getApiUrl(`/tourist-spots?category=${encodeURIComponent(categoryName)}`), {
           headers: getAuthHeaders(),
         });
-        if (!spotsRes.ok) throw new Error('観光地の取得に失敗しました');
+        if (!spotsRes.ok) throw new Error('My地点の取得に失敗しました');
         const spots = await spotsRes.json();
 
         // favoriteSpotIds を使って対象のみ削除
@@ -87,7 +196,7 @@ const CategorySelector: React.FC<CategorySelectorProps> = ({ onComplete }) => {
 
         if (!response.ok) {
           const errorData = await response.json();
-          throw new Error(errorData.error || 'お気に入り登録に失敗しました');
+          throw new Error(errorData.error || 'My地点登録に失敗しました');
         }
 
         // 追加成功したら完了フラグを永続的に表示
@@ -144,18 +253,14 @@ const CategorySelector: React.FC<CategorySelectorProps> = ({ onComplete }) => {
   }, [categories]);
 
   return (
-    
     <div style={{
       minHeight: '100vh',
-      background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
+      background: 'white',
       padding: '20px'
     }}>
       <div style={{
         maxWidth: '1200px',
         margin: '0 auto',
-        background: 'white',
-        borderRadius: '12px',
-        boxShadow: '0 10px 30px rgba(0,0,0,0.2)',
         padding: '40px'
       }}>
         <div style={{
@@ -170,14 +275,6 @@ const CategorySelector: React.FC<CategorySelectorProps> = ({ onComplete }) => {
           }}>
             興味のあるカテゴリーを選択
           </h1>
-          <p style={{
-            fontSize: '18px',
-            color: '#6b7280',
-            marginBottom: '20px'
-          }}>
-            気になるカテゴリーの「興味ある！」ボタンを押すと、<br />
-            そのカテゴリーの観光地をまとめてお気に入りに追加できます
-          </p>
           <button
             onClick={() => onComplete([])}
             style={{
@@ -190,7 +287,7 @@ const CategorySelector: React.FC<CategorySelectorProps> = ({ onComplete }) => {
               fontSize: '14px'
             }}
           >
-            後でスキップ →
+            スキップ →
           </button>
         </div>
         <div style={{ textAlign: 'center', marginTop: 12 }}>
@@ -228,118 +325,57 @@ const CategorySelector: React.FC<CategorySelectorProps> = ({ onComplete }) => {
             利用可能なカテゴリーがありません
           </div>
         ) : (
-          <div style={{
-            display: 'grid',
-            gridTemplateColumns: 'repeat(auto-fill, minmax(300px, 1fr))',
-            gap: '20px'
-          }}>
-            {categories
-              .sort((a, b) => a.display_order - b.display_order)
-              .map((category) => (
-                <div
-                  key={category.id}
-                  style={{
-                    background: 'white',
-                    border: `2px solid ${category.color}20`,
-                    borderRadius: '12px',
-                    padding: '24px',
-                    boxShadow: '0 4px 12px rgba(0,0,0,0.1)',
-                    transition: 'all 0.3s ease',
-                    position: 'relative'
-                  }}
-                  onMouseEnter={(e) => {
-                    e.currentTarget.style.transform = 'translateY(-4px)';
-                    e.currentTarget.style.boxShadow = '0 8px 20px rgba(0,0,0,0.15)';
-                  }}
-                  onMouseLeave={(e) => {
-                    e.currentTarget.style.transform = 'translateY(0)';
-                    e.currentTarget.style.boxShadow = '0 4px 12px rgba(0,0,0,0.1)';
-                  }}
-                >
-                  <div style={{
-                    display: 'flex',
-                    alignItems: 'center',
-                    marginBottom: '12px'
-                  }}>
-                    <div style={{
-                      fontSize: '32px',
-                      marginRight: '12px'
-                    }}>
-                      {category.icon}
-                    </div>
-                    <div style={{
-                      flex: 1
-                    }}>
-                      <h3 style={{
-                        margin: 0,
-                        fontSize: '20px',
-                        fontWeight: 'bold',
-                        color: category.color
-                      }}>
-                        {category.name}
-                      </h3>
-                    </div>
-                  </div>
-                  
-                  {category.description && (
-                    <p style={{
-                      margin: '0 0 20px 0',
-                      color: '#6b7280',
-                      fontSize: '14px',
-                      lineHeight: '1.5'
-                    }}>
-                      {category.description}
-                    </p>
-                  )}
-
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
+            {/* グループあり: アコーディオン */}
+            {groups.map((g) => {
+              const groupCats = categories
+                .filter(cat => cat.group_id === g.id)
+                .sort((a, b) => a.display_order - b.display_order);
+              if (groupCats.length === 0) return null;
+              const isOpen = expandedGroupIds.has(g.id);
+              return (
+                <div key={g.id} style={{ borderBottom: '1px solid #e5e7eb' }}>
                   <button
-                    onClick={() => addCategoryToFavorites(category.id, category.name)}
-                    disabled={processing[category.id]}
+                    onClick={() => {
+                      setExpandedGroupIds(prev => {
+                        const next = new Set(prev);
+                        if (next.has(g.id)) next.delete(g.id); else next.add(g.id);
+                        return next;
+                      });
+                    }}
                     style={{
-                      width: '100%',
-                      padding: '12px',
-                      background: completed[category.id] 
-                        ? '#10b981' 
-                        : processing[category.id]
-                        ? '#9ca3af'
-                        : category.color,
-                      color: 'white',
-                      border: 'none',
-                      borderRadius: '8px',
-                      cursor: processing[category.id] ? 'not-allowed' : 'pointer',
-                      fontSize: '16px',
-                      fontWeight: 'bold',
-                      transition: 'all 0.3s ease',
-                      display: 'flex',
-                      alignItems: 'center',
-                      justifyContent: 'center',
-                      gap: '8px'
+                      width: '100%', display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+                      padding: '14px 8px',
+                      background: 'white',
+                      border: 'none', cursor: 'pointer',
+                      textAlign: 'left',
                     }}
-                    onMouseEnter={(e) => {
-                      if (!processing[category.id] && !completed[category.id]) {
-                        e.currentTarget.style.opacity = '0.9';
-                      }
-                    }}
-                    onMouseLeave={(e) => {
-                      e.currentTarget.style.opacity = '1';
-                    }}
+                    onMouseEnter={e => { (e.currentTarget as HTMLElement).style.background = '#f9fafb'; }}
+                    onMouseLeave={e => { (e.currentTarget as HTMLElement).style.background = 'white'; }}
                   >
-                    {completed[category.id] ? (
-                      <>
-                        ✅ 追加完了
-                      </>
-                    ) : processing[category.id] ? (
-                      <>
-                        ⏳ 追加中...
-                      </>
-                    ) : (
-                      <>
-                        興味ある！
-                      </>
-                    )}
+                    <span style={{ fontSize: '17px', fontWeight: 'bold', color: '#1f2937' }}>
+                      {g.name}
+                    </span>
+                    <span style={{
+                      fontSize: '16px', color: '#9ca3af',
+                      display: 'inline-block',
+                      transform: isOpen ? 'rotate(180deg)' : 'rotate(0deg)',
+                      transition: 'transform 0.3s',
+                    }}>▾</span>
                   </button>
+                  {isOpen && <CategoryGrid cats={groupCats} processing={processing} completed={completed} onAdd={addCategoryToFavorites} />}
                 </div>
-              ))}
+              );
+            })}
+
+            {/* グループなし: ヘッダーなしで直接表示 */}
+            {(() => {
+              const ungrouped = categories
+                .filter(cat => cat.group_id === null)
+                .sort((a, b) => a.display_order - b.display_order);
+              if (ungrouped.length === 0) return null;
+              return <CategoryGrid cats={ungrouped} processing={processing} completed={completed} onAdd={addCategoryToFavorites} />;
+            })()}
           </div>
         )}
 

@@ -284,7 +284,7 @@ const MapView: React.FC<{ linkMode?: boolean, onLinkCreated?: () => void, fieldI
       }}>
         {/* フィールド選択 */}
         <div style={{ marginBottom: 12 }}>
-          <label style={{ fontWeight: 'bold', fontSize: '1.2rem', display: 'block', marginBottom: 8 }}>フィールドを選択
+          <label style={{ fontWeight: 'bold', fontSize: '1.2rem', display: 'block', marginBottom: 8 }}>地図を選択
           </label>
           <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
             {fields.map(field => (

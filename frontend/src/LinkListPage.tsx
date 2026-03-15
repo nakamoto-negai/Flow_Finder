@@ -67,7 +67,7 @@ const LinkListPage: React.FC = () => {
         setArrivedSpots(prev => prev.filter(s => s.id !== spotId));
       }
     } catch (err) {
-      console.error('お気に入り解除エラー:', err);
+      console.error('My地点解除エラー:', err);
     } finally {
       setRemovingFavorite(null);
     }
@@ -156,14 +156,14 @@ const LinkListPage: React.FC = () => {
         return spotsArray;
       }
     } catch (err) {
-      console.error('全観光地の取得に失敗:', err);
+      console.error('全My地点の取得に失敗:', err);
     }
     return [];
   };
 
   // 全観光地への経路を計算
   const calculateAllRoutes = async (spots: any[], node: any) => {
-    console.log(`${spots.length}件の観光地への経路を計算中...`);
+    console.log(`${spots.length}件のMy地点への経路を計算中...`);
     for (const spot of spots) {
       if (spot.nearest_node_id) {
         await calculateRouteToSpot(spot, node);
@@ -230,10 +230,10 @@ const LinkListPage: React.FC = () => {
           calculateAllFavoriteRoutes(favoritesData, node);
         }
       } else if (response.status === 401) {
-        setError('お気に入り機能を使用するにはログインが必要です。');
+        setError('My地点機能を使用するにはログインが必要です。');
       }
     } catch (err) {
-      console.error('お気に入り観光地の取得に失敗:', err);
+      console.error('My地点の取得に失敗:', err);
     }
   };
 
@@ -264,10 +264,10 @@ const LinkListPage: React.FC = () => {
   // お気に入り観光地への経路を計算
   const calculateRouteToFavorite = async (favorite: UserFavoriteTouristSpot, node: any) => {
     const touristSpot = favorite.tourist_spot;
-    console.log(`観光地「${touristSpot.name}」の経路を計算中...`);
+    console.log(`My地点「${touristSpot.name}」の経路を計算中...`);
     
     if (!touristSpot.nearest_node_id) {
-      console.error(`観光地「${touristSpot.name}」に最寄りノードが設定されていません`);
+      console.error(`My地点「${touristSpot.name}」に最寄りノードが設定されていません`);
       return;
     }
 
@@ -349,22 +349,23 @@ const LinkListPage: React.FC = () => {
                       「{spot.name}」に到着しました
                     </div>
                     <div style={{ display: 'flex', gap: '10px', justifyContent: 'center', flexWrap: 'wrap' }}>
-                      <button
-                        onClick={() => receiveReward(spot)}
-                        disabled={!spot.reward_url}
-                        style={{
-                          padding: '8px 20px',
-                          background: !spot.reward_url ? 'rgba(255,255,255,0.3)' : '#f59e0b',
-                          color: 'white',
-                          border: 'none',
-                          borderRadius: '8px',
-                          fontSize: '14px',
-                          fontWeight: 'bold',
-                          cursor: !spot.reward_url ? 'default' : 'pointer',
-                        }}
-                      >
-                        特典を受け取る
-                      </button>
+                      {spot.reward_url && (
+                        <button
+                          onClick={() => receiveReward(spot)}
+                          style={{
+                            padding: '8px 20px',
+                            background: '#f59e0b',
+                            color: 'white',
+                            border: 'none',
+                            borderRadius: '8px',
+                            fontSize: '14px',
+                            fontWeight: 'bold',
+                            cursor: 'pointer',
+                          }}
+                        >
+                          特典を受け取る
+                        </button>
+                      )}
                       <button
                         onClick={() => removeFavorite(spot.id)}
                         disabled={removingFavorite === spot.id}
@@ -388,7 +389,7 @@ const LinkListPage: React.FC = () => {
 
             <div style={{ marginBottom: '20px', textAlign: 'center' }}>
               <h1 style={{ fontSize: "1.5rem", marginBottom: 10, color: '#1f2937' }}>
-                {currentNode.name || `ノード ${currentNode.id}`} からの経路
+                {currentNode.name || `ノード ${currentNode.id}`} からのルート
               </h1>
               <button
                 onClick={() => { window.location.href = `/route-selector?node_id=${currentNode.id}`; }}
@@ -422,7 +423,7 @@ const LinkListPage: React.FC = () => {
                   color: '#92400e',
                   fontWeight: 'bold'
                 }}>
-                  お気に入り観光地
+                  My地点
                 </h3>
                 <div style={{
                   display: 'flex',
@@ -430,7 +431,7 @@ const LinkListPage: React.FC = () => {
                   gap: '10px'
                 }}>
                 {favorites.map(favorite => {
-                  const route = favoriteRoutes[favorite.id];
+                  // const route = favoriteRoutes[favorite.id];
                   const spot = favorite.tourist_spot;
                   // const congestion = getCongestionLevel(spot.current_count, spot.max_capacity);
                   return (
@@ -477,7 +478,7 @@ const LinkListPage: React.FC = () => {
                           混雑度: {spot.max_capacity > 0 ? `${Math.round((spot.current_count / spot.max_capacity) * 100)}%` : '---'}
                         </span> */}
                         {/* 距離 */}
-                        <span style={{
+                        {/* <span style={{
                           padding: '3px 10px',
                           borderRadius: '12px',
                           fontSize: '13px',
@@ -486,9 +487,9 @@ const LinkListPage: React.FC = () => {
                           color: '#1e40af'
                         }}>
                           移動距離: {route ? `${route.total_distance.toFixed(0)}m` : '計算中...'}
-                        </span>
+                        </span> */}
                         {/* 所要時間 */}
-                        <span style={{
+                        {/* <span style={{
                           padding: '3px 10px',
                           borderRadius: '12px',
                           fontSize: '13px',
@@ -497,7 +498,7 @@ const LinkListPage: React.FC = () => {
                           color: '#7c3aed'
                         }}>
                           所要時間: {route ? `約${Math.ceil(route.estimated_time || 0)}分` : '---'}
-                        </span>
+                        </span> */}
                       </div>
                     </div>
                   );
@@ -522,7 +523,7 @@ const LinkListPage: React.FC = () => {
                 alignItems: 'center',
                 gap: '8px'
               }}>
-                進行可能な経路
+                進行可能なルート
               </h3>
               
               {isLoadingLinks ? (

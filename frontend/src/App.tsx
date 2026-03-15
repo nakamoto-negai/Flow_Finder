@@ -70,6 +70,11 @@ function App() {
       window.location.href = `/tutorials?categories=${csv}`;
       return;
     }
+
+    // /category-selector URLから直接アクセスしていた場合はトップへ
+    if (window.location.pathname === '/category-selector') {
+      window.location.href = '/';
+    }
   };
 
   // ログアウト処理

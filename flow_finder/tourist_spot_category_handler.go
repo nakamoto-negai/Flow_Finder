@@ -33,8 +33,8 @@ func getTouristSpotCategoriesHandler(db *gorm.DB) gin.HandlerFunc {
 	return func(c *gin.Context) {
 		var categories []TouristSpotCategory
 
-		// アクティブなカテゴリのみを表示順序でソート
-		if err := db.Where("is_active = ?", true).
+		// アクティブなカテゴリのみを表示順序でソート（グループ情報をプリロード）
+		if err := db.Preload("Group").Where("is_active = ?", true).
 			Order("display_order ASC, created_at ASC").
 			Find(&categories).Error; err != nil {
 			c.JSON(500, gin.H{"error": "カテゴリの取得に失敗しました"})
@@ -74,6 +74,7 @@ func touristSpotCategoryCreateHandler(db *gorm.DB) gin.HandlerFunc {
 			Color        string `json:"color"`
 			DisplayOrder int    `json:"display_order"`
 			IsActive     *bool  `json:"is_active"`
+			GroupID      *uint  `json:"group_id"`
 		}
 
 		if err := c.ShouldBindJSON(&req); err != nil {
@@ -87,7 +88,8 @@ func touristSpotCategoryCreateHandler(db *gorm.DB) gin.HandlerFunc {
 			Icon:         req.Icon,
 			Color:        req.Color,
 			DisplayOrder: req.DisplayOrder,
-			IsActive:     true, // デフォルトはアクティブ
+			IsActive:     true,
+			GroupID:      req.GroupID,
 		}
 
 		if req.IsActive != nil {
@@ -128,6 +130,7 @@ func touristSpotCategoryUpdateHandler(db *gorm.DB) gin.HandlerFunc {
 			Color        *string `json:"color"`
 			DisplayOrder *int    `json:"display_order"`
 			IsActive     *bool   `json:"is_active"`
+			GroupID      *uint   `json:"group_id"`
 		}
 
 		if err := c.ShouldBindJSON(&req); err != nil {
@@ -153,6 +156,13 @@ func touristSpotCategoryUpdateHandler(db *gorm.DB) gin.HandlerFunc {
 		}
 		if req.IsActive != nil {
 			category.IsActive = *req.IsActive
+		}
+		if req.GroupID != nil {
+			if *req.GroupID == 0 {
+				category.GroupID = nil
+			} else {
+				category.GroupID = req.GroupID
+			}
 		}
 
 		if err := db.Save(&category).Error; err != nil {

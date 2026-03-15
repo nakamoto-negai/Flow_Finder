@@ -8,6 +8,7 @@ services:
       - ./apache/app.conf:/usr/local/apache2/conf/extra/app.conf
       - /etc/letsencrypt/live/oc-routenavi.cc.it-hiroshima.ac.jp/fullchain.pem:/etc/ssl/certs/server.crt:ro
       - /etc/letsencrypt/live/oc-routenavi.cc.it-hiroshima.ac.jp/privkey.pem:/etc/ssl/private/server.key:ro
+      - ./flow_finder/uploads:/var/www/uploads:ro
     depends_on:
       - app
       - frontend
@@ -20,6 +21,9 @@ services:
         sed -i 's@#LoadModule rewrite_module@LoadModule rewrite_module@' /usr/local/apache2/conf/httpd.conf &&
         sed -i 's@#LoadModule proxy_module@LoadModule proxy_module@' /usr/local/apache2/conf/httpd.conf &&
         sed -i 's@#LoadModule proxy_http_module@LoadModule proxy_http_module@' /usr/local/apache2/conf/httpd.conf &&
+        sed -i 's@#LoadModule headers_module@LoadModule headers_module@' /usr/local/apache2/conf/httpd.conf &&
+        sed -i 's@#LoadModule expires_module@LoadModule expires_module@' /usr/local/apache2/conf/httpd.conf &&
+        sed -i 's@#LoadModule alias_module@LoadModule alias_module@' /usr/local/apache2/conf/httpd.conf &&
         echo 'Include conf/extra/app.conf' >> /usr/local/apache2/conf/httpd.conf &&
         httpd-foreground
       "
