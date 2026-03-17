@@ -79,7 +79,7 @@ func main() {
 
 	// GORMでテーブル自動作成（外部キー制約の依存関係順序: Field → Node → TouristSpotCategory → TouristSpot → Link → Image → NodeImage → Tutorial → 独立テーブル）
   
-	if err := db.AutoMigrate(&Field{}, &User{}, &Node{}, &CategoryGroup{}, &TouristSpotCategory{}, &TouristSpot{}, &Link{}, &Image{}, &NodeImage{}, &Tutorial{}, &UserLog{}, &UserFavoriteTouristSpot{}, &CongestionRecord{}, &ChangeHistory{}, &AppSetting{}); err != nil {
+	if err := db.AutoMigrate(&Field{}, &User{}, &Node{}, &CategoryGroup{}, &TouristSpotCategory{}, &TouristSpot{}, &Link{}, &Image{}, &NodeImage{}, &ImagePin{}, &Tutorial{}, &UserLog{}, &UserFavoriteTouristSpot{}, &CongestionRecord{}, &ChangeHistory{}, &AppSetting{}); err != nil {
     panic(fmt.Sprintf("AutoMigrate失敗: %v", err))
 	}
 
