@@ -103,7 +103,7 @@ const Header: React.FC<HeaderProps> = ({ onLogout }) => {
               現在地選択
             </button>
             <button style={btnStyle} onClick={() => { window.location.href = '/favorites'; close(); }}>
-              My地点
+              目的地
             </button>
             <button style={btnStyle} onClick={() => { window.location.href = '/tutorials'; close(); }}>
               利用方法

@@ -2,6 +2,7 @@ import React, { useEffect, useState, useRef } from 'react';
 import Header from './Header';
 import { getApiUrl, STATIC_BASE_URL } from './config';
 import { apiRequest } from './api';
+import { logger } from './logger';
 
 interface NodeImage {
   id: number;
@@ -62,6 +63,7 @@ const RouteSelector: React.FC = () => {
 
   useEffect(() => {
     const nodeId = getNodeId();
+    logger.logPageView(`/route-selector?node_id=${nodeId ?? ''}`);
     if (!nodeId) {
       setError('ノードIDが指定されていません');
       setLoading(false);
@@ -106,8 +108,12 @@ const RouteSelector: React.FC = () => {
           .map(s =>
             fetch(getApiUrl('/dijkstra'), {
               method: 'POST',
-              headers: { 'Content-Type': 'application/json' },
-              body: JSON.stringify({ start_node_id: nodeId, end_node_id: s.nearest_node_id }),
+              headers: {
+                'Content-Type': 'application/json',
+                'X-User-Id': localStorage.getItem('userId') || '',
+                'X-Session-Id': sessionStorage.getItem('session_id') || '',
+              },
+              body: JSON.stringify({ start_node_id: nodeId, end_node_id: s.nearest_node_id, spot_name: s.name }),
             })
               .then(r => r.ok ? r.json() : null)
               .then(d => d?.path?.length > 1 ? { spotId: s.id, route: { path: d.path, total_distance: d.total_distance } as RouteInfo } : null)
@@ -264,7 +270,17 @@ const RouteSelector: React.FC = () => {
                 return (
                   <button
                     key={pin.id}
-                    onClick={(e) => { e.stopPropagation(); window.location.href = `/link-image?id=${pin.link_id}`; }}
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      const spotsInDir = getSpotsInDirection(pin);
+                      logger.logAction('route_navigate', 'navigation', {
+                        link_id: pin.link_id,
+                        label: pin.label,
+                        spots: spotsInDir.map(s => s.name),
+                        start_node_id: getNodeId(),
+                      });
+                      window.location.href = `/link-image?id=${pin.link_id}`;
+                    }}
                     style={{
                       position: 'absolute',
                       left: `${pin.x}%`, top: `${pin.y}%`,

@@ -162,7 +162,7 @@ const MyPage: React.FC = () => {
               onMouseOut={(e) => e.currentTarget.style.background = '#3b82f6'}
             >
               <span style={{ fontSize: '20px' }}></span>
-              <span>お気に入り観光地を見る</span>
+              <span>目的地を見る</span>
             </button>
 
             <button
@@ -185,7 +185,7 @@ const MyPage: React.FC = () => {
               onMouseOut={(e) => e.currentTarget.style.background = '#10b981'}
             >
               <span style={{ fontSize: '20px' }}></span>
-              <span>現在地から観光地を探す</span>
+              <span>現在地から目的地を探す</span>
             </button>
 
             {isAdmin && (
