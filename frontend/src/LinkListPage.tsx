@@ -2,6 +2,7 @@ import React, { useEffect, useState } from "react";
 import Header from "./Header";
 import { apiRequest } from './api';
 import { getApiUrl } from './config';
+import { logger } from './logger';
 import type { UserFavoriteTouristSpot, Node } from './types';
 
 interface RouteInfo {
@@ -81,6 +82,7 @@ const LinkListPage: React.FC = () => {
   };
 
   useEffect(() => {
+    logger.logPageView(window.location.pathname + window.location.search);
     const nodeId = getNodeIdFromUrl();
     
     if (!nodeId) {
@@ -178,10 +180,15 @@ const LinkListPage: React.FC = () => {
     try {
       const response = await fetch(getApiUrl('/dijkstra'), {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: {
+          'Content-Type': 'application/json',
+          'X-User-Id': localStorage.getItem('userId') || '',
+          'X-Session-Id': sessionStorage.getItem('session_id') || '',
+        },
         body: JSON.stringify({
           start_node_id: node.id,
-          end_node_id: spot.nearest_node_id
+          end_node_id: spot.nearest_node_id,
+          spot_name: spot.name,
         })
       });
 
@@ -197,6 +204,13 @@ const LinkListPage: React.FC = () => {
               estimated_time: data.total_distance / 80
             }
           }));
+          logger.logAction('dijkstra_route', 'navigation', {
+            from_node_id: node.id,
+            to_node_id: spot.nearest_node_id,
+            spot_name: spot.name,
+            distance: data.total_distance,
+            node_count: data.node_count,
+          });
         }
       }
     } catch (err: any) {
@@ -277,7 +291,8 @@ const LinkListPage: React.FC = () => {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           start_node_id: node.id,
-          end_node_id: touristSpot.nearest_node_id
+          end_node_id: touristSpot.nearest_node_id,
+          spot_name: touristSpot.name,
         })
       });
 
@@ -423,7 +438,7 @@ const LinkListPage: React.FC = () => {
                   color: '#92400e',
                   fontWeight: 'bold'
                 }}>
-                  My地点
+                  目的地
                 </h3>
                 <div style={{
                   display: 'flex',

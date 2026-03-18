@@ -1,3 +1,5 @@
+import { API_BASE_URL } from './config';
+
 // ログ送信のためのユーティリティクラス
 export class Logger {
   private static instance: Logger;
@@ -32,7 +34,7 @@ export class Logger {
 
   // ユーザーIDを取得
   private getUserId(): number {
-    const userId = localStorage.getItem('user_id');
+    const userId = localStorage.getItem('userId');
     return userId ? parseInt(userId, 10) : 0;
   }
 
@@ -65,7 +67,7 @@ export class Logger {
     referrer?: string;
   }): Promise<void> {
     try {
-      const response = await fetch('http://localhost:8080/api/logs', {
+      const response = await fetch(`${API_BASE_URL}/logs`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',

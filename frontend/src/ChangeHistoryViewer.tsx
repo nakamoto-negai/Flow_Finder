@@ -311,7 +311,20 @@ const ChangeHistoryViewer: React.FC = () => {
                         <td style={{ padding: "12px", fontWeight: "500" }}>
                           {history.table_name}
                         </td>
-                        <td style={{ padding: "12px" }}>{history.record_id}</td>
+                        <td style={{ padding: "12px" }}>
+                          {history.record_id}
+                          {history.table_name === "user_favorite_tourist_spots" && (() => {
+                            try {
+                              const data = JSON.parse(history.after || history.before || "{}");
+                              const name = data.tourist_spot?.name;
+                              return name ? (
+                                <div style={{ fontSize: "12px", color: "#7c3aed", marginTop: "2px", fontWeight: "500" }}>
+                                  {name}
+                                </div>
+                              ) : null;
+                            } catch { return null; }
+                          })()}
+                        </td>
                         <td style={{ padding: "12px" }}>{history.user_id || "-"}</td>
                         <td style={{ padding: "12px" }}>
                           <span

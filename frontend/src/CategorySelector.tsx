@@ -273,7 +273,7 @@ const CategorySelector: React.FC<CategorySelectorProps> = ({ onComplete }) => {
             color: '#1f2937',
             marginBottom: '16px'
           }}>
-            興味のあるカテゴリーを選択
+            興味のある目的地カテゴリーを選択
           </h1>
           <button
             onClick={() => onComplete([])}

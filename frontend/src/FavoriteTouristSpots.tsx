@@ -58,10 +58,10 @@ const FavoriteTouristSpots: React.FC = () => {
 
   return (
     <div style={{ maxWidth: 800, margin: '0 auto', padding: '0 16px 40px' }}>
-      <h2 style={{ color: '#1f2937', marginBottom: 4 }}>My地点一覧</h2>
+      <h2 style={{ color: '#1f2937', marginBottom: 4 }}>目的地一覧</h2>
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 20, flexWrap: 'wrap', gap: 10 }}>
         <p style={{ color: '#6b7280', fontSize: 14, margin: 0 }}>
-          My地点登録中: <strong>{favoriteCount}</strong> 件
+          目的地登録中: <strong>{favoriteCount}</strong> 件
         </p>
         <button
           onClick={() => window.location.href = '/category-selector'}
@@ -76,7 +76,7 @@ const FavoriteTouristSpots: React.FC = () => {
             fontSize: 14,
           }}
         >
-          ＋ カテゴリーからMy地点を追加
+          ＋ カテゴリーから目的地を追加
         </button>
       </div>
 
@@ -102,7 +102,7 @@ const FavoriteTouristSpots: React.FC = () => {
       {loading ? (
         <div style={{ textAlign: 'center', padding: 60, color: '#6b7280' }}>読み込み中...</div>
       ) : filtered.length === 0 ? (
-        <div style={{ textAlign: 'center', padding: 60, color: '#6b7280' }}>My地点が見つかりません</div>
+        <div style={{ textAlign: 'center', padding: 60, color: '#6b7280' }}>目的地が見つかりません</div>
       ) : (
         <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
           {filtered.map(spot => {
@@ -132,7 +132,7 @@ const FavoriteTouristSpots: React.FC = () => {
                 <div style={{ flex: 1, minWidth: 0 }}>
                   <div style={{ fontWeight: 'bold', fontSize: 16, color: '#1f2937', marginBottom: 2 }}>
                     {spot.name}
-                    {isFav && <span style={{ marginLeft: 6, color: '#f59e0b', fontSize: 14 }}>★ お気に入り</span>}
+                    {isFav && <span style={{ marginLeft: 6, color: '#f59e0b', fontSize: 14 }}>★ 目的地</span>}
                   </div>
                   {spot.description && (
                     <div style={{ fontSize: 13, color: '#6b7280', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>

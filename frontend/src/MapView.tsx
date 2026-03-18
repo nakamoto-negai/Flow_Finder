@@ -1,6 +1,7 @@
 
 import React, { useState, useEffect, useRef } from 'react';
 import { getApiUrl, STATIC_BASE_URL } from './config';
+import { logger } from './logger';
 import type { Field, Node } from './types';
 
 interface NodeImage {
@@ -80,9 +81,12 @@ const MapView: React.FC<{ linkMode?: boolean, onLinkCreated?: () => void, fieldI
       .catch(() => setTouristSpots([]));
   }, [fieldId]);
 
-  // activeFieldが変更されたら画像の読み込み状態をリセット
+  // activeFieldが変更されたら画像の読み込み状態をリセット＆ページビューログ
   useEffect(() => {
     setImageLoaded(false);
+    if (activeField) {
+      logger.logPageView(`/map/${activeField.id}`);
+    }
   }, [activeField]);
 
   // フィールド変更時の処理（別ページに遷移）

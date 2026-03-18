@@ -12,6 +12,7 @@ import TutorialViewer from './TutorialViewer';
 // import TouristSpotDetail from './TouristSpotDetail'; // 管理者用
 import TouristSpotDetailUser from './TouristSpotDetailUser';
 import RouteSelector from './RouteSelector';
+import LinkListPage from './LinkListPage';
 import { logger } from './logger';
 import './App.css';
 
@@ -36,7 +37,7 @@ function App() {
     return () => {
       window.removeEventListener('beforeunload', handleBeforeUnload);
     };
-  }, [token]);
+  }, []);
 
   // ログイン成功処理
   const handleLogin = (newToken: string, newUserId: number, isNewUser: boolean = false) => {
@@ -155,6 +156,13 @@ function App() {
       return <Login onLogin={handleLogin} />;
     }
     return <RouteSelector />;
+  }
+
+  if (window.location.pathname === "/link-list") {
+    if (!token) {
+      return <Login onLogin={handleLogin} />;
+    }
+    return <LinkListPage />;
   }
 
   if (window.location.pathname.startsWith("/tourist-spot/")) {

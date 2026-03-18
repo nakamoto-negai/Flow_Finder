@@ -1,6 +1,8 @@
 package main
 
 import (
+	"encoding/json"
+	"fmt"
 	"strconv"
 
 	"github.com/gin-gonic/gin"
@@ -29,8 +31,9 @@ func RegisterDijkstraRoutes(r *gin.Engine, db *gorm.DB) {
 func dijkstraCalculationHandler(db *gorm.DB) gin.HandlerFunc {
 	return func(c *gin.Context) {
 		var req struct {
-			StartNodeID uint `json:"start_node_id" binding:"required"`
-			EndNodeID   uint `json:"end_node_id" binding:"required"`
+			StartNodeID uint   `json:"start_node_id" binding:"required"`
+			EndNodeID   uint   `json:"end_node_id" binding:"required"`
+			SpotName    string `json:"spot_name"`
 		}
 
 		if err := c.ShouldBindJSON(&req); err != nil {
@@ -91,14 +94,40 @@ func dijkstraCalculationHandler(db *gorm.DB) gin.HandlerFunc {
 			pathNodes = append(pathNodes, startNode)
 		}
 
-		// データベース操作ログを記録
+		// ログを記録（スポット名を含む）
 		var userID *uint = nil
+		if userIdStr := c.GetHeader("X-User-Id"); userIdStr != "" {
+			if id, err := strconv.Atoi(userIdStr); err == nil && id > 0 {
+				uid := uint(id)
+				userID = &uid
+			}
+		}
 		sessionID := c.GetHeader("X-Session-Id")
 		if sessionID == "" {
 			sessionID = generateHandlerSessionID()
 		}
-		LogDatabaseOperation(db, userID, sessionID, "read", "dijkstra_calculation",
-			strconv.Itoa(int(req.StartNodeID))+"-"+strconv.Itoa(int(req.EndNodeID)), c)
+		logData := map[string]interface{}{
+			"start_node_id":  req.StartNodeID,
+			"end_node_id":    req.EndNodeID,
+			"total_distance": result.TotalDistance,
+			"node_count":     len(pathNodes),
+		}
+		if req.SpotName != "" {
+			logData["spot_name"] = req.SpotName
+		}
+		logDataJSON, _ := json.Marshal(logData)
+		LogUserActivity(db, UserLog{
+			UserID:    userID,
+			SessionID: sessionID,
+			LogType:   LogTypeAction,
+			Category:  CategoryNavigation,
+			Action:    fmt.Sprintf("dijkstra: node%d→node%d", req.StartNodeID, req.EndNodeID),
+			Path:      c.Request.URL.Path,
+			Method:    c.Request.Method,
+			UserAgent: c.Request.UserAgent(),
+			IPAddress: c.ClientIP(),
+			Data:      string(logDataJSON),
+		})
 
 		c.JSON(200, gin.H{
 			"result":         "ok",

@@ -378,6 +378,37 @@ const LogViewer: React.FC = () => {
                             })()}
                           </div>
                         )}
+                        {/* ダイクストラ経路計算ログの場合はスポット名と距離を表示 */}
+                        {(log.action === "dijkstra_route" || log.action.startsWith("dijkstra:")) && log.data && (
+                          <div style={{ fontSize: "12px", color: "#7c3aed", marginTop: "4px" }}>
+                            {(() => {
+                              try {
+                                const parsed = typeof log.data === "string" ? JSON.parse(log.data) : log.data;
+                                const spotPart = parsed.spot_name ? `→ ${parsed.spot_name}` : `node${parsed.start_node_id}→node${parsed.end_node_id}`;
+                                const distPart = parsed.total_distance != null ? `（${parsed.total_distance}px / ${parsed.node_count}ノード）` : parsed.distance != null ? `（${parsed.distance}px）` : "";
+                                return spotPart + distPart;
+                              } catch {
+                                return log.data;
+                              }
+                            })()}
+                          </div>
+                        )}
+                        {/* ルート選択ナビゲーションログの場合は方面を表示 */}
+                        {log.action === "route_navigate" && log.data && (
+                          <div style={{ fontSize: "12px", color: "#0891b2", marginTop: "4px" }}>
+                            {(() => {
+                              try {
+                                const parsed = typeof log.data === "string" ? JSON.parse(log.data) : log.data;
+                                const spots = Array.isArray(parsed.spots) && parsed.spots.length > 0
+                                  ? parsed.spots.join(", ")
+                                  : "方面不明";
+                                return `${parsed.label ? parsed.label + " / " : ""}${spots} 方面`;
+                              } catch {
+                                return log.data;
+                              }
+                            })()}
+                          </div>
+                        )}
                       </td>
                       <td style={{ padding: "12px", maxWidth: "200px", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
                         {log.path}
