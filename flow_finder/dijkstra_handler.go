@@ -1,8 +1,6 @@
 package main
 
 import (
-	"encoding/json"
-	"fmt"
 	"strconv"
 
 	"github.com/gin-gonic/gin"
@@ -93,41 +91,6 @@ func dijkstraCalculationHandler(db *gorm.DB) gin.HandlerFunc {
 			// 経路がない場合は開始ノードのみ
 			pathNodes = append(pathNodes, startNode)
 		}
-
-		// ログを記録（スポット名を含む）
-		var userID *uint = nil
-		if userIdStr := c.GetHeader("X-User-Id"); userIdStr != "" {
-			if id, err := strconv.Atoi(userIdStr); err == nil && id > 0 {
-				uid := uint(id)
-				userID = &uid
-			}
-		}
-		sessionID := c.GetHeader("X-Session-Id")
-		if sessionID == "" {
-			sessionID = generateHandlerSessionID()
-		}
-		logData := map[string]interface{}{
-			"start_node_id":  req.StartNodeID,
-			"end_node_id":    req.EndNodeID,
-			"total_distance": result.TotalDistance,
-			"node_count":     len(pathNodes),
-		}
-		if req.SpotName != "" {
-			logData["spot_name"] = req.SpotName
-		}
-		logDataJSON, _ := json.Marshal(logData)
-		LogUserActivity(db, UserLog{
-			UserID:    userID,
-			SessionID: sessionID,
-			LogType:   LogTypeAction,
-			Category:  CategoryNavigation,
-			Action:    fmt.Sprintf("dijkstra: node%d→node%d", req.StartNodeID, req.EndNodeID),
-			Path:      c.Request.URL.Path,
-			Method:    c.Request.Method,
-			UserAgent: c.Request.UserAgent(),
-			IPAddress: c.ClientIP(),
-			Data:      string(logDataJSON),
-		})
 
 		c.JSON(200, gin.H{
 			"result":         "ok",
@@ -220,15 +183,6 @@ func touristSpotRouteHandler(db *gorm.DB) gin.HandlerFunc {
 				pathNodes = append(pathNodes, *startSpot.Node)
 			}
 		}
-
-		// データベース操作ログを記録
-		var userID *uint = nil
-		sessionID := c.GetHeader("X-Session-Id")
-		if sessionID == "" {
-			sessionID = generateHandlerSessionID()
-		}
-		LogDatabaseOperation(db, userID, sessionID, "read", "tourist_spot_route",
-			strconv.Itoa(int(req.StartSpotID))+"-"+strconv.Itoa(int(req.EndSpotID)), c)
 
 		c.JSON(200, gin.H{
 			"result":         "ok",
@@ -392,14 +346,6 @@ func availableLinksHandler(db *gorm.DB) gin.HandlerFunc {
 				Distance: link.Distance,
 			})
 		}
-
-		// データベース操作ログを記録
-		var userID *uint = nil
-		sessionID := c.GetHeader("X-Session-Id")
-		if sessionID == "" {
-			sessionID = generateHandlerSessionID()
-		}
-		LogDatabaseOperation(db, userID, sessionID, "read", "available_links", nodeIDStr, c)
 
 		c.JSON(200, gin.H{
 			"result":          "ok",
