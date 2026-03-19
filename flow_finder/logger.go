@@ -226,15 +226,18 @@ func RegisterLogRoutes(r *gin.Engine, db *gorm.DB) {
 		}
 		
 		offset := (page - 1) * limit
-		
+
+		// 総件数を取得（ページネーション前に実行）
+		var total int64
+		if err := query.Count(&total).Error; err != nil {
+			c.JSON(500, gin.H{"error": "failed to fetch logs"})
+			return
+		}
+
 		if err := query.Order("created_at DESC").Offset(offset).Limit(limit).Find(&logs).Error; err != nil {
 			c.JSON(500, gin.H{"error": "failed to fetch logs"})
 			return
 		}
-		
-		// 総件数を取得（フィルタ適用済みの件数）
-		var total int64
-		query.Session(&gorm.Session{}).Count(&total)
 		
 		c.JSON(200, gin.H{
 			"logs":  logs,

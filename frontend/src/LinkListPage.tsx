@@ -204,13 +204,6 @@ const LinkListPage: React.FC = () => {
               estimated_time: data.total_distance / 80
             }
           }));
-          logger.logAction('dijkstra_route', 'navigation', {
-            from_node_id: node.id,
-            to_node_id: spot.nearest_node_id,
-            spot_name: spot.name,
-            distance: data.total_distance,
-            node_count: data.node_count,
-          });
         }
       }
     } catch (err: any) {
